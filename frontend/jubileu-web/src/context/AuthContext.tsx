@@ -4,9 +4,8 @@ import {
   useContext,
   useEffect,
   useState,
+  type ReactNode,
 } from "react";
-
-import type { ReactNode } from "react";
 
 type UserRole = "coach" | "admin" | "viewer";
 
@@ -20,29 +19,24 @@ export type User = {
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, senha: string) => Promise<void>;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = "jubileu-auth";
+const STORAGE_KEY = "jubileu:authUser";
 
-type Props = {
-  children: ReactNode;
-};
-
-export function AuthProvider({ children }: Props) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Carrega do localStorage ao iniciar
+  // Carrega usuário do localStorage ao iniciar
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const parsed: User = JSON.parse(stored);
-        setUser(parsed);
+        setUser(JSON.parse(stored));
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -50,12 +44,14 @@ export function AuthProvider({ children }: Props) {
     setLoading(false);
   }, []);
 
-  async function login(email: string, password: string) {
-    // Aqui depois a gente troca por chamada de API.
-    // Por enquanto aceita qualquer email/senha e cria um usuário fake.
+  // Login SIMULADO (futuro: trocar por chamada à API)
+  async function login(email: string, senha: string) {
+    // Simula latência
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     const fakeUser: User = {
       id: "1",
-      name: email.split("@")[0] || "Professor",
+      name: email.split("@")[0] || "Treinador",
       email,
       role: "coach",
     };

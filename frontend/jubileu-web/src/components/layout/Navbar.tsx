@@ -15,6 +15,7 @@ export default function Navbar() {
         alignItems: "center",
       }}
     >
+      {/* Lado esquerdo: logo + menu */}
       <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
         <strong>🏆 Jubileu</strong>
 
@@ -27,6 +28,7 @@ export default function Navbar() {
           >
             Dias de Jogo
           </Link>
+
           <Link
             to="/jogadores"
             style={{
@@ -35,6 +37,7 @@ export default function Navbar() {
           >
             Jogadores
           </Link>
+
           <Link
             to="/dashboards"
             style={{
@@ -46,6 +49,7 @@ export default function Navbar() {
         </nav>
       </div>
 
+      {/* Lado direito: botão de login (por enquanto) */}
       <Link to="/login">
         <button>Entrar</button>
       </Link>
