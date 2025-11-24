@@ -33,10 +33,6 @@ const MOCK_PARTIDAS: PartidaDia[] = [
   },
 ];
 
-function nomeEquipe(equipes: EquipeDia[], id: number) {
-  return equipes.find((e) => e.id === id)?.nome ?? `Equipe ${id}`;
-}
-
 function nomeJogador(jogadores: JogadorDia[], id: number) {
   const j = jogadores.find((jg) => jg.id === id);
   if (!j) return `Jogador ${id}`;
