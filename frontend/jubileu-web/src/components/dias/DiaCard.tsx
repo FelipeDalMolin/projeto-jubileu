@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 export type DiaResumo = {
   id: number;
   data: string;
-  turma: string;
+  turmas: string[];
   totalEquipes: number;
   totalPartidas: number;
   totalGols: number;
@@ -52,10 +52,26 @@ export default function DiaCard({ dia }: Props) {
           )}
         </div>
 
-        <p style={{ margin: "4px 0" }}>{dia.turma}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "4px 0" }}>
+          {dia.turmas.map((turma) => (
+            <span
+              key={turma}
+              style={{
+                fontSize: 11,
+                padding: "4px 8px",
+                borderRadius: 999,
+                background: "#e2e8f0",
+                color: "#0f172a",
+                border: "1px solid #cbd5e1",
+              }}
+            >
+              {turma}
+            </span>
+          ))}
+        </div>
 
         <p style={{ fontSize: 12, margin: "4px 0" }}>
-          {dia.totalEquipes} equipes • {dia.totalPartidas} partidas
+          {dia.turmas.length} turmas • {dia.totalEquipes} equipes • {dia.totalPartidas} partidas
         </p>
 
         <p style={{ fontSize: 12, margin: "4px 0" }}>
