@@ -1,5 +1,5 @@
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -9,13 +9,7 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
-  const { login, user } = useAuth();
-
-  useEffect(() => {
-    if (user) {
-      navigate("/dias", { replace: true });
-    }
-  }, [user, navigate]);
+  const { login } = useAuth();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -38,24 +32,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        padding: 40,
-        maxWidth: 420,
-        margin: "60px auto",
-        background: "white",
-        border: "1px solid #e2e8f0",
-        borderRadius: 12,
-        boxShadow: "0 6px 20px rgba(15, 23, 42, 0.08)",
-      }}
-    >
-      <h2 style={{ marginBottom: 8 }}>Login - Projeto Jubileu</h2>
-      <p style={{ marginTop: 0, color: "#475569" }}>
-        A autenticação ainda é simulada. Use qualquer e-mail e senha para entrar.
-      </p>
+    <div style={{ padding: 40, maxWidth: 360, margin: "40px auto" }}>
+      <h2 style={{ marginBottom: 16 }}>Login - Projeto Jubileu</h2>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", flexDirection: "column" }}>
+      <form onSubmit={handleSubmit}>
+        <div style={{ marginBottom: 12 }}>
           <label style={{ display: "block", marginBottom: 4 }}>E-mail</label>
           <input
             type="email"
@@ -65,7 +46,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column" }}>
+        <div style={{ marginBottom: 12 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Senha</label>
           <input
             type="password"

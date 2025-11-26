@@ -1,12 +1,16 @@
+// src/routes/AppRoutes.tsx
 import { Navigate, Route, Routes } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
+
 import DiaLista from "../pages/dias/DiaLista";
 import DiaDetalhe from "../pages/dias/DiaDetalhe";
 import LoginPage from "../pages/auth/LoginPage";
 import UsuarioPerfil from "../pages/UsuarioPerfil";
-import JogadoresPage from "../pages/JogadoresPage";
-import DashboardsPage from "../pages/DashboardsPage";
+import JogadoresPage from "../pages/jogadores/JogadoresPage";
+import DashboardsPage from "../pages/dashboards/DashboardPage";
+import TurmasPage from "../pages/turmas/TurmasPage";
+import TurmaPage from "../pages/turmas/TurmaPage";
 
 function RotaProtegida({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
@@ -19,7 +23,7 @@ function RotaProtegida({ children }: { children: ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <>{children}</>;
 }
 
 export default function AppRoutes() {
@@ -37,11 +41,29 @@ export default function AppRoutes() {
           </RotaProtegida>
         }
       />
+
       <Route
-        path="/dias/:id"
+        path="/dias/:dataIso"
         element={
           <RotaProtegida>
             <DiaDetalhe />
+          </RotaProtegida>
+        }
+      />
+
+      <Route
+        path="/turmas"
+        element={
+          <RotaProtegida>
+            <TurmasPage />
+          </RotaProtegida>
+        }
+      />
+      <Route
+        path="/turmas/:turmaId"
+        element={
+          <RotaProtegida>
+            <TurmaPage />
           </RotaProtegida>
         }
       />

@@ -12,19 +12,10 @@ function App() {
             minHeight: "100vh",
             display: "flex",
             flexDirection: "column",
-            background: "#f8fafc",
           }}
         >
           <Navbar />
-          <main
-            style={{
-              flex: 1,
-              maxWidth: 1200,
-              margin: "0 auto",
-              width: "100%",
-              padding: "12px 20px 32px",
-            }}
-          >
+          <main style={{ flex: 1 }}>
             <AppRoutes />
           </main>
         </div>

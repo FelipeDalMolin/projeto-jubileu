@@ -1,5 +1,8 @@
+// src/pages/dias/DiaLista.tsx
 import { useMemo, useState } from "react";
-import DiaCard, { type DiaResumo } from "../../components/dias/DiaCard";
+import { useNavigate } from "react-router-dom";
+import DiaCard from "../../components/dias/DiaCard";
+import type { DiaResumo } from "../../types/domain";
 
 type FiltrosDias = {
   ano?: string;
@@ -13,78 +16,12 @@ type DiaCalendario = {
   isoDate?: string;
 };
 
-// MOCK – depois vamos buscar da API
-const MOCK_DIAS: DiaResumo[] = [
-  {
-    id: 1,
-    data: "2025-11-20",
-    turmas: ["Sub-11", "Adulto", "Feminino", "Veteranos", "Juvenil"],
-    totalEquipes: 10,
-    totalPartidas: 8,
-    totalGols: 18,
-    totalChiliques: 2,
-    treinoCancelado: false,
-  },
-  {
-    id: 2,
-    data: "2025-11-22",
-    turmas: ["Adulto"],
-    totalEquipes: 4,
-    totalPartidas: 6,
-    totalGols: 25,
-    totalChiliques: 5,
-    treinoCancelado: true,
-  },
-  {
-    id: 3,
-    data: "2025-12-03",
-    turmas: ["Sub-13", "Sub-15"],
-    totalEquipes: 6,
-    totalPartidas: 5,
-    totalGols: 14,
-    totalChiliques: 1,
-    treinoCancelado: false,
-  },
-];
-
-function filtrarDias(dias: DiaResumo[], filtros: FiltrosDias): DiaResumo[] {
-  return dias.filter((d) => {
-    // filtro por ano/mês (calendário)
-    if (filtros.ano || filtros.mes) {
-      const [anoDoDia, mesDoDia] = d.data.split("-");
-      if (filtros.ano && filtros.ano !== anoDoDia) return false;
-      if (filtros.mes && filtros.mes !== mesDoDia) return false;
-    }
-
-    // filtro por turma
-    if (filtros.turma) {
-      const atendeTurma = d.turmas.some((turma) =>
-        turma.toLowerCase().includes(filtros.turma!.toLowerCase())
-      );
-
-      if (!atendeTurma) return false;
-    }
-
-    // filtro por treino cancelado
-    if (filtros.somenteTreinoCancelado && !d.treinoCancelado) {
-      return false;
-    }
-
-    return true;
-  });
-}
-
-function pad2(value: number) {
-  return value.toString().padStart(2, "0");
-}
-
 const MESES: { value: string; label: string }[] = Array.from(
   { length: 12 },
   (_, index) => {
-    const value = pad2(index + 1);
+    const value = String(index + 1).padStart(2, "0");
     const label = new Date(0, index).toLocaleString("pt-BR", { month: "long" });
     const labelCapitalizada = label.charAt(0).toUpperCase() + label.slice(1);
-
     return { value, label: labelCapitalizada };
   }
 );
@@ -96,53 +33,106 @@ function criarDiasCalendario(ano: number, mes: number): DiaCalendario[] {
   const ultimoDia = new Date(ano, mes, 0);
   const dias: DiaCalendario[] = [];
 
-  // preencher com espaços em branco antes do primeiro dia
   for (let i = 0; i < primeiroDia.getDay(); i += 1) {
     dias.push({ label: "" });
   }
 
-  // preencher os dias do mês
   for (let dia = 1; dia <= ultimoDia.getDate(); dia += 1) {
-    const isoDate = `${ano}-${pad2(mes)}-${pad2(dia)}`;
+    const isoDate = `${ano}-${String(mes).padStart(2, "0")}-${String(dia).padStart(
+      2,
+      "0"
+    )}`;
     dias.push({ label: dia.toString(), isoDate });
   }
 
   return dias;
 }
 
-const hoje = new Date();
-const anoAtual = hoje.getFullYear();
-const mesAtual = pad2(hoje.getMonth() + 1);
-const dataPadrao = `${anoAtual}-${mesAtual}-01`;
-const [anoPadrao, mesPadrao] = (MOCK_DIAS[0]?.data ?? dataPadrao).split("-");
+// MOCK – depois vem da API
+const MOCK_DIAS: DiaResumo[] = [
+  {
+    id: 1,
+    dataIso: "2025-11-20",
+    turmas: ["Sub-11", "Adulto", "Feminino", "Veteranos", "Juvenil"],
+    totalEquipes: 10,
+    totalPartidas: 8,
+    totalGols: 18,
+    totalChiliques: 2,
+    treinoCancelado: false,
+  },
+  {
+    id: 2,
+    dataIso: "2025-11-22",
+    turmas: ["Adulto"],
+    totalEquipes: 4,
+    totalPartidas: 6,
+    totalGols: 25,
+    totalChiliques: 5,
+    treinoCancelado: true,
+  },
+  {
+    id: 3,
+    dataIso: "2025-12-03",
+    turmas: ["Sub-13", "Sub-15"],
+    totalEquipes: 6,
+    totalPartidas: 5,
+    totalGols: 14,
+    totalChiliques: 1,
+    treinoCancelado: false,
+  },
+];
+
+function filtrarDias(dias: DiaResumo[], filtros: FiltrosDias): DiaResumo[] {
+  return dias.filter((d) => {
+    if (filtros.ano || filtros.mes) {
+      const [anoDoDia, mesDoDia] = d.dataIso.split("-");
+      if (filtros.ano && filtros.ano !== anoDoDia) return false;
+      if (filtros.mes && filtros.mes !== mesDoDia) return false;
+    }
+
+    if (filtros.turma) {
+      const atendeTurma = d.turmas.some((turma) =>
+        turma.toLowerCase().includes(filtros.turma!.toLowerCase())
+      );
+      if (!atendeTurma) return false;
+    }
+
+    if (filtros.somenteTreinoCancelado && !d.treinoCancelado) return false;
+
+    return true;
+  });
+}
 
 export default function DiaLista() {
-  const [dias, setDias] = useState<DiaResumo[]>(MOCK_DIAS);
+  const navigate = useNavigate();
+  const [dias] = useState<DiaResumo[]>(MOCK_DIAS);
+
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = String(hoje.getMonth() + 1).padStart(2, "0");
+
   const [filtros, setFiltros] = useState<FiltrosDias>({
-    ano: anoPadrao,
-    mes: mesPadrao,
+    ano: anoAtual.toString(),
+    mes: mesAtual,
   });
 
   const anosDisponiveis = useMemo(() => {
     const anos = new Set<string>();
     anos.add(anoAtual.toString());
-
-    dias.forEach((dia) => anos.add(dia.data.slice(0, 4)));
+    dias.forEach((dia) => anos.add(dia.dataIso.slice(0, 4)));
     if (filtros.ano) anos.add(filtros.ano);
-
     return Array.from(anos).sort((a, b) => Number(a) - Number(b));
-  }, [dias, filtros.ano]);
+  }, [dias, filtros.ano, anoAtual]);
 
   const selectedYear =
-    filtros.ano || anosDisponiveis[0] || anoPadrao || anoAtual.toString();
-  const selectedMonth = filtros.mes || mesPadrao || mesAtual;
-  const anoReferencia = Number(selectedYear) || anoAtual;
-  const mesReferencia = Number(selectedMonth) || Number(mesAtual);
+    filtros.ano || anosDisponiveis[0] || anoAtual.toString();
+  const selectedMonth = filtros.mes || mesAtual;
 
-  const mesSelecionadoLabel = useMemo(
-    () => MESES.find((mes) => mes.value === selectedMonth)?.label ?? "Mês",
-    [selectedMonth]
-  );
+  const anoReferencia = Number(selectedYear);
+  const mesReferencia = Number(selectedMonth);
+
+  const mesSelecionadoLabel =
+    MESES.find((mes) => mes.value === selectedMonth)?.label ?? "Mês";
 
   const diasFiltrados = filtrarDias(dias, filtros);
   const diasDoMesSelecionado = filtrarDias(dias, {
@@ -157,7 +147,7 @@ export default function DiaLista() {
   );
 
   const diasComJogos = useMemo(
-    () => new Set(diasDoMesSelecionado.map((dia) => dia.data)),
+    () => new Set(diasDoMesSelecionado.map((dia) => dia.dataIso)),
     [diasDoMesSelecionado]
   );
 
@@ -166,83 +156,13 @@ export default function DiaLista() {
     referencia.setMonth(referencia.getMonth() + delta);
 
     const novoAno = referencia.getFullYear().toString();
-    const novoMes = pad2(referencia.getMonth() + 1);
+    const novoMes = String(referencia.getMonth() + 1).padStart(2, "0");
 
     setFiltros((prev) => ({ ...prev, ano: novoAno, mes: novoMes }));
   }
 
-  function handleAddDia(isoDate: string) {
-    const entradaTurmas = prompt(
-      `Adicionar ou complementar o dia ${isoDate}\nInforme as turmas separadas por vírgula:`
-    );
-
-    if (!entradaTurmas) return;
-
-    const novasTurmas = entradaTurmas
-      .split(",")
-      .map((turma) => turma.trim())
-      .filter(Boolean);
-
-    if (novasTurmas.length === 0) return;
-
-    setDias((listaAtual) => {
-      const indiceExistente = listaAtual.findIndex(
-        (dia) => dia.data === isoDate
-      );
-
-      if (indiceExistente >= 0) {
-        const existente = listaAtual[indiceExistente];
-        const turmasAtualizadas = Array.from(
-          new Set([...existente.turmas, ...novasTurmas])
-        );
-
-        const atualizado: DiaResumo = {
-          ...existente,
-          turmas: turmasAtualizadas,
-          totalEquipes: Math.max(2, turmasAtualizadas.length * 2),
-        };
-
-        return [
-          ...listaAtual.slice(0, indiceExistente),
-          atualizado,
-          ...listaAtual.slice(indiceExistente + 1),
-        ];
-      }
-
-      const maiorId = listaAtual.reduce((max, dia) => Math.max(max, dia.id), 0);
-
-      return [
-        ...listaAtual,
-        {
-          id: maiorId + 1,
-          data: isoDate,
-          turmas: novasTurmas,
-          totalEquipes: Math.max(2, novasTurmas.length * 2),
-          totalPartidas: 0,
-          totalGols: 0,
-          totalChiliques: 0,
-          treinoCancelado: false,
-        },
-      ].sort((a, b) => a.data.localeCompare(b.data));
-    });
-  }
-
-  function handleNovoDia() {
-    const dataDigitada = prompt(
-      "Qual a data do novo dia? (AAAA-MM-DD)",
-      `${selectedYear}-${selectedMonth}-01`
-    );
-
-    if (!dataDigitada) return;
-
-    const formatoValido = /^\d{4}-\d{2}-\d{2}$/;
-
-    if (!formatoValido.test(dataDigitada)) {
-      alert("Use o formato AAAA-MM-DD para cadastrar a data.");
-      return;
-    }
-
-    handleAddDia(dataDigitada);
+  function abrirDia(dataIso: string) {
+    navigate(`/dias/${dataIso}`);
   }
 
   function limparFiltros() {
@@ -251,9 +171,9 @@ export default function DiaLista() {
 
   return (
     <div style={{ padding: 20 }}>
-      <h2>Dias de Jogo</h2>
+      <h2>Calendário</h2>
 
-      {/* Barra de filtros no topo */}
+      {/* Filtros */}
       <div
         style={{
           marginTop: 12,
@@ -337,11 +257,10 @@ export default function DiaLista() {
 
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
           <button onClick={limparFiltros}>Limpar filtros</button>
-          <button onClick={handleNovoDia}>+ Novo dia</button>
         </div>
       </div>
 
-      {/* Calendário do mês selecionado */}
+      {/* Calendário */}
       <div
         style={{
           marginTop: 12,
@@ -387,16 +306,12 @@ export default function DiaLista() {
                   display: "inline-block",
                 }}
               />
-              Dia de jogo encontrado
+              Dia com jogo/aula
             </span>
 
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => alterarMes(-1)} aria-label="Mês anterior">
-                ← Mês anterior
-              </button>
-              <button onClick={() => alterarMes(1)} aria-label="Próximo mês">
-                Próximo mês →
-              </button>
+              <button onClick={() => alterarMes(-1)}>← Mês anterior</button>
+              <button onClick={() => alterarMes(1)}>Próximo mês →</button>
             </div>
           </div>
         </div>
@@ -427,7 +342,7 @@ export default function DiaLista() {
           {diasCalendario.map(({ label, isoDate }, index) => {
             const temJogo = isoDate && diasComJogos.has(isoDate);
             const diaDetalhado = isoDate
-              ? diasDoMesSelecionado.find((dia) => dia.data === isoDate)
+              ? diasDoMesSelecionado.find((dia) => dia.dataIso === isoDate)
               : undefined;
             const turmasPreview = diaDetalhado?.turmas.slice(0, 2).join(", ");
             const turmasExtras =
@@ -453,14 +368,11 @@ export default function DiaLista() {
                   fontWeight: 600,
                   cursor: isoDate ? "pointer" : "default",
                 }}
-                onClick={() => isoDate && handleAddDia(isoDate)}
-                title={
-                  isoDate
-                    ? "Clique para adicionar turmas ou registrar um dia"
-                    : undefined
-                }
+                onClick={() => isoDate && abrirDia(isoDate)}
+                title={isoDate ? "Abrir dia" : undefined}
               >
                 <span>{label}</span>
+
                 {temJogo && (
                   <span
                     style={{
@@ -472,7 +384,7 @@ export default function DiaLista() {
                       borderRadius: 999,
                       background: "#22c55e",
                     }}
-                    title="Dia com jogo"
+                    title="Dia com jogo/aula"
                   />
                 )}
 
@@ -517,7 +429,7 @@ export default function DiaLista() {
         </div>
       </div>
 
-      {/* Grid de cards */}
+      {/* Lista de dias com cards */}
       <div
         style={{
           display: "grid",
@@ -535,8 +447,7 @@ export default function DiaLista() {
               color: "#475569",
             }}
           >
-            Nenhum dia encontrado para esse filtro. Ajuste o ano/mês ou remova
-            restrições de turma.
+            Nenhum dia encontrado para esse filtro.
           </div>
         ) : (
           diasFiltrados.map((dia) => <DiaCard key={dia.id} dia={dia} />)

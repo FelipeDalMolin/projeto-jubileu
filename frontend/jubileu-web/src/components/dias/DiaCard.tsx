@@ -1,15 +1,6 @@
+// src/components/dias/DiaCard.tsx
 import { Link } from "react-router-dom";
-
-export type DiaResumo = {
-  id: number;
-  data: string;
-  turmas: string[];
-  totalEquipes: number;
-  totalPartidas: number;
-  totalGols: number;
-  totalChiliques: number;
-  treinoCancelado?: boolean;
-};
+import type { DiaResumo } from "../../types/domain";
 
 type Props = {
   dia: DiaResumo;
@@ -18,7 +9,7 @@ type Props = {
 export default function DiaCard({ dia }: Props) {
   return (
     <Link
-      to={`/dias/${dia.id}`}
+      to={`/dias/${dia.dataIso}`}
       style={{ textDecoration: "none", color: "inherit" }}
     >
       <div
@@ -36,7 +27,8 @@ export default function DiaCard({ dia }: Props) {
             marginBottom: 8,
           }}
         >
-          <strong>{dia.data}</strong>
+          <strong>{dia.dataIso}</strong>
+
           {dia.treinoCancelado && (
             <span
               style={{
@@ -52,7 +44,14 @@ export default function DiaCard({ dia }: Props) {
           )}
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "4px 0" }}>
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 6,
+            margin: "4px 0",
+          }}
+        >
           {dia.turmas.map((turma) => (
             <span
               key={turma}
@@ -62,7 +61,6 @@ export default function DiaCard({ dia }: Props) {
                 borderRadius: 999,
                 background: "#e2e8f0",
                 color: "#0f172a",
-                border: "1px solid #cbd5e1",
               }}
             >
               {turma}
@@ -70,13 +68,21 @@ export default function DiaCard({ dia }: Props) {
           ))}
         </div>
 
-        <p style={{ fontSize: 12, margin: "4px 0" }}>
-          {dia.turmas.length} turmas • {dia.totalEquipes} equipes • {dia.totalPartidas} partidas
-        </p>
-
-        <p style={{ fontSize: 12, margin: "4px 0" }}>
-          Gols: {dia.totalGols} • Chiliques: {dia.totalChiliques}
-        </p>
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 12,
+            color: "#475569",
+            display: "flex",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          <span>Equipes: {dia.totalEquipes}</span>
+          <span>Partidas: {dia.totalPartidas}</span>
+          <span>Gols: {dia.totalGols}</span>
+          <span>Chiliques: {dia.totalChiliques}</span>
+        </div>
       </div>
     </Link>
   );

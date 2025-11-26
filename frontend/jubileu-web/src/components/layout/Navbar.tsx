@@ -1,9 +1,8 @@
+// src/components/layout/Navbar.tsx
 import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 
 export default function Navbar() {
   const location = useLocation();
-  const { user, logout } = useAuth();
 
   const isActive = (path: string) => location.pathname.startsWith(path);
 
@@ -33,7 +32,17 @@ export default function Navbar() {
               textUnderlineOffset: 6,
             }}
           >
-            Dias de Jogo
+            Calendário
+          </Link>
+
+          <Link
+            to="/turmas"
+            style={{
+              textDecoration: isActive("/turmas") ? "underline" : "none",
+              textUnderlineOffset: 6,
+            }}
+          >
+            Turmas
           </Link>
 
           <Link
@@ -58,33 +67,10 @@ export default function Navbar() {
         </nav>
       </div>
 
-      {/* Lado direito: sessão do usuário */}
-      {user ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ textAlign: "right", fontSize: 13 }}>
-            <div style={{ fontWeight: 700 }}>{user.name}</div>
-            <Link to="/usuario" style={{ color: "#bae6fd" }}>
-              Ver perfil
-            </Link>
-          </div>
-          <button
-            onClick={logout}
-            style={{
-              background: "#ef4444",
-              borderColor: "#fca5a5",
-              color: "#0f172a",
-            }}
-          >
-            Sair
-          </button>
-        </div>
-      ) : (
-        <Link to="/login" style={{ color: "inherit" }}>
-          <button style={{ background: "#38bdf8", color: "#0f172a" }}>
-            Entrar
-          </button>
-        </Link>
-      )}
+      {/* Lado direito: botão de login (por enquanto) */}
+      <Link to="/login">
+        <button>Entrar</button>
+      </Link>
     </header>
   );
 }
