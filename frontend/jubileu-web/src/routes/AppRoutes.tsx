@@ -1,10 +1,10 @@
 // src/routes/AppRoutes.tsx
-import { Navigate, Route, Routes } from "react-router-dom";
-import type { ReactNode } from "react";
+import { Navigate, Route, Routes, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 import DiaLista from "../pages/dias/DiaLista";
 import DiaDetalhe from "../pages/dias/DiaDetalhe";
+import AulaPage from "../pages/dias/AulaPage";
 import LoginPage from "../pages/auth/LoginPage";
 import UsuarioPerfil from "../pages/UsuarioPerfil";
 import JogadoresPage from "../pages/jogadores/JogadoresPage";
@@ -12,7 +12,7 @@ import DashboardsPage from "../pages/dashboards/DashboardPage";
 import TurmasPage from "../pages/turmas/TurmasPage";
 import TurmaPage from "../pages/turmas/TurmaPage";
 
-function RotaProtegida({ children }: { children: ReactNode }) {
+function RotaProtegida() {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -23,79 +23,43 @@ function RotaProtegida({ children }: { children: ReactNode }) {
     return <Navigate to="/login" replace />;
   }
 
-  return <>{children}</>;
+  // se estiver autenticado, libera as rotas filhas
+  return <Outlet />;
 }
 
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/dias" replace />} />
-
+      {/* rota pública */}
       <Route path="/login" element={<LoginPage />} />
 
-      <Route
-        path="/dias"
-        element={
-          <RotaProtegida>
-            <DiaLista />
-          </RotaProtegida>
-        }
-      />
+      {/* rotas protegidas */}
+      <Route element={<RotaProtegida />}>
+        {/* redireciona raiz para /dias */}
+        <Route path="/" element={<Navigate to="/dias" replace />} />
 
-      <Route
-        path="/dias/:dataIso"
-        element={
-          <RotaProtegida>
-            <DiaDetalhe />
-          </RotaProtegida>
-        }
-      />
+        {/* Dias / Agenda */}
+        <Route path="/dias" element={<DiaLista />} />
+        {/* dataIso = YYYY-MM-DD */}
+        <Route path="/dias/:dataIso" element={<DiaDetalhe />} />
+        <Route path="/dias/:dataIso/aulas/:aulaId" element={<AulaPage />} />
 
-      <Route
-        path="/turmas"
-        element={
-          <RotaProtegida>
-            <TurmasPage />
-          </RotaProtegida>
-        }
-      />
-      <Route
-        path="/turmas/:turmaId"
-        element={
-          <RotaProtegida>
-            <TurmaPage />
-          </RotaProtegida>
-        }
-      />
+        {/* Turmas */}
+        <Route path="/turmas" element={<TurmasPage />} />
+        <Route path="/turmas/:turmaId" element={<TurmaPage />} />
 
-      <Route
-        path="/jogadores"
-        element={
-          <RotaProtegida>
-            <JogadoresPage />
-          </RotaProtegida>
-        }
-      />
+        {/* Jogadores */}
+        <Route path="/jogadores" element={<JogadoresPage />} />
 
-      <Route
-        path="/dashboards"
-        element={
-          <RotaProtegida>
-            <DashboardsPage />
-          </RotaProtegida>
-        }
-      />
+        {/* Dashboards */}
+        <Route path="/dashboards" element={<DashboardsPage />} />
 
-      <Route
-        path="/usuario"
-        element={
-          <RotaProtegida>
-            <UsuarioPerfil />
-          </RotaProtegida>
-        }
-      />
+        {/* Perfil do usuário logado */}
+        <Route path="/usuario" element={<UsuarioPerfil />} />
 
-      <Route path="*" element={<Navigate to="/dias" replace />} />
+        {/* fallback para qualquer rota desconhecida (já autenticado) */}
+        <Route path="*" element={<Navigate to="/dias" replace />} />
+      </Route>
     </Routes>
   );
 }
