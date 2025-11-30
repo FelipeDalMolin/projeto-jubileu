@@ -67,45 +67,30 @@ export default function DiaLista() {
   const monthLabel = format(currentMonth, "MMMM 'de' yyyy", { locale: ptBR });
 
   if (loading) {
-    return <div style={{ padding: 24 }}>Carregando dias...</div>;
+    return <div className="page-container">Carregando dias...</div>;
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Agenda de dias</h1>
-      <p>Use o calendário para navegar e selecione um dia para ver as aulas.</p>
+    <div className="page-container">
+      <header className="page-header">
+        <div>
+          <h1 className="page-header-title">Agenda de dias</h1>
+          <p className="page-header-subtitle">
+            Use o calendário para navegar e selecione um dia para ver as aulas.
+          </p>
+        </div>
+      </header>
 
       {/* CALENDÁRIO + CONTROLES DE MÊS */}
-      <section
-        style={{
-          marginTop: 16,
-          marginBottom: 24,
-          maxWidth: 480,
-          borderRadius: 12,
-          border: "1px solid #dde1e7",
-          background: "#fff",
-          padding: 16,
-        }}
-      >
+      <section className="card" style={{ marginTop: 16, marginBottom: 24, maxWidth: 480 }}>
         {/* Cabeçalho do mês */}
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 12,
-          }}
+          className="card-header"
+          style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
         >
           <button
+            className="btn btn-ghost btn-sm"
             onClick={() => setCurrentMonth((prev) => addMonths(prev, -1))}
-            style={{
-              borderRadius: 999,
-              border: "1px solid #e2e8f0",
-              background: "#fff",
-              padding: "4px 10px",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
           >
             &larr; Mês anterior
           </button>
@@ -115,15 +100,8 @@ export default function DiaLista() {
           </div>
 
           <button
+            className="btn btn-ghost btn-sm"
             onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}
-            style={{
-              borderRadius: 999,
-              border: "1px solid #e2e8f0",
-              background: "#fff",
-              padding: "4px 10px",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
           >
             Próximo mês &rarr;
           </button>
@@ -166,10 +144,12 @@ export default function DiaLista() {
       </section>
 
       {/* LISTA DOS DIAS DO MÊS ATUAL COM AULAS/EVENTOS */}
-      <section>
-        <h2 style={{ fontSize: 18 }}>Dias com aulas / eventos no mês</h2>
+      <section className="card">
+        <div className="card-header">
+          <h2 className="card-title">Dias com aulas / eventos no mês</h2>
+        </div>
         {diasDoMesAtual.length === 0 ? (
-          <p style={{ color: "#555" }}>
+          <p className="page-header-subtitle">
             Nenhuma aula ou evento cadastrado para este mês ainda.
           </p>
         ) : (
@@ -190,23 +170,16 @@ export default function DiaLista() {
               return (
                 <button
                   key={dia.dataIso}
+                  className="card btn btn-ghost"
                   onClick={() => navigate(`/dias/${dia.dataIso}`)}
-                  style={{
-                    textAlign: "left",
-                    borderRadius: 8,
-                    padding: 16,
-                    border: "1px solid #dde1e7",
-                    background: "#fff",
-                    cursor: "pointer",
-                  }}
+                  style={{ textAlign: "left" }}
                 >
-                  <div style={{ fontSize: 18, fontWeight: 600 }}>{titulo}</div>
+                  <div className="card-title" style={{ marginBottom: 4 }}>
+                    {titulo}
+                  </div>
                   <div
-                    style={{
-                      fontSize: 13,
-                      color: "#555",
-                      textTransform: "capitalize",
-                    }}
+                    className="card-subtitle"
+                    style={{ textTransform: "capitalize" }}
                   >
                     {semana}
                   </div>

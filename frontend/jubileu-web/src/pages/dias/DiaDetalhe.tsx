@@ -32,7 +32,7 @@ export default function DiaDetalhe() {
   }, [dataIso]);
 
   if (!dataIso) {
-    return <div style={{ padding: 24 }}>Data inválida.</div>;
+    return <div className="page-container">Data inválida.</div>;
   }
 
   const dataObj = parseISO(dataIso);
@@ -43,10 +43,18 @@ export default function DiaDetalhe() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
-        <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
-        <h1>Dia de jogo {tituloData}</h1>
-        <p>Carregando dados do dia...</p>
+      <div className="page-container">
+        <div className="page-header">
+          <div>
+            <div className="page-header-title">Dia de jogo {tituloData}</div>
+            <div className="page-header-subtitle">Carregando dados do dia...</div>
+          </div>
+          <div className="page-header-actions">
+            <button className="btn btn-ghost" onClick={() => navigate("/dias")}>
+              &larr; Voltar
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -54,23 +62,23 @@ export default function DiaDetalhe() {
   if (!dia) {
     // Nenhuma aula/evento ainda: tela padrão
     return (
-      <div style={{ padding: 24 }}>
-        <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
+      <div className="page-container">
+        <div className="page-header">
+          <div>
+            <div className="page-header-title">Dia de jogo {tituloData}</div>
+            <div className="page-header-subtitle">{linhaData}</div>
+          </div>
+          <div className="page-header-actions">
+            <button className="btn btn-ghost" onClick={() => navigate("/dias")}>
+              &larr; Voltar
+            </button>
+          </div>
+        </div>
 
-        <h1>Dia de jogo {tituloData}</h1>
-        <p style={{ color: "#555" }}>{linhaData}</p>
-
-        <div
-          style={{
-            marginTop: 24,
-            padding: 24,
-            borderRadius: 12,
-            border: "1px solid #dde1e7",
-            background: "#f8fafc",
-            maxWidth: 600,
-          }}
-        >
-          <h2 style={{ marginTop: 0 }}>Nenhuma aula planejada</h2>
+        <div className="card" style={{ maxWidth: 600 }}>
+          <div className="card-header">
+            <div className="card-title">Nenhuma aula planejada</div>
+          </div>
           <p>
             Este dia ainda não possui aulas ou eventos cadastrados. Você poderá
             adicionar aulas no futuro para montar as equipes e registrar as
@@ -87,86 +95,48 @@ export default function DiaDetalhe() {
     aulasOrdenadas[0];
 
   return (
-    <div style={{ padding: 24 }}>
-      <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
+    <div className="page-container">
+      <div className="page-header">
+        <div>
+          <div className="page-header-title">Dia de jogo {tituloData}</div>
+          <div className="page-header-subtitle">{linhaData}</div>
+          <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
+            {dia.feriado && (
+              <span className="chip">
+                Feriado ({dia.feriado.tipo}): {dia.feriado.nome}
+              </span>
+            )}
 
-      <header style={{ marginTop: 12, marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>Dia de jogo {tituloData}</h1>
-        <p style={{ margin: 0, color: "#555" }}>{linhaData}</p>
-
-        <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          {dia.feriado && (
-            <span
-              style={{
-                padding: "4px 10px",
-                borderRadius: 999,
-                border: "1px solid #ffd27f",
-                background: "#fff5e0",
-                fontSize: 12,
-              }}
-            >
-              Feriado ({dia.feriado.tipo}): {dia.feriado.nome}
-            </span>
-          )}
-
-          <button
-            style={{
-              padding: "6px 12px",
-              borderRadius: 999,
-              border: "1px solid #e2e8f0",
-              background: "#fff",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            Marcar treino do dia como cancelado (X)
+            <button className="btn btn-ghost btn-sm">
+              Marcar treino do dia como cancelado (X)
+            </button>
+          </div>
+        </div>
+        <div className="page-header-actions">
+          <button className="btn btn-ghost" onClick={() => navigate("/dias")}>
+            &larr; Voltar
           </button>
         </div>
-      </header>
+      </div>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(260px, 340px) minmax(360px, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
           gap: 24,
         }}
       >
         {/* Coluna esquerda – lista de aulas / eventos */}
-        <section
-          style={{
-            borderRadius: 12,
-            border: "1px solid #dde1e7",
-            padding: 16,
-            background: "#fff",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: 12,
-              alignItems: "center",
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 16 }}>Aulas / eventos</h2>
-            <button
-              style={{
-                padding: "6px 10px",
-                borderRadius: 999,
-                border: "1px solid #22c55e",
-                background: "#dcfce7",
-                fontSize: 12,
-                cursor: "pointer",
-              }}
-            >
-              + Adicionar evento / aula
-            </button>
+        <section className="card">
+          <div className="card-header" style={{ alignItems: "center" }}>
+            <div>
+              <div className="card-title">Aulas / eventos</div>
+            </div>
+            <button className="btn btn-success btn-sm">+ Adicionar evento / aula</button>
           </div>
 
           {aulasOrdenadas.length === 0 ? (
-            <p style={{ color: "#555" }}>
-              Nenhuma aula planejada para este dia.
-            </p>
+            <p className="card-subtitle">Nenhuma aula planejada para este dia.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {aulasOrdenadas.map((aula) => {
@@ -177,40 +147,25 @@ export default function DiaDetalhe() {
                   <button
                     key={aula.id}
                     onClick={() => setAulaSelecionadaId(aula.id)}
+                    className="card"
                     style={{
                       textAlign: "left",
-                      padding: 12,
-                      borderRadius: 10,
-                      border: selecionada
-                        ? "2px solid #2563eb"
-                        : "1px solid #e2e8f0",
-                      background: selecionada ? "#eff6ff" : "#fff",
-                      cursor: "pointer",
+                      borderWidth: selecionada ? 2 : 1,
+                      borderColor: selecionada ? "#2563eb" : undefined,
+                      background: selecionada ? "#eff6ff" : undefined,
                     }}
                   >
-                    <div style={{ fontSize: 12, color: "#555" }}>
-                      {aula.turmaNome}
-                    </div>
-                    <div style={{ fontWeight: 600 }}>
+                    <div className="card-subtitle">{aula.turmaNome}</div>
+                    <div className="card-title" style={{ marginBottom: 4 }}>
                       Aula #{aula.numeroAulaNaTurma}
                     </div>
-                    <div style={{ fontSize: 12, color: "#555" }}>
+                    <div className="card-subtitle">
                       {aula.horarioInicio} – {aula.horarioFim}
                     </div>
-                    <div style={{ marginTop: 4, fontSize: 12, color: "#555" }}>
+                    <div className="card-subtitle" style={{ marginTop: 4 }}>
                       {totalJogadores} jogador(es) da turma
                     </div>
-                    <span
-                      style={{
-                        marginTop: 6,
-                        display: "inline-block",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                        fontSize: 11,
-                        border: "1px solid #a5b4fc",
-                        background: "#eef2ff",
-                      }}
-                    >
+                    <span className="badge badge-warning" style={{ marginTop: 6 }}>
                       Status: {aula.status}
                     </span>
                   </button>
@@ -221,14 +176,7 @@ export default function DiaDetalhe() {
         </section>
 
         {/* Coluna direita – painel resumido da aula selecionada */}
-        <section
-          style={{
-            borderRadius: 12,
-            border: "1px solid #dde1e7",
-            padding: 16,
-            background: "#fff",
-          }}
-        >
+        <section className="card">
           {aulaSelecionada ? (
             <PainelResumoAula dia={dia} aula={aulaSelecionada} />
           ) : (
@@ -260,119 +208,66 @@ function PainelResumoAula({ dia, aula }: PainelResumoProps) {
   const semTime = Math.max(totalJogadores - totalEmTimes, 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 16,
-        }}
-      >
+    <div className="card" style={{ gap: 12, display: "flex", flexDirection: "column" }}>
+      <div className="card-header" style={{ alignItems: "flex-start", gap: 16 }}>
         <div>
-          <div style={{ fontSize: 12, color: "#555" }}>
-            Gestão da aula selecionada
+          <div className="card-subtitle">Gestão da aula selecionada</div>
+          <div className="card-title" style={{ marginBottom: 4 }}>
+            {aula.turmaNome}
           </div>
-          <h2 style={{ margin: 0, fontSize: 18 }}>{aula.turmaNome}</h2>
-          <div style={{ fontSize: 12, color: "#555" }}>
-            Aula #{aula.numeroAulaNaTurma} &bull; {aula.horarioInicio} –{" "}
-            {aula.horarioFim}
+          <div className="card-subtitle">
+            Aula #{aula.numeroAulaNaTurma} &bull; {aula.horarioInicio} – {aula.horarioFim}
           </div>
         </div>
 
         {/* Status + botão de abrir gestão completa */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          <span
-            style={{
-              padding: "4px 10px",
-              borderRadius: 999,
-              border: "1px solid #bfdbfe",
-              background: "#eff6ff",
-              fontSize: 12,
-            }}
-          >
-            Status: {aula.status}
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span className="badge badge-success">Status: {aula.status}</span>
 
-          <Link
-            to={`/dias/${dia.dataIso}/aulas/${aula.id}`}
-            style={{
-              padding: "6px 12px",
-              borderRadius: 999,
-              border: "1px solid #2563eb",
-              background: "#2563eb",
-              color: "#fff",
-              fontSize: 12,
-              textDecoration: "none",
-            }}
-          >
+          <Link className="btn btn-primary btn-sm" to={`/dias/${dia.dataIso}/aulas/${aula.id}`}>
             Abrir gestão da turma
           </Link>
         </div>
       </div>
 
       {/* Jogadores */}
-      <div
-        style={{
-          borderRadius: 10,
-          border: "1px solid #e2e8f0",
-          padding: 12,
-          background: "#f8fafc",
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>
-          Jogadores da turma
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title" style={{ marginBottom: 0 }}>Jogadores da turma</div>
         </div>
-        <div style={{ fontSize: 13, color: "#555" }}>
-          {totalJogadores} no total &mdash; {presentes} presença(s), {faltas}{" "}
-          falta(s), {atestados} atestado(s), {curingas} curinga(s).
+        <div className="card-subtitle">
+          {totalJogadores} no total &mdash; {presentes} presença(s), {faltas} falta(s), {atestados}
+          {" "}
+          atestado(s), {curingas} curinga(s).
         </div>
       </div>
 
       {/* Equipes */}
-      <div
-        style={{
-          borderRadius: 10,
-          border: "1px solid #e2e8f0",
-          padding: 12,
-          background: "#fff",
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Equipes</div>
-        <div style={{ fontSize: 13, color: "#555" }}>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title" style={{ marginBottom: 0 }}>Equipes</div>
+        </div>
+        <div className="card-subtitle">
           {totalTimes === 0
             ? "Nenhuma equipe criada ainda."
             : `${totalTimes} equipe(s) criada(s), ${semTime} jogador(es) sem equipe.`}
         </div>
-        <div style={{ marginTop: 8, fontSize: 13 }}>
-          A gestão detalhada das equipes será feita na tela da aula
-          (drag-and-drop, etc.).
+        <div className="card-subtitle" style={{ marginTop: 8 }}>
+          A gestão detalhada das equipes será feita na tela da aula (drag-and-drop, etc.).
         </div>
       </div>
 
       {/* Partidas */}
-      <div
-        style={{
-          borderRadius: 10,
-          border: "1px solid #e2e8f0",
-          padding: 12,
-          background: "#fff",
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Partidas</div>
-        <div style={{ fontSize: 13, color: "#555" }}>
+      <div className="card">
+        <div className="card-header">
+          <div className="card-title" style={{ marginBottom: 0 }}>Partidas</div>
+        </div>
+        <div className="card-subtitle">
           {aula.partidasCount === 0
             ? "Nenhuma partida configurada."
             : `${aula.partidasCount} partida(s) configurada(s).`}
         </div>
-        <div style={{ marginTop: 8, fontSize: 13 }}>
+        <div className="card-subtitle" style={{ marginTop: 8 }}>
           A súmula e os gols também serão lançados na tela da aula.
         </div>
       </div>
