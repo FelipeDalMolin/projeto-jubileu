@@ -102,8 +102,10 @@ export default function JogadoresPage() {
   ).length;
 
   return (
-    <div style={{ padding: 20, display: "grid", gap: 16 }}>
-      <h2>Jogadores</h2>
+    <div className="page-container" style={{ display: "grid", gap: 16 }}>
+      <div className="page-header">
+        <h2 className="page-header-title">Jogadores</h2>
+      </div>
 
       {/* Resumo */}
       <div
@@ -121,15 +123,8 @@ export default function JogadoresPage() {
 
       {/* Filtros */}
       <div
-        style={{
-          border: "1px solid #e2e8f0",
-          borderRadius: 10,
-          padding: 12,
-          background: "#f8fafc",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
+        className="card"
+        style={{ display: "flex", flexWrap: "wrap", gap: 12, background: "#f8fafc" }}
       >
         <div style={{ display: "flex", flexDirection: "column" }}>
           <label style={{ fontSize: 12 }}>Nome / apelido</label>
@@ -179,44 +174,38 @@ export default function JogadoresPage() {
       </div>
 
       {/* Tabela */}
-      <div
-        style={{
-          border: "1px solid #e2e8f0",
-          borderRadius: 10,
-          padding: 12,
-          background: "#fff",
-          overflowX: "auto",
-        }}
-      >
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-              <th style={{ textAlign: "left", padding: "8px 4px" }}>Nome</th>
-              <th style={{ textAlign: "left", padding: "8px 4px" }}>Turma</th>
-              <th style={{ textAlign: "left", padding: "8px 4px" }}>Posição</th>
-              <th style={{ textAlign: "left", padding: "8px 4px" }}>Status</th>
-              <th style={{ textAlign: "left", padding: "8px 4px" }}>Gols</th>
-              <th style={{ textAlign: "left", padding: "8px 4px" }}>Chiliques</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jogadoresFiltrados.map((jogador) => (
-              <tr key={jogador.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                <td style={{ padding: "8px 4px" }}>
-                  {jogador.nome}
-                  {jogador.apelido ? ` (${jogador.apelido})` : ""}
-                </td>
-                <td style={{ padding: "8px 4px" }}>{jogador.turma}</td>
-                <td style={{ padding: "8px 4px" }}>{jogador.posicao}</td>
-                <td style={{ padding: "8px 4px", textTransform: "capitalize" }}>
-                  {jogador.status.replace(/_/g, " ")}
-                </td>
-                <td style={{ padding: "8px 4px" }}>{jogador.gols ?? 0}</td>
-                <td style={{ padding: "8px 4px" }}>{jogador.chiliques ?? 0}</td>
+      <div className="card">
+        <div className="table-responsive">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Turma</th>
+                <th>Posição</th>
+                <th>Status</th>
+                <th>Gols</th>
+                <th>Chiliques</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {jogadoresFiltrados.map((jogador) => (
+                <tr key={jogador.id}>
+                  <td>
+                    {jogador.nome}
+                    {jogador.apelido ? ` (${jogador.apelido})` : ""}
+                  </td>
+                  <td>{jogador.turma}</td>
+                  <td>{jogador.posicao}</td>
+                  <td style={{ textTransform: "capitalize" }}>
+                    {jogador.status.replace(/_/g, " ")}
+                  </td>
+                  <td>{jogador.gols ?? 0}</td>
+                  <td>{jogador.chiliques ?? 0}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -224,16 +213,9 @@ export default function JogadoresPage() {
 
 function ResumoCard(props: { titulo: string; valor: number }) {
   return (
-    <div
-      style={{
-        borderRadius: 10,
-        border: "1px solid #e2e8f0",
-        padding: 12,
-        background: "#fff",
-      }}
-    >
-      <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>{props.titulo}</p>
-      <h3 style={{ margin: 0 }}>{props.valor}</h3>
+    <div className="card">
+      <p className="card-subtitle" style={{ margin: 0 }}>{props.titulo}</p>
+      <h3 className="card-title" style={{ margin: 0 }}>{props.valor}</h3>
     </div>
   );
 }

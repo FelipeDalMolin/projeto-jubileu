@@ -36,98 +36,48 @@ export default function TurmasPage() {
   );
 
   return (
-    <div style={{ padding: 20, display: "grid", gap: 16 }}>
+    <div className="page-container" style={{ display: "grid", gap: 16 }}>
       {/* Cabeçalho */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          flexWrap: "wrap",
-        }}
-      >
+      <div className="page-header">
         <div>
-          <p style={{ margin: 0, fontSize: 13, color: "#475569" }}>Gestão</p>
-          <h2 style={{ margin: 0 }}>Turmas</h2>
+          <p className="page-header-subtitle">Gestão</p>
+          <h2 className="page-header-title">Turmas</h2>
         </div>
 
-        <button
-          style={{
-            background: "#22c55e",
-            borderColor: "#bbf7d0",
-            color: "#0f172a",
-            padding: "8px 14px",
-            borderRadius: 8,
-            borderWidth: 1,
-            cursor: "pointer",
-          }}
-        >
-          + Nova turma
-        </button>
+        <button className="btn btn-primary">+ Nova turma</button>
       </div>
 
       {/* Tabela de turmas */}
-      <div
-        style={{
-          border: "1px solid #e2e8f0",
-          borderRadius: 12,
-          padding: 16,
-          background: "#fff",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <h3 style={{ margin: 0 }}>Lista de turmas</h3>
-          <p style={{ margin: 0, color: "#475569" }}>
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Lista de turmas</h3>
+          <p className="card-subtitle">
             {MOCK_JOGADORES.length} jogadores cadastrados
           </p>
         </div>
 
-        <div style={{ marginTop: 12, overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <div className="table-responsive mt-12">
+          <table className="table">
             <thead>
-              <tr
-                style={{
-                  textAlign: "left",
-                  borderBottom: "1px solid #e2e8f0",
-                }}
-              >
-                <th style={{ padding: "8px 4px" }}>Nome</th>
-                <th style={{ padding: "8px 4px" }}>Recorrência</th>
-                <th style={{ padding: "8px 4px" }}>Qtd. jogadores</th>
-                <th style={{ padding: "8px 4px" }}>Ações</th>
+              <tr>
+                <th>Nome</th>
+                <th>Recorrência</th>
+                <th>Qtd. jogadores</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {turmasComQuantidade.map((turma) => (
-                <tr
-                  key={turma.id}
-                  style={{ borderBottom: "1px solid #e2e8f0" }}
-                >
-                  <td style={{ padding: "10px 4px", fontWeight: 600 }}>
-                    {turma.nome}
-                  </td>
-                  <td style={{ padding: "10px 4px", color: "#475569" }}>
+                <tr key={turma.id}>
+                  <td style={{ fontWeight: 600 }}>{turma.nome}</td>
+                  <td className="text-muted">
                     {formatarRecorrencia(turma.recorrencia)}
                   </td>
-                  <td style={{ padding: "10px 4px" }}>
-                    {turma.quantidadeJogadores}
-                  </td>
-                  <td style={{ padding: "10px 4px" }}>
+                  <td>{turma.quantidadeJogadores}</td>
+                  <td>
                     <button
                       onClick={() => navigate(`/turmas/${turma.id}`)}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        border: "1px solid #e2e8f0",
-                        cursor: "pointer",
-                      }}
+                      className="btn btn-ghost btn-sm"
                     >
                       Abrir
                     </button>
