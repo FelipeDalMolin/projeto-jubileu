@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import type { Turma } from "../../types/domain";
-import { MOCK_JOGADORES_TURMAS, MOCK_TURMAS } from "./MockTurmas";
+import { MOCK_TURMAS, MOCK_JOGADORES } from "./MockTurmas";
 
 function formatarRecorrencia(recorrencia: Turma["recorrencia"]) {
   const labels: Record<string, string> = {
@@ -29,9 +29,7 @@ export default function TurmaPage() {
 
   const jogadoresDaTurma = useMemo(() => {
     if (!turma) return [];
-    return turma.jogadoresIds
-      .map((id) => MOCK_JOGADORES_TURMAS.find((jogador) => jogador.id === id))
-      .filter(Boolean) as typeof MOCK_JOGADORES_TURMAS;
+    return MOCK_JOGADORES.filter((j) => turma.jogadoresIds.includes(j.id));
   }, [turma]);
 
   if (!turma) {
@@ -53,9 +51,24 @@ export default function TurmaPage() {
           justifyContent: "space-between",
           alignItems: "center",
           gap: 12,
+          flexWrap: "wrap",
         }}
       >
         <div>
+          <button
+            onClick={() => navigate("/turmas")}
+            style={{
+              marginBottom: 8,
+              padding: "4px 10px",
+              borderRadius: 999,
+              border: "1px solid #e2e8f0",
+              background: "#f8fafc",
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            &larr; Voltar para turmas
+          </button>
           <p style={{ margin: 0, fontSize: 13, color: "#475569" }}>Turma</p>
           <h2 style={{ margin: "2px 0" }}>{turma.nome}</h2>
           <p style={{ margin: 0, color: "#475569" }}>
@@ -112,6 +125,7 @@ export default function TurmaPage() {
                   }}
                 >
                   <th style={{ padding: "8px 4px" }}>Nome</th>
+                  <th style={{ padding: "8px 4px" }}>Apelido</th>
                   <th style={{ padding: "8px 4px" }}>Posição</th>
                   <th style={{ padding: "8px 4px" }}>Status</th>
                 </tr>
@@ -122,20 +136,50 @@ export default function TurmaPage() {
                     key={jogador.id}
                     style={{ borderBottom: "1px solid #e2e8f0" }}
                   >
+                    <td style={{ padding: "10px 4px" }}>{jogador.nome}</td>
                     <td style={{ padding: "10px 4px" }}>
-                      {jogador.nome}
-                      {jogador.apelido ? ` (${jogador.apelido})` : ""}
+                      {jogador.apelido ?? "-"}
                     </td>
                     <td style={{ padding: "10px 4px" }}>
-                      {jogador.posicao ?? "-"}
+                      {jogador.posicao2 ?? "-"}
                     </td>
-                    <td
-                      style={{
-                        padding: "10px 4px",
-                        textTransform: "capitalize",
-                      }}
-                    >
-                      {jogador.status.replace(/_/g, " ")}
+                    <td style={{ padding: "10px 4px", fontSize: 12 }}>
+                      {jogador.status === "ativo" && (
+                        <span
+                          style={{
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            background: "#dcfce7",
+                            border: "1px solid #22c55e",
+                          }}
+                        >
+                          Ativo
+                        </span>
+                      )}
+                      {jogador.status === "temporariamente_inativo" && (
+                        <span
+                          style={{
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            background: "#fef9c3",
+                            border: "1px solid #facc15",
+                          }}
+                        >
+                          Temporariamente inativo
+                        </span>
+                      )}
+                      {jogador.status === "desligado" && (
+                        <span
+                          style={{
+                            padding: "2px 8px",
+                            borderRadius: 999,
+                            background: "#fee2e2",
+                            border: "1px solid #ef4444",
+                          }}
+                        >
+                          Desligado
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}

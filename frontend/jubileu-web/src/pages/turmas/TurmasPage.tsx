@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import type { Turma } from "../../types/domain";
-import { MOCK_JOGADORES_TURMAS, MOCK_TURMAS } from "./MockTurmas";
+import { MOCK_TURMAS, MOCK_JOGADORES } from "./MockTurmas";
 
 function formatarRecorrencia(recorrencia: Turma["recorrencia"]) {
   const labels: Record<string, string> = {
@@ -18,10 +18,15 @@ function formatarRecorrencia(recorrencia: Turma["recorrencia"]) {
   return recorrencia.map((dia) => labels[dia] ?? dia).join(" / ");
 }
 
+// Tipo auxiliar: Turma + campo calculado de quantidade de jogadores
+type TurmaComQuantidade = Turma & {
+  quantidadeJogadores: number;
+};
+
 export default function TurmasPage() {
   const navigate = useNavigate();
 
-  const turmasComQuantidade = useMemo(
+  const turmasComQuantidade = useMemo<TurmaComQuantidade[]>(
     () =>
       MOCK_TURMAS.map((turma) => ({
         ...turma,
@@ -80,7 +85,7 @@ export default function TurmasPage() {
         >
           <h3 style={{ margin: 0 }}>Lista de turmas</h3>
           <p style={{ margin: 0, color: "#475569" }}>
-            {MOCK_JOGADORES_TURMAS.length} jogadores cadastrados
+            {MOCK_JOGADORES.length} jogadores cadastrados
           </p>
         </div>
 

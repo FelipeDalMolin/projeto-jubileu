@@ -1,10 +1,12 @@
 // src/routes/AppRoutes.tsx
 import { Navigate, Route, Routes, Outlet } from "react-router-dom";
+
 import { useAuth } from "../context/AuthContext";
 
 import DiaLista from "../pages/dias/DiaLista";
 import DiaDetalhe from "../pages/dias/DiaDetalhe";
 import AulaPage from "../pages/dias/AulaPage";
+
 import LoginPage from "../pages/auth/LoginPage";
 import UsuarioPerfil from "../pages/UsuarioPerfil";
 import JogadoresPage from "../pages/jogadores/JogadoresPage";
@@ -12,6 +14,7 @@ import DashboardsPage from "../pages/dashboards/DashboardPage";
 import TurmasPage from "../pages/turmas/TurmasPage";
 import TurmaPage from "../pages/turmas/TurmaPage";
 
+// Wrapper de rotas protegidas: se não tiver user, manda pro /login
 function RotaProtegida() {
   const { user, loading } = useAuth();
 
@@ -23,7 +26,6 @@ function RotaProtegida() {
     return <Navigate to="/login" replace />;
   }
 
-  // se estiver autenticado, libera as rotas filhas
   return <Outlet />;
 }
 
@@ -33,15 +35,16 @@ export default function AppRoutes() {
       {/* rota pública */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* rotas protegidas */}
+      {/* bloco de rotas que exigem autenticação */}
       <Route element={<RotaProtegida />}>
         {/* redireciona raiz para /dias */}
         <Route path="/" element={<Navigate to="/dias" replace />} />
 
-        {/* Dias / Agenda */}
+        {/* Dias */}
         <Route path="/dias" element={<DiaLista />} />
-        {/* dataIso = YYYY-MM-DD */}
         <Route path="/dias/:dataIso" element={<DiaDetalhe />} />
+
+        {/* Aula dentro do dia */}
         <Route path="/dias/:dataIso/aulas/:aulaId" element={<AulaPage />} />
 
         {/* Turmas */}
@@ -54,12 +57,15 @@ export default function AppRoutes() {
         {/* Dashboards */}
         <Route path="/dashboards" element={<DashboardsPage />} />
 
-        {/* Perfil do usuário logado */}
+        {/* Perfil */}
         <Route path="/usuario" element={<UsuarioPerfil />} />
 
         {/* fallback para qualquer rota desconhecida (já autenticado) */}
         <Route path="*" element={<Navigate to="/dias" replace />} />
       </Route>
+
+      {/* fallback global: se nada bater, manda pra /dias */}
+      <Route path="*" element={<Navigate to="/dias" replace />} />
     </Routes>
   );
 }

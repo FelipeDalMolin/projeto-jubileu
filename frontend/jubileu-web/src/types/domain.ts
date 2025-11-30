@@ -1,103 +1,57 @@
-// src/services/diasService.ts
-import type {
-  AulaDia,
-  Dia,
-  PresencaJogadorDia,
-} from "../types/dia";
+// src/types/domain.ts
+// Tipos de domínio "centrais" da aplicação Jubileu.
+// Aqui ficam tipos genéricos reaproveitados entre várias páginas
+// (turmas, jogadores, dias, etc.).
 
-// --------------------------------------------------------------
-// MOCK inicial – depois isso vira chamada HTTP para a API
-// --------------------------------------------------------------
+// ---------------------------------------------------------
+// Status geral do cadastro do jogador no clube
+// ---------------------------------------------------------
+export type StatusJogador = "ativo" | "temporariamente_inativo" | "desligado";
 
-const jogadoresSub11: PresencaJogadorDia[] = [
-  {
-    jogadorId: 1,
-    nome: "João Victor (JV) – Goleiro",
-    status: "presente",
-    atributos: {
-      gols: 0,
-      assistencias: 0,
-      defesas: 0,
-      chiliques: 0,
-      faltas: 0,
-    },
-  },
-  {
-    jogadorId: 2,
-    nome: "Matheus Rocha – Pivô",
-    status: "presente",
-    atributos: {
-      gols: 0,
-      assistencias: 0,
-      defesas: 0,
-      chiliques: 0,
-      faltas: 0,
-    },
-  },
-];
-
-const aulaSub11: AulaDia = {
-  id: "aula-sub11-1",
-  turmaId: "sub11",
-  turmaNome: "Sub-11",
-  numeroAulaNaTurma: 12,
-  tipo: "AULA",
-  horarioInicio: "19:00",
-  horarioFim: "20:00",
-  status: "PLANEJADA",
-  jogadores: jogadoresSub11,
-  times: [],
-  partidasCount: 0,
+// ---------------------------------------------------------
+// Jogador cadastrado no sistema (visão global)
+// ---------------------------------------------------------
+export type Jogador = {
+  id: number;
+  /** Nome completo do jogador */
+  nome: string;
+  /** Apelido exibido nas telas (opcional) */
+  apelido?: string;
+  /** Nome da turma principal do jogador (ex.: "Sub-11", "Adulto") */
+  turma?: string;
+  /** Posição principal/secundária (ex.: "Goleiro", "Pivô", "Ala") */
+  posicao2?: string;
+  /** Status do vínculo com o clube */
+  status: StatusJogador;
+  /** Estatísticas agregadas (opcional – pode ser preenchido pelo backend) */
+  gols?: number;
+  chiliques?: number;
 };
 
-const aulaAdulto: AulaDia = {
-  id: "aula-adulto-2",
-  turmaId: "adulto",
-  turmaNome: "Adulto",
-  numeroAulaNaTurma: 22,
-  tipo: "AULA",
-  horarioInicio: "20:00",
-  horarioFim: "21:00",
-  status: "PLANEJADA",
-  jogadores: [],
-  times: [],
-  partidasCount: 0,
+// ---------------------------------------------------------
+// Enum de dias da semana – usado em Turma.recorrencia
+// ---------------------------------------------------------
+export type DiaDaSemana =
+  | "SEG"
+  | "TER"
+  | "QUA"
+  | "QUI"
+  | "SEX"
+  | "SAB"
+  | "DOM";
+
+// ---------------------------------------------------------
+// Turma (categoria) do clube
+// ---------------------------------------------------------
+export type Turma = {
+  id: number;
+  /** Nome da turma (ex.: "Sub-11", "Adulto", "Feminino") */
+  nome: string;
+  /** Dias recorrentes do treino dessa turma */
+  recorrencia: DiaDaSemana[];
+  /**
+   * Jogadores vinculados à turma.
+   * O detalhe de cada jogador vem de `Jogador` (tabela / coleção própria).
+   */
+  jogadoresIds: number[];
 };
-
-const MOCK_DIAS: Dia[] = [
-  {
-    dataIso: "2025-11-20",
-    feriado: null,
-    aulas: [aulaSub11, aulaAdulto],
-  },
-];
-
-// --------------------------------------------------------------
-// Funções de serviço
-// --------------------------------------------------------------
-
-/**
- * Lista todos os dias com algo planejado/cadastrado.
- * Hoje: MOCK. Futuro: chamada HTTP (fetch/axios).
- */
-export async function listarDias(): Promise<Dia[]> {
-  return Promise.resolve(MOCK_DIAS);
-}
-
-/**
- * Obtém os dados completos de um dia pela data ISO (YYYY-MM-DD).
- * Retorna null se ainda não houver nada planejado para a data.
- */
-export async function obterDiaPorData(dataIso: string): Promise<Dia | null> {
-  const dia = MOCK_DIAS.find((d) => d.dataIso === dataIso) ?? null;
-  return Promise.resolve(dia);
-}
-
-/**
- * Ordena as aulas de um dia por horário de início.
- */
-export function ordenarAulasPorHorario(aulas: AulaDia[]): AulaDia[] {
-  return [...aulas].sort((a, b) =>
-    a.horarioInicio.localeCompare(b.horarioInicio)
-  );
-}
