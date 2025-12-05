@@ -132,7 +132,7 @@ export default function DiaDetalhe() {
             <div>
               <div className="card-title">Aulas / eventos</div>
             </div>
-            <button className="btn btn-success btn-sm">+ Adicionar evento / aula</button>
+            <button className="btn btn-success btn-sm">+ Adicionaraula</button>
           </div>
 
           {aulasOrdenadas.length === 0 ? (
