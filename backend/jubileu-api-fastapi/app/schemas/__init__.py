@@ -1,0 +1,37 @@
+from app.schemas.jogador import (
+    JogadorBase,
+    JogadorCreate,
+    JogadorUpdate,
+    JogadorOut,
+    StatusJogadorEnum,
+)
+from app.schemas.dia_aula import (
+    DiaOut,
+    AulaOut,
+    AulaCreate,
+    TimeAulaOut,
+    TimeAulaCreate,
+    PresencaJogadorDiaOut,
+    PartidaOut,
+    StatusAulaEnum,
+    TipoEventoAulaEnum,
+    StatusPresencaEnum,
+)
+
+__all__ = [
+    "JogadorBase",
+    "JogadorCreate",
+    "JogadorUpdate",
+    "JogadorOut",
+    "StatusJogadorEnum",
+    "DiaOut",
+    "AulaOut",
+    "AulaCreate",
+    "TimeAulaOut",
+    "TimeAulaCreate",
+    "PresencaJogadorDiaOut",
+    "PartidaOut",
+    "StatusAulaEnum",
+    "TipoEventoAulaEnum",
+    "StatusPresencaEnum",
+]

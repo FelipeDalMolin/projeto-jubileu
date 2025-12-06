@@ -1,112 +1,106 @@
 // src/services/diasService.ts
+import type {
+  Dia,
+  AulaDia,
+  PresencaJogadorDia,
+  TimeDia,
+  AtributosJogadorDia,
+} from "../types/dia";
 
-import type { AulaDia, Dia, PresencaJogadorDia } from "../types/dia";
-import { MOCK_JOGADORES, MOCK_TURMAS } from "../pages/turmas/MockTurmas";
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-// ============================================================
-// Helpers
-// ============================================================
+// --- MAPPERS AUXILIARES ---
 
-// Converte jogadores de uma turma (MockTurmas) para PresencaJogadorDia
-function mapJogadoresParaPresenca(ids: number[]): PresencaJogadorDia[] {
-  return ids.map((id) => {
-    const j = MOCK_JOGADORES.find((x) => x.id === id);
-    if (!j) {
-      return {
-        jogadorId: id,
-        nome: "Jogador não encontrado",
-        status: "so_treino",
-        atributos: { gols: 0, assistencias: 0, defesas: 0, chiliques: 0, faltas: 0 },
-      };
-    }
-    return {
-      jogadorId: j.id,
-      nome: `${j.nome}${j.posicao2 ? " – " + j.posicao2 : ""}`,
-      status: "presente",
-      atributos: { gols: 0, assistencias: 0, defesas: 0, chiliques: 0, faltas: 0 },
-    };
-  });
+function mapAtributos(j: any): AtributosJogadorDia {
+  const attrs = j.atributos ?? {};
+
+  return {
+    gols: attrs.gols ?? j.gols ?? 0,
+    assistencias: attrs.assistencias ?? j.assistencias ?? 0,
+    defesas: attrs.defesas ?? j.defesas ?? 0,
+    chiliques: attrs.chiliques ?? j.chiliques ?? 0,
+    faltas: attrs.faltas ?? j.faltas ?? 0,
+  };
 }
 
-// ============================================================
-// Mock das aulas — usando os jogadores reais das turmas
-// ============================================================
+function mapPresencaJogador(j: any): PresencaJogadorDia {
+  return {
+    jogadorId: j.jogador_id ?? j.id,
+    nome: j.nome,
+    status: j.status,
+    atributos: mapAtributos(j),
+    timeId: j.time_id ? String(j.time_id) : undefined,
+  };
+}
 
-// Aula SUB-11
-const aulaSub11: AulaDia = {
-  id: "aula-sub11-1",
-  turmaId: "sub11",
-  turmaNome: "Sub-11",
-  numeroAulaNaTurma: 12,
-  tipo: "AULA",
-  horarioInicio: "19:00",
-  horarioFim: "20:00",
-  status: "PLANEJADA",
-  jogadores: mapJogadoresParaPresenca(
-    MOCK_TURMAS.find((t) => t.nome === "Sub-11")?.jogadoresIds ?? []
-  ),
-  times: [],
-  partidasCount: 0,
-};
+function mapTime(t: any): TimeDia {
+  return {
+    id: String(t.id),
+    nome: t.nome,
+    // ainda não estamos retornando jogadores por time no backend
+    jogadoresIds: [],
+  };
+}
 
-// Aula ADULTO (agora com 10+ jogadores automaticamente)
-const aulaAdulto: AulaDia = {
-  id: "aula-adulto-22",
-  turmaId: "adulto",
-  turmaNome: "Adulto",
-  numeroAulaNaTurma: 22,
-  tipo: "AULA",
-  horarioInicio: "20:00",
-  horarioFim: "21:00",
-  status: "PLANEJADA",
-  jogadores: mapJogadoresParaPresenca(
-    MOCK_TURMAS.find((t) => t.nome === "Adulto")?.jogadoresIds ?? []
-  ),
-  times: [],
-  partidasCount: 0,
-};
+function mapAula(aula: any): AulaDia {
+  const jogadores: PresencaJogadorDia[] = (aula.jogadores ?? []).map(
+    mapPresencaJogador,
+  );
+  const times: TimeDia[] = (aula.times ?? []).map(mapTime);
 
-// ============================================================
-// MOCK de DIAS
-// ============================================================
+  return {
+    id: String(aula.id),
+    turmaId: aula.turma_id,
+    turmaNome: aula.turma_nome,
+    numeroAulaNaTurma: aula.numero_aula_na_turma,
+    tipo: aula.tipo,
+    horarioInicio: aula.horario_inicio,
+    horarioFim: aula.horario_fim,
+    status: aula.status,
+    jogadores,
+    times,
+    partidasCount: (aula.partidas ?? []).length,
+  };
+}
 
-const MOCK_DIAS: Dia[] = [
-  {
-    dataIso: "2025-11-20",
-    feriado: null,
-    aulas: [aulaSub11, aulaAdulto],
-  },
+function mapDia(data: any): Dia {
+  return {
+    dataIso: data.data_iso,
+    aulas: (data.aulas ?? []).map(mapAula),
+    feriado: undefined, // backend ainda não trata feriado
+  };
+}
 
-  // você pode duplicar esse bloco para criar novos dias mock
-  // copiando o dia e mudando dataIso + numero das aulas
-];
+// --- SERVICES ---
 
-// ============================================================
-// Funções de serviço
-// ============================================================
+// Usa a API real para carregar um dia pela data
+export async function obterDiaPorData(dataIso: string): Promise<Dia> {
+  const resp = await fetch(`${API_BASE_URL}/dias/${dataIso}`);
 
-/**
- * Lista todos os dias cadastrados.
- * Hoje: MOCK.
- */
+  if (!resp.ok) {
+    throw new Error(`Erro ao buscar dia ${dataIso}: ${resp.status}`);
+  }
+
+  const json = await resp.json();
+  return mapDia(json);
+}
+
+// Lista de dias (por enquanto MOCK sobre a API de dia único)
+// Depois vamos trocar por GET /dias no backend
 export async function listarDias(): Promise<Dia[]> {
-  return Promise.resolve(MOCK_DIAS);
+  // coloque aqui as datas que você está usando no Swagger
+  const datas = ["2025-11-20", "2025-11-21"];
+
+  const dias = await Promise.all(datas.map(obterDiaPorData));
+
+  // ordena só pra deixar bonitinho
+  return dias.sort((a, b) => a.dataIso.localeCompare(b.dataIso));
 }
 
-/**
- * Obtém os dados completos de um dia pela data ISO (YYYY-MM-DD).
- * Retorna null se não houver nada cadastrado.
- */
-export async function obterDiaPorData(dataIso: string): Promise<Dia | null> {
-  return Promise.resolve(MOCK_DIAS.find((d) => d.dataIso === dataIso) ?? null);
-}
-
-/**
- * Ordena aulas por horário de início.
- * Útil para a página DiaDetalhe.
- */
+// Ordena aulas pelo horário de início (utilizado em DiaDetalhe)
 export function ordenarAulasPorHorario(aulas: AulaDia[]): AulaDia[] {
   return [...aulas].sort((a, b) =>
-    a.horarioInicio.localeCompare(b.horarioInicio)
+    a.horarioInicio.localeCompare(b.horarioInicio),
   );
 }

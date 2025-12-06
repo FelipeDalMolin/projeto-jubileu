@@ -94,7 +94,9 @@ export default function AulaPage() {
   if (loading) {
     return (
       <div style={{ padding: 24 }}>
-        <button onClick={() => navigate(`/dias/${dataIso}`)}>&larr; Voltar</button>
+        <button onClick={() => navigate(`/dias/${dataIso}`)}>
+          &larr; Voltar
+        </button>
         <h1>Aula</h1>
         <p>Carregando dados da aula...</p>
       </div>
@@ -104,7 +106,9 @@ export default function AulaPage() {
   if (!dia || !aula) {
     return (
       <div style={{ padding: 24 }}>
-        <button onClick={() => navigate(`/dias/${dataIso}`)}>&larr; Voltar</button>
+        <button onClick={() => navigate(`/dias/${dataIso}`)}>
+          &larr; Voltar
+        </button>
         <h1>Aula não encontrada</h1>
         <p>
           Não foi possível localizar a aula selecionada para o dia {tituloData}.
@@ -131,7 +135,6 @@ export default function AulaPage() {
   };
 
   const handleMarcarTodosSoTreino = () => {
-    // atalho: todo mundo veio, só treinou (sem jogo)
     setJogadores((prev) =>
       prev.map((j) => ({
         ...j,
@@ -141,7 +144,6 @@ export default function AulaPage() {
   };
 
   const handleLimparStatus = () => {
-    // zera para "so_treino" também
     setJogadores((prev) =>
       prev.map((j) => ({
         ...j,
@@ -247,9 +249,7 @@ export default function AulaPage() {
   ) => {
     const value = e.target.value;
     setTimes((prev) =>
-      prev.map((t) =>
-        t.id === timeId ? { ...t, caracteristica: value } : t
-      )
+      prev.map((t) => (t.id === timeId ? { ...t, caracteristica: value } : t))
     );
   };
 
@@ -336,13 +336,10 @@ export default function AulaPage() {
     valor: number
   ) => {
     setPartidas((prev) =>
-      prev.map((p) =>
-        p.id === partidaId ? { ...p, [campo]: valor } : p
-      )
+      prev.map((p) => (p.id === partidaId ? { ...p, [campo]: valor } : p))
     );
   };
 
-  // (mock) salvar tudo – aqui depois entra chamada de API
   const handleSalvarAula = () => {
     const payload = {
       diaDataIso: dia?.dataIso ?? dataIso,
@@ -352,7 +349,6 @@ export default function AulaPage() {
       partidas,
       stats,
     };
-    // por enquanto só loga; depois vira POST pra API
     // eslint-disable-next-line no-console
     console.log("SALVAR AULA (mock):", payload);
     alert("Dados da aula registrados em memória (ver console).");
@@ -361,7 +357,7 @@ export default function AulaPage() {
   // -------------------------------------------------
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
       <button onClick={() => navigate(`/dias/${dataIso}`)}>
         &larr; Voltar para o dia
       </button>
@@ -378,21 +374,23 @@ export default function AulaPage() {
         </div>
       </header>
 
+      {/* GRID: Jogadores (esq) + Equipes (dir) */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "minmax(280px, 360px) minmax(360px, 1fr)",
           gap: 24,
+          alignItems: "flex-start",
         }}
       >
-        {/* COLUNA ESQUERDA: lista + status + drag start */}
+        {/* COLUNA ESQUERDA - Jogadores */}
         <section
           style={{
             borderRadius: 12,
             border: "1px solid #dde1e7",
             padding: 16,
             background: "#fff",
-            maxHeight: "70vh",
+            maxHeight: "75vh",
             overflow: "auto",
           }}
         >
@@ -513,350 +511,348 @@ export default function AulaPage() {
           )}
         </section>
 
-        {/* COLUNA DIREITA: equipes + partidas */}
-        <section style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Equipes */}
+        {/* COLUNA DIREITA - Equipes */}
+        <section
+          style={{
+            borderRadius: 12,
+            border: "1px solid #dde1e7",
+            padding: 16,
+            background: "#fff",
+          }}
+        >
           <div
             style={{
-              borderRadius: 12,
-              border: "1px solid #dde1e7",
-              padding: 16,
-              background: "#fff",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 8,
+              gap: 8,
+              flexWrap: "wrap",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 8,
-              }}
-            >
-              <h2 style={{ marginTop: 0, fontSize: 16 }}>Equipes</h2>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={handleAdicionarEquipe}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    border: "1px solid #22c55e",
-                    background: "#dcfce7",
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
-                >
-                  + Adicionar equipe
-                </button>
-                <button
-                  onClick={handleLimparEquipes}
-                  style={{
-                    padding: "4px 10px",
-                    borderRadius: 999,
-                    border: "1px solid #e2e8f0",
-                    background: "#fff",
-                    fontSize: 12,
-                    cursor: "pointer",
-                  }}
-                >
-                  Limpar equipes
-                </button>
-              </div>
-            </div>
-
-            <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
-              Arraste o nome do jogador a partir da lista à esquerda para as
-              colunas abaixo para montar os times. Para tirar alguém de um time,
-              clique no <strong>“x”</strong> no chip do jogador.
-            </p>
-
-            {times.length === 0 ? (
-              <p style={{ fontSize: 13, color: "#555" }}>
-                Nenhuma equipe cadastrada. Clique em{" "}
-                <strong>“Adicionar equipe”</strong> para começar.
-              </p>
-            ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: `repeat(${times.length}, minmax(160px, 1fr))`,
-                  gap: 12,
-                }}
-              >
-                {times.map((time) => {
-                  const jogadoresTime = jogadoresPorTime(time.id);
-                  return (
-                    <DropArea
-                      key={time.id}
-                      titulo={time.nome}
-                      descricao={`${jogadoresTime.length} jogador(es)`}
-                      onDrop={(e) => onAreaDrop(e, time.id)}
-                      onDragOver={onAreaDragOver}
-                    >
-                      <input
-                        type="text"
-                        placeholder="Característica (ex.: camisa azul, equilibrado...)"
-                        value={time.caracteristica ?? ""}
-                        onChange={(e) => handleChangeCaracteristica(time.id, e)}
-                        style={{
-                          width: "100%",
-                          fontSize: 11,
-                          marginBottom: 6,
-                          padding: "3px 6px",
-                          borderRadius: 6,
-                          border: "1px solid #e2e8f0",
-                        }}
-                      />
-                      {jogadoresTime.map((j) => (
-                        <ChipJogador
-                          key={j.jogadorId}
-                          jogador={j}
-                          onRemover={handleRemoverDoTime}
-                        />
-                      ))}
-                    </DropArea>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Partidas + súmula */}
-          <div
-            style={{
-              borderRadius: 12,
-              border: "1px solid #dde1e7",
-              padding: 16,
-              background: "#fff",
-            }}
-          >
-            <h2 style={{ marginTop: 0, fontSize: 16 }}>Partidas</h2>
-
-            {times.length < 2 ? (
-              <p style={{ fontSize: 13, color: "#555" }}>
-                Para criar partidas, é necessário ter pelo menos{" "}
-                <strong>2 equipes</strong>.
-              </p>
-            ) : (
-              <>
-                {/* Formulário para adicionar partida */}
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: 8,
-                    alignItems: "center",
-                    marginBottom: 10,
-                  }}
-                >
-                  <span style={{ fontSize: 12 }}>Nova partida:</span>
-                  <select
-                    value={novoTimeAId}
-                    onChange={(e) => setNovoTimeAId(e.target.value)}
-                    style={{
-                      fontSize: 12,
-                      borderRadius: 999,
-                      border: "1px solid #e2e8f0",
-                      padding: "2px 6px",
-                    }}
-                  >
-                    <option value="">Time A</option>
-                    {times.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nome}
-                      </option>
-                    ))}
-                  </select>
-                  <span style={{ fontSize: 12 }}>x</span>
-                  <select
-                    value={novoTimeBId}
-                    onChange={(e) => setNovoTimeBId(e.target.value)}
-                    style={{
-                      fontSize: 12,
-                      borderRadius: 999,
-                      border: "1px solid #e2e8f0",
-                      padding: "2px 6px",
-                    }}
-                  >
-                    <option value="">Time B</option>
-                    {times.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.nome}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleAdicionarPartida}
-                    style={{
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      border: "1px solid #2563eb",
-                      background: "#dbeafe",
-                      fontSize: 12,
-                      cursor: "pointer",
-                    }}
-                  >
-                    Adicionar partida
-                  </button>
-                  <span style={{ fontSize: 11, color: "#64748b" }}>
-                    Monte na ordem real (ex.: vencedor continua).
-                  </span>
-                </div>
-
-                {partidas.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#555" }}>
-                    Nenhuma partida cadastrada ainda.
-                  </p>
-                ) : (
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 12,
-                    }}
-                  >
-                    {partidas.map((p) => {
-                      const timeA = times.find((t) => t.id === p.timeAId);
-                      const timeB = times.find((t) => t.id === p.timeBId);
-                      const jogadoresA = timeA
-                        ? jogadoresPorTime(timeA.id)
-                        : [];
-                      const jogadoresB = timeB
-                        ? jogadoresPorTime(timeB.id)
-                        : [];
-
-                      return (
-                        <div
-                          key={p.id}
-                          style={{
-                            borderRadius: 8,
-                            border: "1px solid #e2e8f0",
-                            padding: 8,
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "center",
-                              marginBottom: 6,
-                              fontSize: 13,
-                              gap: 8,
-                            }}
-                          >
-                            <span>Partida {p.ordem}</span>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                              }}
-                            >
-                              <strong>{timeA?.nome ?? "Time A"}</strong>
-                              <input
-                                type="number"
-                                min={0}
-                                value={p.golsTimeA}
-                                onChange={(e) =>
-                                  handleAlterarPlacar(
-                                    p.id,
-                                    "golsTimeA",
-                                    Number(e.target.value) || 0
-                                  )
-                                }
-                                style={{
-                                  width: 36,
-                                  fontSize: 12,
-                                  textAlign: "center",
-                                  borderRadius: 4,
-                                  border: "1px solid #e2e8f0",
-                                }}
-                              />
-                              <span>x</span>
-                              <input
-                                type="number"
-                                min={0}
-                                value={p.golsTimeB}
-                                onChange={(e) =>
-                                  handleAlterarPlacar(
-                                    p.id,
-                                    "golsTimeB",
-                                    Number(e.target.value) || 0
-                                  )
-                                }
-                                style={{
-                                  width: 36,
-                                  fontSize: 12,
-                                  textAlign: "center",
-                                  borderRadius: 4,
-                                  border: "1px solid #e2e8f0",
-                                }}
-                              />
-                              <strong>{timeB?.nome ?? "Time B"}</strong>
-                            </div>
-                            <button
-                              onClick={() => handleRemoverPartida(p.id)}
-                              style={{
-                                fontSize: 11,
-                                border: "none",
-                                background: "transparent",
-                                color: "#ef4444",
-                                cursor: "pointer",
-                              }}
-                            >
-                              Remover
-                            </button>
-                          </div>
-
-                          <div
-                            style={{
-                              display: "grid",
-                              gridTemplateColumns: "1fr 1fr",
-                              gap: 8,
-                              fontSize: 11,
-                            }}
-                          >
-                            <TabelaSumulaTime
-                              titulo={timeA?.nome ?? "Time A"}
-                              partidaId={p.id}
-                              jogadores={jogadoresA}
-                              getStat={getStat}
-                              onAlterarStat={handleAlterarStat}
-                            />
-                            <TabelaSumulaTime
-                              titulo={timeB?.nome ?? "Time B"}
-                              partidaId={p.id}
-                              jogadores={jogadoresB}
-                              getStat={getStat}
-                              onAlterarStat={handleAlterarStat}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-
-            <div style={{ marginTop: 12, textAlign: "right" }}>
+            <h2 style={{ marginTop: 0, fontSize: 16 }}>Equipes</h2>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
-                onClick={handleSalvarAula}
+                onClick={handleAdicionarEquipe}
                 style={{
-                  padding: "6px 14px",
+                  padding: "4px 10px",
                   borderRadius: 999,
-                  border: "1px solid #16a34a",
-                  background: "#22c55e",
-                  color: "#fff",
+                  border: "1px solid #22c55e",
+                  background: "#dcfce7",
                   fontSize: 12,
                   cursor: "pointer",
                 }}
               >
-                Salvar aula / partidas (mock)
+                + Adicionar equipe
+              </button>
+              <button
+                onClick={handleLimparEquipes}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  border: "1px solid #e2e8f0",
+                  background: "#fff",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                Limpar equipes
               </button>
             </div>
           </div>
+
+          <p style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+            Arraste o nome do jogador a partir da lista à esquerda para as
+            áreas abaixo para montar os times. Para tirar alguém de um time,
+            clique no <strong>“x”</strong> no chip do jogador.
+          </p>
+
+          {times.length === 0 ? (
+            <p style={{ fontSize: 13, color: "#555" }}>
+              Nenhuma equipe cadastrada. Clique em{" "}
+              <strong>“Adicionar equipe”</strong> para começar.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              {times.map((time) => {
+                const jogadoresTime = jogadoresPorTime(time.id);
+                return (
+                  <DropArea
+                    key={time.id}
+                    titulo={time.nome}
+                    descricao={`${jogadoresTime.length} jogador(es)`}
+                    onDrop={(e) => onAreaDrop(e, time.id)}
+                    onDragOver={onAreaDragOver}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Característica (ex.: camisa azul, equilibrado...)"
+                      value={time.caracteristica ?? ""}
+                      onChange={(e) => handleChangeCaracteristica(time.id, e)}
+                      style={{
+                        width: "100%",
+                        fontSize: 11,
+                        marginBottom: 6,
+                        padding: "3px 6px",
+                        borderRadius: 6,
+                        border: "1px solid #e2e8f0",
+                      }}
+                    />
+                    {jogadoresTime.map((j) => (
+                      <ChipJogador
+                        key={j.jogadorId}
+                        jogador={j}
+                        onRemover={handleRemoverDoTime}
+                      />
+                    ))}
+                  </DropArea>
+                );
+              })}
+            </div>
+          )}
         </section>
       </div>
+
+      {/* CARD DE PARTIDAS ABAIXO, LARGURA TOTAL */}
+      <section
+        style={{
+          marginTop: 24,
+          borderRadius: 12,
+          border: "1px solid #dde1e7",
+          padding: 16,
+          background: "#fff",
+        }}
+      >
+        <h2 style={{ marginTop: 0, fontSize: 16 }}>Partidas</h2>
+
+        {times.length < 2 ? (
+          <p style={{ fontSize: 13, color: "#555" }}>
+            Para criar partidas, é necessário ter pelo menos{" "}
+            <strong>2 equipes</strong>.
+          </p>
+        ) : (
+          <>
+            {/* Formulário para adicionar partida */}
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                alignItems: "center",
+                marginBottom: 10,
+              }}
+            >
+              <span style={{ fontSize: 12 }}>Nova partida:</span>
+              <select
+                value={novoTimeAId}
+                onChange={(e) => setNovoTimeAId(e.target.value)}
+                style={{
+                  fontSize: 12,
+                  borderRadius: 999,
+                  border: "1px solid #e2e8f0",
+                  padding: "2px 6px",
+                }}
+              >
+                <option value="">Time A</option>
+                {times.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nome}
+                  </option>
+                ))}
+              </select>
+              <span style={{ fontSize: 12 }}>x</span>
+              <select
+                value={novoTimeBId}
+                onChange={(e) => setNovoTimeBId(e.target.value)}
+                style={{
+                  fontSize: 12,
+                  borderRadius: 999,
+                  border: "1px solid #e2e8f0",
+                  padding: "2px 6px",
+                }}
+              >
+                <option value="">Time B</option>
+                {times.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nome}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={handleAdicionarPartida}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  border: "1px solid #2563eb",
+                  background: "#dbeafe",
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                Adicionar partida
+              </button>
+              <span style={{ fontSize: 11, color: "#64748b" }}>
+                Monte na ordem real (ex.: vencedor continua).
+              </span>
+            </div>
+
+            {partidas.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#555" }}>
+                Nenhuma partida cadastrada ainda.
+              </p>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12,
+                }}
+              >
+                {partidas.map((p) => {
+                  const timeA = times.find((t) => t.id === p.timeAId);
+                  const timeB = times.find((t) => t.id === p.timeBId);
+                  const jogadoresA = timeA ? jogadoresPorTime(timeA.id) : [];
+                  const jogadoresB = timeB ? jogadoresPorTime(timeB.id) : [];
+
+                  return (
+                    <div
+                      key={p.id}
+                      style={{
+                        borderRadius: 8,
+                        border: "1px solid #e2e8f0",
+                        padding: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginBottom: 6,
+                          fontSize: 13,
+                          gap: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span>Partida {p.ordem}</span>
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <strong>{timeA?.nome ?? "Time A"}</strong>
+                          <input
+                            type="number"
+                            min={0}
+                            value={p.golsTimeA}
+                            onChange={(e) =>
+                              handleAlterarPlacar(
+                                p.id,
+                                "golsTimeA",
+                                Number(e.target.value) || 0
+                              )
+                            }
+                            style={{
+                              width: 36,
+                              fontSize: 12,
+                              textAlign: "center",
+                              borderRadius: 4,
+                              border: "1px solid #e2e8f0",
+                            }}
+                          />
+                          <span>x</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={p.golsTimeB}
+                            onChange={(e) =>
+                              handleAlterarPlacar(
+                                p.id,
+                                "golsTimeB",
+                                Number(e.target.value) || 0
+                              )
+                            }
+                            style={{
+                              width: 36,
+                              fontSize: 12,
+                              textAlign: "center",
+                              borderRadius: 4,
+                              border: "1px solid #e2e8f0",
+                            }}
+                          />
+                          <strong>{timeB?.nome ?? "Time B"}</strong>
+                        </div>
+                        <button
+                          onClick={() => handleRemoverPartida(p.id)}
+                          style={{
+                            fontSize: 11,
+                            border: "none",
+                            background: "transparent",
+                            color: "#ef4444",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Remover
+                        </button>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr",
+                          gap: 8,
+                          fontSize: 11,
+                        }}
+                      >
+                        <TabelaSumulaTime
+                          titulo={timeA?.nome ?? "Time A"}
+                          partidaId={p.id}
+                          jogadores={jogadoresA}
+                          getStat={getStat}
+                          onAlterarStat={handleAlterarStat}
+                        />
+                        <TabelaSumulaTime
+                          titulo={timeB?.nome ?? "Time B"}
+                          partidaId={p.id}
+                          jogadores={jogadoresB}
+                          getStat={getStat}
+                          onAlterarStat={handleAlterarStat}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+
+        <div style={{ marginTop: 12, textAlign: "right" }}>
+          <button
+            onClick={handleSalvarAula}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 999,
+              border: "1px solid #16a34a",
+              background: "#22c55e",
+              color: "#fff",
+              fontSize: 12,
+              cursor: "pointer",
+            }}
+          >
+            Salvar aula / partidas (mock)
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -943,6 +939,11 @@ function DropArea({
         padding: 8,
         minHeight: 140,
         background: "#f9fafb",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+        maxHeight: 260,
+        overflowY: "auto",
       }}
     >
       <div style={{ fontWeight: 600, fontSize: 13 }}>{titulo}</div>
@@ -977,7 +978,17 @@ function ChipJogador({ jogador, onRemover }: ChipJogadorProps) {
       }}
       title={jogador.nome}
     >
-      <span>{jogador.nome}</span>
+      <span
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {jogador.nome}
+      </span>
       <button
         onClick={() => onRemover(jogador.jogadorId)}
         style={{
@@ -1099,6 +1110,10 @@ function TabelaSumulaTime({
                   style={{
                     padding: "2px 4px",
                     borderBottom: "1px solid #f1f5f9",
+                    maxWidth: 140,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
                   {j.nome}

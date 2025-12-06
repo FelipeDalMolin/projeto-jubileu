@@ -1,4 +1,5 @@
-import express from "express"; 
+// backend/jubileu-api/src/index.ts
+import express from "express";
 import cors from "cors";
 import { EstadoEquipesDia } from "./tipos";
 
@@ -9,23 +10,17 @@ app.use(express.json());
 const PORT = process.env.PORT || 4000;
 
 // ---------------------------------------------------------------------------
-// 🌟 "Banco" em memória
+// "Banco" em memória: diaId (na verdade aula.id) -> estado
 // ---------------------------------------------------------------------------
-// Aqui guardamos o estado das equipes de cada AULA (ou dia).
-// A chave é o diaId (na verdade estamos usando aula.id).
 const estadosPorDia: Record<string, EstadoEquipesDia> = {};
 
-
 // ---------------------------------------------------------------------------
-// 🌟 ROTA PARA OBTER O ESTADO (GET)
+// GET /dias/:diaId/equipes – devolve o estado atual
 // ---------------------------------------------------------------------------
-// GET /dias/:diaId/equipes
-// Ex.: GET /dias/aula-adulto-22/equipes
 app.get("/dias/:diaId/equipes", (req, res) => {
   const { diaId } = req.params;
   const estado = estadosPorDia[diaId];
 
-  // Se não existe ainda, devolvemos um estado vazio
   if (!estado) {
     const vazio: EstadoEquipesDia = {
       diaId,
@@ -39,22 +34,17 @@ app.get("/dias/:diaId/equipes", (req, res) => {
   return res.json(estado);
 });
 
-
 // ---------------------------------------------------------------------------
-// 🌟 ROTA PARA SALVAR O ESTADO (PUT)
+// PUT /dias/:diaId/equipes – salva snapshot vindo do front
 // ---------------------------------------------------------------------------
-// PUT /dias/:diaId/equipes
-// O frontend envia o estado completo das equipes da aula
 app.put("/dias/:diaId/equipes", (req, res) => {
   const { diaId } = req.params;
   const body = req.body as Partial<EstadoEquipesDia>;
 
-  // Validação simples
   if (!body.jogadores || !body.equipes || !body.atribuicoes) {
     return res.status(400).json({ erro: "Payload inválido" });
   }
 
-  // Constrói o novo estado
   const novoEstado: EstadoEquipesDia = {
     diaId,
     jogadores: body.jogadores,
@@ -62,15 +52,12 @@ app.put("/dias/:diaId/equipes", (req, res) => {
     atribuicoes: body.atribuicoes,
   };
 
-  // Salva no "banco"
   estadosPorDia[diaId] = novoEstado;
-
   return res.json(novoEstado);
 });
 
-
 // ---------------------------------------------------------------------------
-// 🌟 SERVIDOR ONLINE
+// Servidor
 // ---------------------------------------------------------------------------
 app.listen(PORT, () => {
   console.log(`Jubileu API rodando na porta ${PORT}`);
