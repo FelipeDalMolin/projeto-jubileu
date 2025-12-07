@@ -7,7 +7,13 @@ import {
   type ReactNode,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { obterDiaPorData } from "../../services/diasService";
+import {
+  obterDiaPorData,
+  criarTimeNaAula,
+  carregarEstadoEquipesAula,
+  salvarEstadoEquipesAula,
+  listarJogadoresDaTurma,
+} from "../../services/diasService";
 import type {
   AulaDia,
   Dia,
@@ -62,27 +68,120 @@ export default function AulaPage() {
   const [novoTimeAId, setNovoTimeAId] = useState<string>("");
   const [novoTimeBId, setNovoTimeBId] = useState<string>("");
 
+  // ---------------- CARREGAMENTO INICIAL ----------------
+
   useEffect(() => {
     if (!dataIso || !aulaId) return;
-    setLoading(true);
-    obterDiaPorData(dataIso)
-      .then((result) => {
-        setDia(result);
-        if (result) {
-          const a = result.aulas.find((x) => x.id === aulaId) ?? null;
-          setAula(a);
 
-          if (a) {
-            setJogadores(a.jogadores ?? []);
-            const ts: TimeAula[] = (a.times ?? []).map((t) => ({ ...t }));
-            setTimes(ts);
-            setPartidas([]);
-            setStats({});
-          }
+    const carregar = async () => {
+      try {
+        setLoading(true);
+
+        // 1) Carrega o dia (e as aulas)
+        const diaCarregado = await obterDiaPorData(dataIso);
+        setDia(diaCarregado);
+
+        const aulaEncontrada =
+          diaCarregado.aulas.find((x) => x.id === aulaId) ?? null;
+
+        setAula(aulaEncontrada);
+
+        if (!aulaEncontrada) {
+          setJogadores([]);
+          setTimes([]);
+          setPartidas([]);
+          setStats({});
+          return;
         }
-      })
-      .finally(() => setLoading(false));
+
+        // 2) Carrega jogadores "da turma" (JogadorTurmaDTO[])
+        const jogadoresTurmaDTOs = await listarJogadoresDaTurma(
+          aulaEncontrada.turmaId,
+        );
+
+        // 2.1) Converte para PresencaJogadorDia (formato usado na tela)
+        const jogadoresTurma: PresencaJogadorDia[] = jogadoresTurmaDTOs.map(
+          (j: any) => ({
+            jogadorId: j.jogadorId ?? j.id, // garante id
+            nome: j.nome,
+            status: "so_treino",
+            atributos: {
+              gols: 0,
+              assistencias: 0,
+              defesas: 0,
+              chiliques: 0,
+              faltas: 0,
+            },
+            timeId: undefined,
+          }),
+        );
+
+        // 3) Tenta carregar estado salvo de equipes da aula
+        let estadoEquipes:
+          | { aulaId: string; jogadores: PresencaJogadorDia[]; times: TimeDia[] }
+          | null = null;
+
+        try {
+          estadoEquipes = await carregarEstadoEquipesAula(
+            dataIso,
+            aulaEncontrada.id,
+          );
+        } catch (err) {
+          // se der erro (ex.: 404), consideramos estado vazio
+          // eslint-disable-next-line no-console
+          console.warn("Não foi possível carregar estado de equipes:", err);
+          estadoEquipes = null;
+        }
+
+        // 4) Merge jogadores:
+        //    - Se existir estado de jogadores, usamos ele
+        //    - Mas garantimos que todo jogador da turma esteja presente
+        let jogadoresBase: PresencaJogadorDia[] = [];
+
+        if (estadoEquipes && estadoEquipes.jogadores.length > 0) {
+          const porIdEstado = new Map<number, PresencaJogadorDia>(
+            estadoEquipes.jogadores.map((j) => [j.jogadorId, j]),
+          );
+
+          jogadoresBase = jogadoresTurma.map((jTurma) => {
+            const doEstado = porIdEstado.get(jTurma.jogadorId);
+            return doEstado ?? jTurma;
+          });
+        } else {
+          // sem estado salvo → usa diretamente os jogadores da turma
+          jogadoresBase = jogadoresTurma;
+        }
+
+        // 5) Times:
+        //    - Se existir estado de times, usa ele
+        //    - Caso contrário, usa times já existentes na aula (se houver)
+        let timesBase: TimeAula[] = [];
+
+        if (estadoEquipes && estadoEquipes.times.length > 0) {
+          timesBase = estadoEquipes.times.map((t) => ({
+            ...t,
+            caracteristica: (t as any).caracteristica ?? "",
+          }));
+        } else {
+          timesBase = (aulaEncontrada.times ?? []).map((t) => ({
+            ...t,
+            caracteristica: "",
+          }));
+        }
+
+        setJogadores(jogadoresBase);
+        setTimes(timesBase);
+        setPartidas([]); // por enquanto partidas continuam locais
+        setStats({});
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void carregar();
   }, [dataIso, aulaId]);
+
+  // ---------------- GUARD-CLAUSES ----------------
 
   if (!dataIso || !aulaId) {
     return <div style={{ padding: 24 }}>Parâmetros inválidos.</div>;
@@ -125,12 +224,12 @@ export default function AulaPage() {
 
   const handleAlterarStatus = (
     jogadorId: number,
-    novoStatus: StatusPresenca
+    novoStatus: StatusPresenca,
   ) => {
     setJogadores((prev) =>
       prev.map((j) =>
-        j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j
-      )
+        j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j,
+      ),
     );
   };
 
@@ -139,7 +238,7 @@ export default function AulaPage() {
       prev.map((j) => ({
         ...j,
         status: "so_treino",
-      }))
+      })),
     );
   };
 
@@ -148,7 +247,7 @@ export default function AulaPage() {
       prev.map((j) => ({
         ...j,
         status: "so_treino",
-      }))
+      })),
     );
   };
 
@@ -156,23 +255,36 @@ export default function AulaPage() {
 
   const jogadoresFiltrados = filtroNome
     ? jogadoresSemTimeLista.filter((j) =>
-        j.nome.toLowerCase().includes(filtroNome.toLowerCase())
+        j.nome.toLowerCase().includes(filtroNome.toLowerCase()),
       )
     : jogadoresSemTimeLista;
 
   // --------------- EQUIPES / DRAG & DROP -------------
 
-  const handleAdicionarEquipe = () => {
-    setTimes((prev) => {
-      const idx = prev.length + 1;
-      const novo: TimeAula = {
-        id: `time-${idx}`,
-        nome: `Time ${idx}`,
-        jogadoresIds: [],
+  const handleAdicionarEquipe = async () => {
+    if (!aula) return;
+    if (!dataIso) return;
+
+    try {
+      const idx = times.length + 1;
+      const nomeTime = `Time ${idx}`;
+
+      const backendTime = await criarTimeNaAula(dataIso, aula.id, {
+        nome: nomeTime,
+        caracteristica: "",
+      });
+
+      const novoTime: TimeAula = {
+        ...backendTime,
         caracteristica: "",
       };
-      return [...prev, novo];
-    });
+
+      setTimes((prev) => [...prev, novoTime]);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      alert("Erro ao criar equipe. Veja o console para detalhes.");
+    }
   };
 
   const handleLimparEquipes = () => {
@@ -183,7 +295,7 @@ export default function AulaPage() {
       prev.map((j) => ({
         ...j,
         timeId: undefined,
-      }))
+      })),
     );
   };
 
@@ -212,21 +324,21 @@ export default function AulaPage() {
 
     setJogadores((prev) =>
       prev.map((j) =>
-        j.jogadorId === jogadorId ? { ...j, timeId: timeId || undefined } : j
-      )
+        j.jogadorId === jogadorId ? { ...j, timeId: timeId || undefined } : j,
+      ),
     );
   };
 
   const onJogadorDragStart = (
     e: DragEvent<HTMLElement>,
-    jogadorId: number
+    jogadorId: number,
   ) => {
     e.dataTransfer.setData("text/plain", String(jogadorId));
   };
 
   const onAreaDrop = (
     e: DragEvent<HTMLDivElement>,
-    destinoTimeId: string
+    destinoTimeId: string,
   ) => {
     e.preventDefault();
     const data = e.dataTransfer.getData("text/plain");
@@ -245,11 +357,11 @@ export default function AulaPage() {
 
   const handleChangeCaracteristica = (
     timeId: string,
-    e: ChangeEvent<HTMLInputElement>
+    e: ChangeEvent<HTMLInputElement>,
   ) => {
     const value = e.target.value;
     setTimes((prev) =>
-      prev.map((t) => (t.id === timeId ? { ...t, caracteristica: value } : t))
+      prev.map((t) => (t.id === timeId ? { ...t, caracteristica: value } : t)),
     );
   };
 
@@ -294,7 +406,7 @@ export default function AulaPage() {
     partidaId: string,
     jogadorId: number,
     campo: keyof StatsJogador,
-    valor: number
+    valor: number,
   ) => {
     setStats((prev) => {
       const statsPartida = prev[partidaId] ?? {};
@@ -325,7 +437,7 @@ export default function AulaPage() {
   const getStat = (
     partidaId: string,
     jogadorId: number,
-    campo: keyof StatsJogador
+    campo: keyof StatsJogador,
   ): number => {
     return stats[partidaId]?.[jogadorId]?.[campo] ?? 0;
   };
@@ -333,25 +445,27 @@ export default function AulaPage() {
   const handleAlterarPlacar = (
     partidaId: string,
     campo: "golsTimeA" | "golsTimeB",
-    valor: number
+    valor: number,
   ) => {
     setPartidas((prev) =>
-      prev.map((p) => (p.id === partidaId ? { ...p, [campo]: valor } : p))
+      prev.map((p) => (p.id === partidaId ? { ...p, [campo]: valor } : p)),
     );
   };
 
-  const handleSalvarAula = () => {
-    const payload = {
-      diaDataIso: dia?.dataIso ?? dataIso,
-      aulaId: aula.id,
-      jogadores,
-      times,
-      partidas,
-      stats,
-    };
-    // eslint-disable-next-line no-console
-    console.log("SALVAR AULA (mock):", payload);
-    alert("Dados da aula registrados em memória (ver console).");
+  // ---------------- SALVAR ESTADO NA API ---------------
+
+  const handleSalvarAula = async () => {
+    if (!dataIso || !aula) return;
+
+    try {
+      await salvarEstadoEquipesAula(dataIso, aula.id, jogadores, times);
+
+      alert("Estado de equipes da aula salvo com sucesso!");
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      alert("Erro ao salvar estado da aula. Veja o console para detalhes.");
+    }
   };
 
   // -------------------------------------------------
@@ -758,7 +872,7 @@ export default function AulaPage() {
                               handleAlterarPlacar(
                                 p.id,
                                 "golsTimeA",
-                                Number(e.target.value) || 0
+                                Number(e.target.value) || 0,
                               )
                             }
                             style={{
@@ -778,7 +892,7 @@ export default function AulaPage() {
                               handleAlterarPlacar(
                                 p.id,
                                 "golsTimeB",
-                                Number(e.target.value) || 0
+                                Number(e.target.value) || 0,
                               )
                             }
                             style={{
@@ -849,7 +963,7 @@ export default function AulaPage() {
               cursor: "pointer",
             }}
           >
-            Salvar aula / partidas (mock)
+            Salvar estado das equipes
           </button>
         </div>
       </section>
@@ -1013,13 +1127,13 @@ type TabelaSumulaTimeProps = {
   getStat: (
     partidaId: string,
     jogadorId: number,
-    campo: keyof StatsJogador
+    campo: keyof StatsJogador,
   ) => number;
   onAlterarStat: (
     partidaId: string,
     jogadorId: number,
     campo: keyof StatsJogador,
-    valor: number
+    valor: number,
   ) => void;
 };
 
@@ -1049,7 +1163,7 @@ function TabelaSumulaTime({
   const handleChange = (
     e: ChangeEvent<HTMLInputElement>,
     jogadorId: number,
-    campo: keyof StatsJogador
+    campo: keyof StatsJogador,
   ) => {
     const valor = Number(e.target.value) || 0;
     onAlterarStat(partidaId, jogadorId, campo, valor);

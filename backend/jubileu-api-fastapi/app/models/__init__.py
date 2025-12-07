@@ -1,4 +1,4 @@
-from app.models.jogador import Jogador, StatusJogadorEnum
+from app.models.jogador_turma import Jogador, Turma, TurmaJogador
 from app.models.dia_aula import (
     Dia,
     Aula,
@@ -13,7 +13,6 @@ from app.models.dia_aula import (
 
 __all__ = [
     "Jogador",
-    "StatusJogadorEnum",
     "Dia",
     "Aula",
     "TimeAula",

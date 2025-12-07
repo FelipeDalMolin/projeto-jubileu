@@ -27,31 +27,27 @@ export default function DiaLista() {
   const [dias, setDias] = useState<Dia[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-
-  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDateIso, setSelectedDateIso] = useState<string | null>(null);
 
   const navigate = useNavigate();
 
-  // Carrega os dias (mock por enquanto)
+  // Carrega os dias (por enquanto usando listarDias → que chama a API dia a dia)
   useEffect(() => {
     let cancelado = false;
 
     async function carregar() {
       try {
         const data = await listarDias();
-
         if (cancelado) return;
 
         const ordenados = [...data].sort((a, b) =>
-          a.dataIso.localeCompare(b.dataIso)
+          a.dataIso.localeCompare(b.dataIso),
         );
         setDias(ordenados);
 
-        if (ordenados.length > 0) {
+        if (ordenados.length > 0 && !selectedDateIso) {
           setSelectedDateIso(ordenados[0].dataIso);
-          const firstDate = parseISO(ordenados[0].dataIso);
-          setCurrentMonth(firstDate);
         }
       } catch (e) {
         console.error("Erro ao carregar dias:", e);
@@ -70,7 +66,7 @@ export default function DiaLista() {
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [selectedDateIso]);
 
   // Mapa dataIso -> Dia
   const diasPorIso = useMemo(() => {
@@ -108,47 +104,38 @@ export default function DiaLista() {
     return (
       <div style={{ padding: 24 }}>
         <h1>Agenda de dias</h1>
-        <p style={{ color: "#b91c1c" }}>{erro}</p>
+        <p>{erro}</p>
       </div>
     );
   }
 
   return (
     <div style={{ padding: 24 }}>
-      <h1 style={{ marginTop: 0 }}>Agenda de dias</h1>
-      <p style={{ color: "#64748b", fontSize: 14 }}>
+      <h1>Agenda de dias</h1>
+      <p style={{ marginBottom: 16 }}>
         Use o calendário para navegar e selecione um dia para ver as aulas.
       </p>
 
-      {/* CALENDÁRIO + CONTROLES DE MÊS */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(260px, 400px) minmax(260px, 1fr)",
+          gridTemplateColumns: "minmax(280px, 360px) minmax(280px, 1fr)",
           gap: 24,
           alignItems: "flex-start",
         }}
       >
         {/* Coluna esquerda: calendário */}
-        <section
-          style={{
-            borderRadius: 12,
-            border: "1px solid #e2e8f0",
-            padding: 16,
-            background: "#fff",
-          }}
-        >
+        <section>
           {/* Cabeçalho do mês */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 12,
+              gap: 8,
+              marginBottom: 8,
             }}
           >
             <button
-              type="button"
               onClick={() =>
                 setCurrentMonth((prev) => addMonths(prev, -1))
               }
@@ -164,12 +151,18 @@ export default function DiaLista() {
               ← Mês anterior
             </button>
 
-            <div style={{ fontWeight: 600, textTransform: "capitalize" }}>
+            <div
+              style={{
+                flex: 1,
+                textAlign: "center",
+                fontWeight: 600,
+                textTransform: "capitalize",
+              }}
+            >
               {monthLabel}
             </div>
 
             <button
-              type="button"
               onClick={() => setCurrentMonth((prev) => addMonths(prev, 1))}
               style={{
                 padding: "4px 8px",
@@ -189,54 +182,46 @@ export default function DiaLista() {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(7, 1fr)",
-              textAlign: "center",
               fontSize: 11,
               color: "#64748b",
               marginBottom: 4,
+              textAlign: "center",
             }}
           >
-            <span>Seg</span>
-            <span>Ter</span>
-            <span>Qua</span>
-            <span>Qui</span>
-            <span>Sex</span>
-            <span>Sáb</span>
-            <span>Dom</span>
+            <div>Seg</div>
+            <div>Ter</div>
+            <div>Qua</div>
+            <div>Qui</div>
+            <div>Sex</div>
+            <div>Sáb</div>
+            <div>Dom</div>
           </div>
 
           {/* Grade de dias */}
           <CalendarGrid
             currentMonth={currentMonth}
             selectedDateIso={selectedDateIso}
-            onSelectDate={(iso) => {
-              setSelectedDateIso(iso);
-              if (diasPorIso.has(iso)) {
-                navigate(`/dias/${iso}`);
-              }
-            }}
             diasPorIso={diasPorIso}
+            onSelectDate={(iso) => {
+              // 🔥 Opção A: SEM CONDIÇÃO
+              setSelectedDateIso(iso);
+              navigate(`/dias/${iso}`);
+            }}
           />
         </section>
 
         {/* Coluna direita: lista de dias do mês com aulas/eventos */}
-        <section
-          style={{
-            borderRadius: 12,
-            border: "1px solid #e2e8f0",
-            padding: 16,
-            background: "#fff",
-          }}
-        >
+        <section>
           <h2 style={{ marginTop: 0, fontSize: 16 }}>
             Dias com aulas / eventos no mês
           </h2>
 
           {diasDoMesAtual.length === 0 ? (
-            <p style={{ fontSize: 13, color: "#64748b" }}>
+            <p style={{ fontSize: 13, color: "#555" }}>
               Nenhuma aula ou evento cadastrado para este mês ainda.
             </p>
           ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {diasDoMesAtual.map((dia) => {
                 const dateObj = parseISO(dia.dataIso);
                 const titulo = format(dateObj, "dd/MM/yyyy", { locale: ptBR });
@@ -244,41 +229,46 @@ export default function DiaLista() {
                 const totalAulas = dia.aulas.length;
 
                 return (
-                  <li key={dia.dataIso} style={{ marginBottom: 8 }}>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/dias/${dia.dataIso}`)}
+                  <button
+                    key={dia.dataIso}
+                    onClick={() => navigate(`/dias/${dia.dataIso}`)}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: "1px solid #e2e8f0",
+                      background: "#f8fafc",
+                      cursor: "pointer",
+                      fontSize: 13,
+                    }}
+                  >
+                    <div
                       style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "8px 10px",
-                        borderRadius: 8,
-                        border: "1px solid #e2e8f0",
-                        background: "#f8fafc",
-                        cursor: "pointer",
-                        fontSize: 13,
+                        fontWeight: 600,
+                        marginBottom: 2,
                       }}
                     >
-                      <div style={{ fontWeight: 600 }}>{titulo}</div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "#64748b",
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {semana}
-                      </div>
-                      <div style={{ fontSize: 12, color: "#0f172a" }}>
-                        {totalAulas === 0
-                          ? "Nenhuma aula planejada"
-                          : `${totalAulas} aula(s) / evento(s)`}
-                      </div>
-                    </button>
-                  </li>
+                      {titulo}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#64748b",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {semana}
+                    </div>
+                    <div style={{ fontSize: 11, marginTop: 2 }}>
+                      {totalAulas === 0
+                        ? "Nenhuma aula planejada"
+                        : `${totalAulas} aula(s) / evento(s)`}
+                    </div>
+                  </button>
                 );
               })}
-            </ul>
+            </div>
           )}
         </section>
       </div>
@@ -302,6 +292,7 @@ function CalendarGrid({
   const today = new Date();
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
+
   const startDate = startOfWeek(monthStart, { weekStartsOn: 1 }); // segunda
   const endDate = endOfWeek(monthEnd, { weekStartsOn: 1 });
 
@@ -317,6 +308,7 @@ function CalendarGrid({
       const isCurrentMonth = isSameMonth(cloneDay, monthStart);
       const isToday = isSameDay(cloneDay, today);
       const isSelected = selectedDateIso === iso;
+
       const diaAgenda = diasPorIso.get(iso);
 
       const baseStyle: CSSProperties = {
@@ -333,13 +325,16 @@ function CalendarGrid({
       if (!isCurrentMonth) {
         baseStyle.color = "#94a3b8";
       }
+
       if (diaAgenda) {
         baseStyle.border = "1px solid #22c55e";
         baseStyle.background = "#ecfdf3";
       }
+
       if (isToday) {
         baseStyle.border = "1px solid #2563eb";
       }
+
       if (isSelected) {
         baseStyle.background = "#dbeafe";
       }
@@ -347,18 +342,16 @@ function CalendarGrid({
       days.push(
         <button
           key={iso}
-          type="button"
           onClick={() => onSelectDate(iso)}
-          style={{
-            ...baseStyle,
-            width: "100%",
-          }}
+          style={{ ...baseStyle, width: "100%" }}
           title={
-            diaAgenda ? "Clique para ver as aulas deste dia" : undefined
+            diaAgenda
+              ? "Clique para ver as aulas deste dia"
+              : "Clique para abrir o dia (aulas ainda não cadastradas)"
           }
         >
           {format(cloneDay, "d")}
-        </button>
+        </button>,
       );
 
       day = addDays(day, 1);
@@ -367,13 +360,10 @@ function CalendarGrid({
     rows.push(
       <div
         key={day.toISOString()}
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(7, 1fr)",
-        }}
+        style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}
       >
         {days}
-      </div>
+      </div>,
     );
     days = [];
   }

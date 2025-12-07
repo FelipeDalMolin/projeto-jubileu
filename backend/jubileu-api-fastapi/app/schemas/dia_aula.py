@@ -1,27 +1,18 @@
-from pydantic import BaseModel
-from pydantic import ConfigDict
-from enum import Enum
+from __future__ import annotations
 
+from typing import List, Optional
 
-class StatusAulaEnum(str, Enum):
-    PLANEJADA = "PLANEJADA"
-    EM_ANDAMENTO = "EM_ANDAMENTO"
-    CONCLUIDA = "CONCLUIDA"
-    CANCELADA = "CANCELADA"
+from pydantic import BaseModel, ConfigDict
 
+from app.models.dia_aula import (
+    StatusAulaEnum,
+    TipoEventoAulaEnum,
+    StatusPresencaEnum,
+)
 
-class TipoEventoAulaEnum(str, Enum):
-    AULA = "AULA"
-    JOGO = "JOGO"
-    OUTRO = "OUTRO"
-
-
-class StatusPresencaEnum(str, Enum):
-    presente = "presente"
-    faltou = "faltou"
-    atestado = "atestado"
-    coringa = "coringa"
-    so_treino = "so_treino"
+# ---------------------------------------------------------
+#  ATRIBUTOS / JOGADORES / TIMES (para SNAPSHOT da aula)
+# ---------------------------------------------------------
 
 
 class AtributosJogadorDia(BaseModel):
@@ -32,32 +23,72 @@ class AtributosJogadorDia(BaseModel):
     faltas: int = 0
 
 
-# ----------------- JOGADOR / TIME / PARTIDA (OUT) -----------------
-
-
 class PresencaJogadorDiaOut(BaseModel):
-    id: int
-    jogador_id: int | None = None
+    """
+    Snapshot do jogador dentro da AULA (não é o Jogador global).
+
+    Este formato é o que vamos guardar no JSON de estado de equipes
+    e mandar/receber do front.
+    """
+
+    jogadorId: int
     nome: str
     status: StatusPresencaEnum
-    time_id: int | None = None
     atributos: AtributosJogadorDia
-
-    model_config = ConfigDict(from_attributes=True)
+    # id lógico do time dentro da aula (ex.: "time-1")
+    timeId: Optional[str] = None
 
 
 class TimeAulaOut(BaseModel):
-    id: int
-    nome: str
-    caracteristica: str | None = None
-    cor_camisa: str | None = None
+    """
+    Snapshot de um time dentro da AULA, no formato que o front usa.
+    """
 
-    model_config = ConfigDict(from_attributes=True)
+    id: str               # "time-1", "time-2"...
+    nome: str             # "Time 1", "Time Azul"...
+    jogadoresIds: List[int]
+    caracteristica: Optional[str] = None
+    corCamisa: Optional[str] = None
+
 
 class TimeAulaCreate(BaseModel):
+    """
+    DTO de entrada para criar um time no banco (model TimeAula).
+    Esse é usado no endpoint POST /dias/{data_iso}/aulas/{aula_id}/times.
+    """
+
     nome: str
-    caracteristica: str | None = None
-    cor_camisa: str | None = None
+    caracteristica: Optional[str] = None
+    cor_camisa: Optional[str] = None
+
+
+# ---------------------------------------------------------
+#  ESTADO DE EQUIPES / SNAPSHOT
+# ---------------------------------------------------------
+
+
+class EstadoEquipesAulaIn(BaseModel):
+    """
+    Payload que o front envia para salvar o estado de equipes da aula.
+    Vamos armazenar esse conteúdo no JSON da tabela aula_equipes_estado.
+    """
+
+    jogadores: List[PresencaJogadorDiaOut] = []
+    times: List[TimeAulaOut] = []
+
+
+class EstadoEquipesAulaOut(EstadoEquipesAulaIn):
+    """
+    Resposta do backend com o estado de equipes + id da aula.
+    """
+
+    aula_id: int
+
+
+# ---------------------------------------------------------
+#  PARTIDA (por enquanto só para futuro uso)
+# ---------------------------------------------------------
+
 
 class PartidaOut(BaseModel):
     id: int
@@ -70,7 +101,9 @@ class PartidaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ----------------- AULA (IN / OUT) -----------------
+# ---------------------------------------------------------
+#  AULA (IN / OUT)
+# ---------------------------------------------------------
 
 
 class AulaBase(BaseModel):
@@ -79,7 +112,7 @@ class AulaBase(BaseModel):
     numero_aula_na_turma: int = 1
     tipo: TipoEventoAulaEnum = TipoEventoAulaEnum.AULA
     horario_inicio: str  # "19:00"
-    horario_fim: str      # "20:00"
+    horario_fim: str     # "20:00"
     status: StatusAulaEnum = StatusAulaEnum.PLANEJADA
 
 
@@ -91,24 +124,37 @@ class AulaCreate(AulaBase):
 
 
 class AulaOut(AulaBase):
-    id: int
-    times: list[TimeAulaOut] = []
-    jogadores: list[PresencaJogadorDiaOut] = []
-    partidas: list[PartidaOut] = []
+    """
+    Representação da Aula retornada pelos endpoints:
 
-    @property
-    def partidas_count(self) -> int:
-        return len(self.partidas)
+    - GET /dias/{data_iso}
+    - GET /dias/{data_iso}/aulas/{aula_id}
+
+    OBS: Aqui não estamos retornando times/jogadores/partidas
+    diretamente; o estado de equipes fica no endpoint específico
+    /estado-equipes.
+    """
+
+    id: int
+    dia_id: int
 
     model_config = ConfigDict(from_attributes=True)
 
 
-
-# ----------------- DIA (OUT) -----------------
+# ---------------------------------------------------------
+#  DIA (OUT)
+# ---------------------------------------------------------
 
 
 class DiaOut(BaseModel):
+    """
+    Representação de um dia com suas aulas.
+    """
+
+    id: int
     data_iso: str
-    aulas: list[AulaOut] = []
+    feriado_nome: Optional[str] = None
+    feriado_tipo: Optional[str] = None
+    aulas: List[AulaOut] = []
 
     model_config = ConfigDict(from_attributes=True)

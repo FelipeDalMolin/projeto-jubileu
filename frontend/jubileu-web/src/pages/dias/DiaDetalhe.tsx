@@ -1,275 +1,354 @@
 // src/pages/dias/DiaDetalhe.tsx
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  obterDiaPorData,
-  ordenarAulasPorHorario,
-} from "../../services/diasService";
-import type { AulaDia, Dia } from "../../types/dia";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { obterDiaPorData, ordenarAulasPorHorario, criarAulaNoDia } from "../../services/diasService";
+import type { Dia, AulaDia } from "../../types/dia";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 export default function DiaDetalhe() {
   const { dataIso } = useParams<{ dataIso: string }>();
   const navigate = useNavigate();
+
   const [dia, setDia] = useState<Dia | null>(null);
   const [loading, setLoading] = useState(true);
-  const [aulaSelecionadaId, setAulaSelecionadaId] = useState<string | null>(
-    null
-  );
+  const [erro, setErro] = useState<string | null>(null);
+
+  // estado do form de nova aula
+  const [novaTurmaNome, setNovaTurmaNome] = useState<string>("");
+  const [novaHorarioInicio, setNovaHorarioInicio] = useState<string>("19:00");
+  const [novaHorarioFim, setNovaHorarioFim] = useState<string>("20:00");
+  const [criandoAula, setCriandoAula] = useState(false);
 
   useEffect(() => {
-    if (!dataIso) return;
+    if (!dataIso) {
+      setErro("Data inválida.");
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
+    setErro(null);
+
     obterDiaPorData(dataIso)
-      .then((result) => {
-        setDia(result);
-        if (result && result.aulas.length > 0) {
-          setAulaSelecionadaId(result.aulas[0].id);
-        }
+      .then((d) => {
+        const ordenadas = ordenarAulasPorHorario(d.aulas ?? []);
+        setDia({ ...d, aulas: ordenadas });
+      })
+      .catch((e) => {
+        console.error(e);
+        setErro("Erro ao carregar informações do dia.");
       })
       .finally(() => setLoading(false));
   }, [dataIso]);
 
   if (!dataIso) {
-    return <div className="page-container">Data inválida.</div>;
+    return (
+      <div style={{ padding: 24 }}>
+        <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
+        <h1>Dia inválido</h1>
+      </div>
+    );
   }
 
   const dataObj = parseISO(dataIso);
-  const tituloData = format(dataObj, "yyyy-MM-dd");
-  const linhaData = format(dataObj, "EEEE, d 'de' MMMM 'de' yyyy", {
-    locale: ptBR,
-  });
+  const tituloData = format(dataObj, "dd/MM/yyyy (EEEE)", { locale: ptBR });
+
+  const handleSubmitNovaAula = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!dia) return;
+    if (!novaTurmaNome.trim()) {
+      alert("Informe o nome da turma.");
+      return;
+    }
+
+    try {
+      setCriandoAula(true);
+
+      // Calcula o número da aula dentro da turma
+      const totalNaTurma = dia.aulas.filter(
+        (a) => a.turmaNome.toLowerCase() === novaTurmaNome.toLowerCase(),
+      ).length;
+      const numeroAulaNaTurma = totalNaTurma + 1;
+
+      const turmaId = novaTurmaNome
+        .toLowerCase()
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
+      const nova = await criarAulaNoDia(dataIso, {
+        turmaId,
+        turmaNome: novaTurmaNome.trim(),
+        numeroAulaNaTurma,
+        horarioInicio: novaHorarioInicio,
+        horarioFim: novaHorarioFim,
+      });
+
+      setDia((prev) => {
+        if (!prev) return prev;
+        const novasAulas = ordenarAulasPorHorario([...prev.aulas, nova]);
+        return { ...prev, aulas: novasAulas };
+      });
+
+      // limpa o form
+      setNovaTurmaNome("");
+      setNovaHorarioInicio("19:00");
+      setNovaHorarioFim("20:00");
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao criar aula. Veja o console para detalhes.");
+    } finally {
+      setCriandoAula(false);
+    }
+  };
+
+  const handleChangeTurmaNome = (e: ChangeEvent<HTMLInputElement>) => {
+    setNovaTurmaNome(e.target.value);
+  };
+
+  const handleChangeHorarioInicio = (e: ChangeEvent<HTMLInputElement>) => {
+    setNovaHorarioInicio(e.target.value);
+  };
+
+  const handleChangeHorarioFim = (e: ChangeEvent<HTMLInputElement>) => {
+    setNovaHorarioFim(e.target.value);
+  };
+
+  const irParaAula = (aula: AulaDia) => {
+    navigate(`/dias/${dataIso}/aulas/${aula.id}`);
+  };
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="page-header">
-          <div>
-            <div className="page-header-title">Dia de jogo {tituloData}</div>
-            <div className="page-header-subtitle">Carregando dados do dia...</div>
-          </div>
-          <div className="page-header-actions">
-            <button className="btn btn-ghost" onClick={() => navigate("/dias")}>
-              &larr; Voltar
-            </button>
-          </div>
-        </div>
+      <div style={{ padding: 24 }}>
+        <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
+        <h1>Dia {tituloData}</h1>
+        <p>Carregando informações do dia...</p>
       </div>
     );
   }
 
-  if (!dia) {
-    // Nenhuma aula/evento ainda: tela padrão
+  if (erro || !dia) {
     return (
-      <div className="page-container">
-        <div className="page-header">
-          <div>
-            <div className="page-header-title">Dia de jogo {tituloData}</div>
-            <div className="page-header-subtitle">{linhaData}</div>
-          </div>
-          <div className="page-header-actions">
-            <button className="btn btn-ghost" onClick={() => navigate("/dias")}>
-              &larr; Voltar
-            </button>
-          </div>
-        </div>
-
-        <div className="card" style={{ maxWidth: 600 }}>
-          <div className="card-header">
-            <div className="card-title">Nenhuma aula planejada</div>
-          </div>
-          <p>
-            Este dia ainda não possui aulas ou eventos cadastrados. Você poderá
-            adicionar aulas no futuro para montar as equipes e registrar as
-            partidas.
-          </p>
-        </div>
+      <div style={{ padding: 24 }}>
+        <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
+        <h1>Dia {tituloData}</h1>
+        <p style={{ color: "#b91c1c" }}>{erro ?? "Dia não encontrado."}</p>
       </div>
     );
   }
-
-  const aulasOrdenadas = ordenarAulasPorHorario(dia.aulas);
-  const aulaSelecionada: AulaDia | undefined =
-    aulasOrdenadas.find((a) => a.id === aulaSelecionadaId) ??
-    aulasOrdenadas[0];
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <div className="page-header-title">Dia de jogo {tituloData}</div>
-          <div className="page-header-subtitle">{linhaData}</div>
-          <div style={{ marginTop: 12, display: "flex", gap: 12, flexWrap: "wrap" }}>
-            {dia.feriado && (
-              <span className="chip">
-                Feriado ({dia.feriado.tipo}): {dia.feriado.nome}
-              </span>
-            )}
+    <div style={{ padding: 24 }}>
+      <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
 
-            <button className="btn btn-ghost btn-sm">
-              Marcar treino do dia como cancelado (X)
-            </button>
-          </div>
-        </div>
-        <div className="page-header-actions">
-          <button className="btn btn-ghost" onClick={() => navigate("/dias")}>
-            &larr; Voltar
-          </button>
-        </div>
-      </div>
+      <header style={{ marginTop: 12, marginBottom: 24 }}>
+        <h1 style={{ margin: 0 }}>Dia {tituloData}</h1>
+        <p style={{ fontSize: 13, color: "#64748b" }}>
+          Aqui você gerencia as aulas e as equipes deste dia.
+        </p>
+      </header>
 
-      <div
+      {/* Form de nova aula */}
+      <section
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: 24,
+          borderRadius: 12,
+          border: "1px solid #e2e8f0",
+          padding: 16,
+          marginBottom: 24,
+          background: "#f8fafc",
         }}
       >
-        {/* Coluna esquerda – lista de aulas / eventos */}
-        <section className="card">
-          <div className="card-header" style={{ alignItems: "center" }}>
-            <div>
-              <div className="card-title">Aulas / eventos</div>
-            </div>
-            <button className="btn btn-success btn-sm">+ Adicionaraula</button>
+        <h2 style={{ marginTop: 0, fontSize: 16 }}>Nova aula / evento</h2>
+        <form
+          onSubmit={handleSubmitNovaAula}
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 12,
+            alignItems: "center",
+          }}
+        >
+          <div style={{ minWidth: 180 }}>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                marginBottom: 4,
+                color: "#0f172a",
+              }}
+            >
+              Turma
+            </label>
+            <input
+              type="text"
+              value={novaTurmaNome}
+              onChange={handleChangeTurmaNome}
+              placeholder="Ex.: Sub-11, Adulto..."
+              style={{
+                width: "100%",
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1px solid #cbd5e1",
+                fontSize: 13,
+              }}
+            />
           </div>
 
-          {aulasOrdenadas.length === 0 ? (
-            <p className="card-subtitle">Nenhuma aula planejada para este dia.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {aulasOrdenadas.map((aula) => {
-                const selecionada = aulaSelecionada?.id === aula.id;
-                const totalJogadores = aula.jogadores.length;
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                marginBottom: 4,
+                color: "#0f172a",
+              }}
+            >
+              Início
+            </label>
+            <input
+              type="time"
+              value={novaHorarioInicio}
+              onChange={handleChangeHorarioInicio}
+              style={{
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1px solid #cbd5e1",
+                fontSize: 13,
+              }}
+            />
+          </div>
 
-                return (
-                  <button
-                    key={aula.id}
-                    onClick={() => setAulaSelecionadaId(aula.id)}
-                    className="card"
-                    style={{
-                      textAlign: "left",
-                      borderWidth: selecionada ? 2 : 1,
-                      borderColor: selecionada ? "#2563eb" : undefined,
-                      background: selecionada ? "#eff6ff" : undefined,
-                    }}
-                  >
-                    <div className="card-subtitle">{aula.turmaNome}</div>
-                    <div className="card-title" style={{ marginBottom: 4 }}>
-                      Aula #{aula.numeroAulaNaTurma}
-                    </div>
-                    <div className="card-subtitle">
-                      {aula.horarioInicio} – {aula.horarioFim}
-                    </div>
-                    <div className="card-subtitle" style={{ marginTop: 4 }}>
-                      {totalJogadores} jogador(es) da turma
-                    </div>
-                    <span className="badge badge-warning" style={{ marginTop: 6 }}>
-                      Status: {aula.status}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
+          <div>
+            <label
+              style={{
+                display: "block",
+                fontSize: 12,
+                marginBottom: 4,
+                color: "#0f172a",
+              }}
+            >
+              Fim
+            </label>
+            <input
+              type="time"
+              value={novaHorarioFim}
+              onChange={handleChangeHorarioFim}
+              style={{
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1px solid #cbd5e1",
+                fontSize: 13,
+              }}
+            />
+          </div>
 
-        {/* Coluna direita – painel resumido da aula selecionada */}
-        <section className="card">
-          {aulaSelecionada ? (
-            <PainelResumoAula dia={dia} aula={aulaSelecionada} />
-          ) : (
-            <p>Nenhuma aula selecionada.</p>
-          )}
-        </section>
-      </div>
+          <div style={{ alignSelf: "flex-end" }}>
+            <button
+              type="submit"
+              disabled={criandoAula}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 999,
+                border: "1px solid #16a34a",
+                background: criandoAula ? "#bbf7d0" : "#22c55e",
+                color: "#fff",
+                fontSize: 13,
+                cursor: criandoAula ? "default" : "pointer",
+              }}
+            >
+              {criandoAula ? "Criando..." : "Adicionar aula"}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      {/* Lista de aulas já cadastradas */}
+      <section>
+        <h2 style={{ marginTop: 0, fontSize: 16 }}>Aulas do dia</h2>
+
+        {dia.aulas.length === 0 ? (
+          <p style={{ fontSize: 13, color: "#64748b" }}>
+            Nenhuma aula planejada ainda. Use o formulário acima para cadastrar
+            a primeira aula.
+          </p>
+        ) : (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            {dia.aulas.map((aula) => (
+              <AulaCard
+                key={aula.id}
+                dia={dia}
+                aula={aula}
+                onAbrir={() => irParaAula(aula)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
 
-type PainelResumoProps = {
+type AulaCardProps = {
   dia: Dia;
   aula: AulaDia;
+  onAbrir: () => void;
 };
 
-function PainelResumoAula({ dia, aula }: PainelResumoProps) {
-  const totalJogadores = aula.jogadores.length;
-  const presentes = aula.jogadores.filter((j) => j.status === "presente").length;
-  const faltas = aula.jogadores.filter((j) => j.status === "faltou").length;
-  const atestados = aula.jogadores.filter((j) => j.status === "atestado").length;
-  const curingas = aula.jogadores.filter((j) => j.status === "coringa").length;
-
-  const totalTimes = aula.times.length;
-  const totalEmTimes = aula.times.reduce(
-    (acc, t) => acc + t.jogadoresIds.length,
-    0
-  );
-  const semTime = Math.max(totalJogadores - totalEmTimes, 0);
-
+function AulaCard({ dia, aula, onAbrir }: AulaCardProps) {
   return (
-    <div className="card" style={{ gap: 12, display: "flex", flexDirection: "column" }}>
-      <div className="card-header" style={{ alignItems: "flex-start", gap: 16 }}>
+    <div
+      style={{
+        borderRadius: 10,
+        border: "1px solid #e2e8f0",
+        padding: 12,
+        background: "#fff",
+        display: "flex",
+        flexDirection: "column",
+        gap: 4,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 8,
+          alignItems: "center",
+        }}
+      >
         <div>
-          <div className="card-subtitle">Gestão da aula selecionada</div>
-          <div className="card-title" style={{ marginBottom: 4 }}>
-            {aula.turmaNome}
+          <div style={{ fontSize: 13, fontWeight: 600 }}>
+            {aula.turmaNome} – Aula #{aula.numeroAulaNaTurma}
           </div>
-          <div className="card-subtitle">
-            Aula #{aula.numeroAulaNaTurma} &bull; {aula.horarioInicio} – {aula.horarioFim}
+          <div style={{ fontSize: 12, color: "#64748b" }}>
+            {aula.horarioInicio} – {aula.horarioFim} • {aula.tipo}
+          </div>
+          <div style={{ fontSize: 11, color: "#0f172a" }}>
+            {aula.times.length} time(s) • {aula.partidasCount} partida(s)
           </div>
         </div>
 
-        {/* Status + botão de abrir gestão completa */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <span className="badge badge-success">Status: {aula.status}</span>
-
-          <Link className="btn btn-primary btn-sm" to={`/dias/${dia.dataIso}/aulas/${aula.id}`}>
-            Abrir gestão da turma
-          </Link>
-        </div>
-      </div>
-
-      {/* Jogadores */}
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title" style={{ marginBottom: 0 }}>Jogadores da turma</div>
-        </div>
-        <div className="card-subtitle">
-          {totalJogadores} no total &mdash; {presentes} presença(s), {faltas} falta(s), {atestados}
-          {" "}
-          atestado(s), {curingas} curinga(s).
-        </div>
-      </div>
-
-      {/* Equipes */}
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title" style={{ marginBottom: 0 }}>Equipes</div>
-        </div>
-        <div className="card-subtitle">
-          {totalTimes === 0
-            ? "Nenhuma equipe criada ainda."
-            : `${totalTimes} equipe(s) criada(s), ${semTime} jogador(es) sem equipe.`}
-        </div>
-        <div className="card-subtitle" style={{ marginTop: 8 }}>
-          A gestão detalhada das equipes será feita na tela da aula (drag-and-drop, etc.).
-        </div>
-      </div>
-
-      {/* Partidas */}
-      <div className="card">
-        <div className="card-header">
-          <div className="card-title" style={{ marginBottom: 0 }}>Partidas</div>
-        </div>
-        <div className="card-subtitle">
-          {aula.partidasCount === 0
-            ? "Nenhuma partida configurada."
-            : `${aula.partidasCount} partida(s) configurada(s).`}
-        </div>
-        <div className="card-subtitle" style={{ marginTop: 8 }}>
-          A súmula e os gols também serão lançados na tela da aula.
-        </div>
+        <button
+          onClick={onAbrir}
+          style={{
+            padding: "4px 10px",
+            borderRadius: 999,
+            border: "1px solid #2563eb",
+            background: "#2563eb",
+            color: "#fff",
+            fontSize: 12,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Abrir gestão da turma
+        </button>
       </div>
     </div>
   );

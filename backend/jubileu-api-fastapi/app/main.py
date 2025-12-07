@@ -1,34 +1,35 @@
+# app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routers import jogadores, dias
-from app import models  # importa para registrar todos os modelos
+from app.routers import dias, turmas, jogadores
 
-
-# Cria as tabelas (para DEV; em PROD vamos usar Alembic depois)
+# Cria as tabelas (para SQLite em dev) – em prod a gente usa só alembic
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Jubileu API", version="0.1.0")
+app = FastAPI(title="Jubileu API")
 
+# CORS para o front em localhost:5173
 origins = [
-    "http://localhost:5173",  # Vite dev
-    "https://jubileu-web.vercel.app",  # ajustar depois se necessário
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    allow_credentials=True,
 )
 
 # Routers
-app.include_router(jogadores.router)
 app.include_router(dias.router)
+app.include_router(turmas.router)
+app.include_router(jogadores.router)
 
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+@app.get("/")
+def read_root():
+    return {"status": "ok", "message": "Jubileu API rodando"}

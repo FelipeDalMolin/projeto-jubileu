@@ -16,6 +16,8 @@ from app.schemas.dia_aula import (
     StatusAulaEnum,
     TipoEventoAulaEnum,
     StatusPresencaEnum,
+    EstadoEquipesAulaIn,
+    EstadoEquipesAulaOut,
 )
 
 __all__ = [
@@ -34,4 +36,6 @@ __all__ = [
     "StatusAulaEnum",
     "TipoEventoAulaEnum",
     "StatusPresencaEnum",
+    "EstadoEquipesAulaIn",
+    "EstadoEquipesAulaOut",
 ]
