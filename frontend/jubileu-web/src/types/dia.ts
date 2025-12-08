@@ -64,16 +64,15 @@ export type AtributosJogadorDia = {
 };
 
 // Presença + atributos de um jogador dentro da AULA
-export type PresencaJogadorDia = {
+export interface PresencaJogadorDia {
   jogadorId: number;
   nome: string;
   status: StatusPresenca;
-  atributos: AtributosJogadorDia;
-  /**
-   * Identificador do time dentro da aula (ex.: "time-1").
-   * undefined = ainda não alocado em nenhum time.
-   */
   timeId?: string;
+
+  // NOVOS CAMPOS (opcionais)
+  ativoNaTurma?: boolean;
+  podeJogar?: boolean;
 };
 
 // Time dentro de uma AULA

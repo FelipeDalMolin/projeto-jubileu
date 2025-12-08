@@ -1,93 +1,73 @@
-// src/pages/turmas/TurmasPage.tsx
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import type { Turma } from "../../types/domain";
-import { MOCK_TURMAS, MOCK_JOGADORES } from "./MockTurmas";
-
-function formatarRecorrencia(recorrencia: Turma["recorrencia"]) {
-  const labels: Record<string, string> = {
-    SEG: "Seg",
-    TER: "Ter",
-    QUA: "Qua",
-    QUI: "Qui",
-    SEX: "Sex",
-    SAB: "Sáb",
-    DOM: "Dom",
-  };
-
-  return recorrencia.map((dia) => labels[dia] ?? dia).join(" / ");
-}
-
-// Tipo auxiliar: Turma + campo calculado de quantidade de jogadores
-type TurmaComQuantidade = Turma & {
-  quantidadeJogadores: number;
-};
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { listarTurmas } from "../../services/turmasService";
+import type { Turma } from "../../types/turma";
 
 export default function TurmasPage() {
-  const navigate = useNavigate();
+  const [turmas, setTurmas] = useState<Turma[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const turmasComQuantidade = useMemo<TurmaComQuantidade[]>(
-    () =>
-      MOCK_TURMAS.map((turma) => ({
-        ...turma,
-        quantidadeJogadores: turma.jogadoresIds.length,
-      })),
-    []
-  );
+  useEffect(() => {
+    listarTurmas().then((dados) => {
+      setTurmas(dados);
+      setLoading(false);
+    });
+  }, []);
 
   return (
-    <div className="page-container" style={{ display: "grid", gap: 16 }}>
-      {/* Cabeçalho */}
-      <div className="page-header">
-        <div>
-          <p className="page-header-subtitle">Gestão</p>
-          <h2 className="page-header-title">Turmas</h2>
-        </div>
+    <main className="container py-3">
+      <h1 className="h3 mb-3">Turmas</h1>
 
-        <button className="btn btn-primary">+ Nova turma</button>
+      <div className="d-flex justify-content-end mb-3">
+        <Link className="btn btn-primary btn-sm" to="/turmas/nova">
+          + Nova turma
+        </Link>
       </div>
 
-      {/* Tabela de turmas */}
-      <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Lista de turmas</h3>
-          <p className="card-subtitle">
-            {MOCK_JOGADORES.length} jogadores cadastrados
-          </p>
-        </div>
-
-        <div className="table-responsive mt-12">
-          <table className="table">
+      {loading ? (
+        <p>Carregando turmas...</p>
+      ) : turmas.length === 0 ? (
+        <p className="text-muted">Nenhuma turma cadastrada ainda.</p>
+      ) : (
+        <div className="table-responsive">
+          <table className="table table-sm align-middle">
             <thead>
               <tr>
                 <th>Nome</th>
-                <th>Recorrência</th>
-                <th>Qtd. jogadores</th>
-                <th>Ações</th>
+                <th>Categoria</th>
+                <th>Participantes ativos</th>
+                <th>Professores</th>
+                <th style={{ width: 120 }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {turmasComQuantidade.map((turma) => (
-                <tr key={turma.id}>
-                  <td style={{ fontWeight: 600 }}>{turma.nome}</td>
-                  <td className="text-muted">
-                    {formatarRecorrencia(turma.recorrencia)}
-                  </td>
-                  <td>{turma.quantidadeJogadores}</td>
-                  <td>
-                    <button
-                      onClick={() => navigate(`/turmas/${turma.id}`)}
-                      className="btn btn-ghost btn-sm"
-                    >
-                      Abrir
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {turmas.map((t) => {
+                const ativos = t.participantes.filter((p) => p.ativo).length;
+                const qtProfessores = t.participantes.filter(
+                  (p) => p.papel === "professor" && p.ativo
+                ).length;
+
+                return (
+                  <tr key={t.id}>
+                    <td>{t.nome}</td>
+                    <td>{t.categoria ?? "-"}</td>
+                    <td>{ativos}</td>
+                    <td>{qtProfessores}</td>
+                    <td>
+                      <Link
+                        className="btn btn-outline-primary btn-sm"
+                        to={`/turmas/${t.id}`}
+                      >
+                        Editar
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
-    </div>
+      )}
+    </main>
   );
 }
