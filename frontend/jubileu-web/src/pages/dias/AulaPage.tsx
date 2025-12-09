@@ -10,7 +10,13 @@ import { useNavigate, useParams } from "react-router-dom";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import { obterDiaPorData } from "../../services/diasService";
+import {
+  obterDiaPorData,
+  criarTimeNaAula,
+  carregarEstadoEquipesAula,
+  salvarEstadoEquipesAula,
+} from "../../services/diasService";
+
 import type {
   AulaDia,
   Dia,
@@ -69,29 +75,60 @@ export default function AulaPage() {
     if (!dataIso || !aulaId) return;
 
     setLoading(true);
-    obterDiaPorData(dataIso)
-      .then((result) => {
-        setDia(result);
 
-        if (result) {
-          const a = result.aulas.find((x) => x.id === aulaId) ?? null;
-          setAula(a);
+    (async () => {
+      try {
+        const diaResp = await obterDiaPorData(dataIso);
+        setDia(diaResp);
 
-          if (a) {
-            setJogadores(a.jogadores ?? []);
+        const aulaEncontrada =
+          diaResp.aulas.find((x) => x.id === aulaId) ?? null;
+        setAula(aulaEncontrada);
 
-            const ts: TimeAula[] = (a.times ?? []).map((t) => ({
-              ...t,
-            }));
-            setTimes(ts);
-
-            // por enquanto sempre começa sem partidas
-            setPartidas([]);
-            setStats({});
-          }
+        if (!aulaEncontrada) {
+          setJogadores([]);
+          setTimes([]);
+          setPartidas([]);
+          setStats({});
+          return;
         }
-      })
-      .finally(() => setLoading(false));
+
+        // base: o que vier da API da aula
+        let jogadoresBase = aulaEncontrada.jogadores ?? [];
+        let timesBase: TimeAula[] = (aulaEncontrada.times ?? []).map((t) => ({
+          ...t,
+          caracteristica: "",
+        }));
+
+        // tenta carregar snapshot salvo (estado-equipes)
+        try {
+          const snap = await carregarEstadoEquipesAula(
+            diaResp.dataIso,
+            aulaEncontrada.id,
+          );
+
+          if (snap && (snap.jogadores.length > 0 || snap.times.length > 0)) {
+            jogadoresBase = snap.jogadores;
+            if (snap.times.length > 0) {
+              timesBase = snap.times.map((t) => ({
+                ...t,
+                caracteristica: "",
+              }));
+            }
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn("Erro ao carregar estado-equipes (ignorado):", err);
+        }
+
+        setJogadores(jogadoresBase);
+        setTimes(timesBase);
+        setPartidas([]);
+        setStats({});
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [dataIso, aulaId]);
 
   // ---------------- ESTADOS BÁSICOS / GUARDAS ----------------
@@ -154,12 +191,12 @@ export default function AulaPage() {
 
   const handleAlterarStatus = (
     jogadorId: number,
-    novoStatus: StatusPresenca
+    novoStatus: StatusPresenca,
   ) => {
     setJogadores((prev) =>
       prev.map((j) =>
-        j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j
-      )
+        j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j,
+      ),
     );
   };
 
@@ -168,7 +205,7 @@ export default function AulaPage() {
       prev.map((j) => ({
         ...j,
         status: "so_treino",
-      }))
+      })),
     );
   };
 
@@ -177,7 +214,7 @@ export default function AulaPage() {
       prev.map((j) => ({
         ...j,
         status: "so_treino",
-      }))
+      })),
     );
   };
 
@@ -185,23 +222,34 @@ export default function AulaPage() {
 
   const jogadoresFiltrados = filtroNome
     ? jogadoresSemTimeLista.filter((j) =>
-        j.nome.toLowerCase().includes(filtroNome.toLowerCase())
+        j.nome.toLowerCase().includes(filtroNome.toLowerCase()),
       )
     : jogadoresSemTimeLista;
 
   // --------------- EQUIPES / DRAG & DROP -------------
 
-  const handleAdicionarEquipe = () => {
-    setTimes((prev) => {
-      const idx = prev.length + 1;
+  const handleAdicionarEquipe = async () => {
+    if (!dia || !aula) return;
+
+    try {
+      const idx = times.length + 1;
+      const nome = `Time ${idx}`;
+
+      const timeBackend = await criarTimeNaAula(dia.dataIso, aula.id, {
+        nome,
+      });
+
       const novo: TimeAula = {
-        id: `time-${idx}`,
-        nome: `Time ${idx}`,
-        jogadoresIds: [],
+        ...timeBackend,
         caracteristica: "",
       };
-      return [...prev, novo];
-    });
+
+      setTimes((prev) => [...prev, novo]);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      alert("Erro ao criar equipe. Veja o console para detalhes.");
+    }
   };
 
   const handleLimparEquipes = () => {
@@ -212,7 +260,7 @@ export default function AulaPage() {
       prev.map((j) => ({
         ...j,
         timeId: undefined,
-      }))
+      })),
     );
   };
 
@@ -244,8 +292,8 @@ export default function AulaPage() {
       prev.map((j) =>
         j.jogadorId === jogadorId
           ? { ...j, timeId: timeId || undefined }
-          : j
-      )
+          : j,
+      ),
     );
   };
 
@@ -271,13 +319,13 @@ export default function AulaPage() {
 
   const handleChangeCaracteristica = (
     timeId: string,
-    e: ChangeEvent<HTMLInputElement>
+    e: ChangeEvent<HTMLInputElement>,
   ) => {
     const value = e.target.value;
     setTimes((prev) =>
       prev.map((t) =>
-        t.id === timeId ? { ...t, caracteristica: value } : t
-      )
+        t.id === timeId ? { ...t, caracteristica: value } : t,
+      ),
     );
   };
 
@@ -322,7 +370,7 @@ export default function AulaPage() {
     partidaId: string,
     jogadorId: number,
     campo: keyof StatsJogador,
-    valor: number
+    valor: number,
   ) => {
     setStats((prev) => {
       const statsPartida = prev[partidaId] ?? {};
@@ -352,42 +400,36 @@ export default function AulaPage() {
   const getStat = (
     partidaId: string,
     jogadorId: number,
-    campo: keyof StatsJogador
+    campo: keyof StatsJogador,
   ): number => {
     return stats[partidaId]?.[jogadorId]?.[campo] ?? 0;
   };
 
-  // OBS: por enquanto ainda deixa o placar editável manualmente
-  // depois a gente pode trocar para cálculo automático pelos gols dos jogadores
   const handleAlterarPlacar = (
     partidaId: string,
     campo: "golsTimeA" | "golsTimeB",
-    valor: number
+    valor: number,
   ) => {
     setPartidas((prev) =>
       prev.map((p) =>
-        p.id === partidaId ? { ...p, [campo]: valor } : p
-      )
+        p.id === partidaId ? { ...p, [campo]: valor } : p,
+      ),
     );
   };
 
-  // (mock) salvar tudo – aqui depois entra chamada de API
-  const handleSalvarAula = () => {
-    if (!aula) return;
+  // ---------------- SALVAR ESTADO EQUIPES ---------------
 
-    const payload = {
-      diaDataIso: dia?.dataIso ?? dataIso,
-      aulaId: aula.id,
-      jogadores,
-      times,
-      partidas,
-      stats,
-    };
+  const handleSalvarEstadoEquipes = async () => {
+    if (!dia || !aula) return;
 
-    // por enquanto só loga; depois vira POST pra API
-    // eslint-disable-next-line no-console
-    console.log("SALVAR AULA (mock):", payload);
-    alert("Dados da aula registrados em memória (ver console).");
+    try {
+      await salvarEstadoEquipesAula(dia.dataIso, aula.id, jogadores, times);
+      alert("Estado das equipes salvo com sucesso!");
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+      alert("Erro ao salvar estado das equipes. Veja o console para detalhes.");
+    }
   };
 
   // -------------------------------------------------
@@ -449,7 +491,10 @@ export default function AulaPage() {
                 onChange={handleFiltroChange}
               />
 
-              <div className="border rounded p-2" style={{ maxHeight: 420, overflowY: "auto" }}>
+              <div
+                className="border rounded p-2"
+                style={{ maxHeight: 420, overflowY: "auto" }}
+              >
                 <div className="d-flex justify-content-between mb-1">
                   <strong>Jogador</strong>
                   <small className="text-muted">Status (não jogou)</small>
@@ -530,7 +575,9 @@ export default function AulaPage() {
                           className="form-control form-control-sm mb-2"
                           placeholder="Característica do time..."
                           value={time.caracteristica ?? ""}
-                          onChange={(e) => handleChangeCaracteristica(time.id, e)}
+                          onChange={(e) =>
+                            handleChangeCaracteristica(time.id, e)
+                          }
                         />
 
                         <div className="d-flex flex-wrap gap-1">
@@ -543,7 +590,10 @@ export default function AulaPage() {
                           ))}
 
                           {jogadoresTime.length === 0 && (
-                            <span className="text-muted" style={{ fontSize: 12 }}>
+                            <span
+                              className="text-muted"
+                              style={{ fontSize: 12 }}
+                            >
                               Arraste jogadores para cá
                             </span>
                           )}
@@ -657,7 +707,7 @@ export default function AulaPage() {
                                 handleAlterarPlacar(
                                   p.id,
                                   "golsTimeA",
-                                  Number(e.target.value) || 0
+                                  Number(e.target.value) || 0,
                                 )
                               }
                             />
@@ -672,7 +722,7 @@ export default function AulaPage() {
                                 handleAlterarPlacar(
                                   p.id,
                                   "golsTimeB",
-                                  Number(e.target.value) || 0
+                                  Number(e.target.value) || 0,
                                 )
                               }
                             />
@@ -712,9 +762,9 @@ export default function AulaPage() {
             <button
               type="button"
               className="btn btn-success"
-              onClick={handleSalvarAula}
+              onClick={handleSalvarEstadoEquipes}
             >
-              Salvar aula / partidas (mock)
+              Salvar estado das equipes
             </button>
           </div>
         </section>
@@ -830,13 +880,13 @@ type TabelaSumulaTimeProps = {
   getStat: (
     partidaId: string,
     jogadorId: number,
-    campo: keyof StatsJogador
+    campo: keyof StatsJogador,
   ) => number;
   onAlterarStat: (
     partidaId: string,
     jogadorId: number,
     campo: keyof StatsJogador,
-    valor: number
+    valor: number,
   ) => void;
 };
 
@@ -866,7 +916,7 @@ function TabelaSumulaTime({
   const handleChange = (
     e: ChangeEvent<HTMLInputElement>,
     jogadorId: number,
-    campo: keyof StatsJogador
+    campo: keyof StatsJogador,
   ) => {
     const valor = Number(e.target.value) || 0;
     onAlterarStat(partidaId, jogadorId, campo, valor);
@@ -914,9 +964,7 @@ function TabelaSumulaTime({
                         textAlign: "center",
                       }}
                       value={getStat(partidaId, j.jogadorId, c)}
-                      onChange={(e) =>
-                        handleChange(e, j.jogadorId, c)
-                      }
+                      onChange={(e) => handleChange(e, j.jogadorId, c)}
                     />
                   </td>
                 ))}

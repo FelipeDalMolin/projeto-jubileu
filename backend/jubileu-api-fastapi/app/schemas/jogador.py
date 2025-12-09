@@ -1,30 +1,28 @@
-from pydantic import BaseModel
-from enum import Enum
-
-
-class StatusJogadorEnum(str, Enum):
-    ativo = "ativo"
-    temporariamente_inativo = "temporariamente_inativo"
-    afastado = "afastado"
+# app/schemas/jogador.py
+from typing import Optional
+from pydantic import BaseModel, ConfigDict
 
 
 class JogadorBase(BaseModel):
     nome: str
-    apelido: str | None = None
-    posicao: str | None = None
-    status: StatusJogadorEnum = StatusJogadorEnum.ativo
+    apelido: Optional[str] = None
+    status: str = "ativo"
 
 
 class JogadorCreate(JogadorBase):
+    """DTO de entrada para criar jogador."""
     pass
 
 
-class JogadorUpdate(JogadorBase):
-    pass
+class JogadorUpdate(BaseModel):
+    """DTO de entrada para atualizar jogador (campos opcionais)."""
+    nome: Optional[str] = None
+    apelido: Optional[str] = None
+    status: Optional[str] = None
 
 
 class JogadorOut(JogadorBase):
+    """DTO de saída (response) com id."""
     id: int
 
-    class Config:
-        from_attributes = True  # equivale ao antigo orm_mode
+    model_config = ConfigDict(from_attributes=True)

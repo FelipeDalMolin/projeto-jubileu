@@ -4,7 +4,6 @@ import type {
   AulaDia,
   PresencaJogadorDia,
   TimeDia,
-  AtributosJogadorDia,
   StatusAula,
   TipoEventoAula,
 } from "../types/dia";
@@ -12,45 +11,14 @@ import type {
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-// ------------------------------------------------------------------
-// Tipos auxiliares (como o backend realmente responde)
-// ------------------------------------------------------------------
-
-export type JogadorTurmaDTO = {
-  id: number;
-  nome: string;
-  apelido?: string;
-};
-
-type EstadoEquipesAPI = {
-  aula_id: number;
-  jogadores: any[];
-  times: any[];
-};
-
-// ------------------------------------------------------------------
-// MAPPERS AUXILIARES
-// ------------------------------------------------------------------
-
-function mapAtributos(j: any): AtributosJogadorDia {
-  const attrs = j.atributos ?? {};
-
-  return {
-    gols: attrs.gols ?? j.gols ?? 0,
-    assistencias: attrs.assistencias ?? j.assistencias ?? 0,
-    defesas: attrs.defesas ?? j.defesas ?? 0,
-    chiliques: attrs.chiliques ?? j.chiliques ?? 0,
-    faltas: attrs.faltas ?? j.faltas ?? 0,
-  };
-}
+// --- MAPPERS AUXILIARES (backend -> frontend) ---
 
 function mapPresencaJogador(j: any): PresencaJogadorDia {
   return {
-    jogadorId: j.jogador_id ?? j.jogadorId ?? j.id,
+    jogadorId: j.jogador_id ?? j.id,
     nome: j.nome,
     status: j.status,
-    atributos: mapAtributos(j),
-    timeId: j.time_id ? String(j.time_id) : j.timeId,
+    timeId: j.time_id != null ? String(j.time_id) : undefined,
   };
 }
 
@@ -58,7 +26,7 @@ function mapTime(t: any): TimeDia {
   return {
     id: String(t.id),
     nome: t.nome,
-    jogadoresIds: t.jogadoresIds ?? [], // backend ainda não manda isso
+    jogadoresIds: [], // ainda não recebemos isso do backend
   };
 }
 
@@ -73,10 +41,10 @@ function mapAula(aula: any): AulaDia {
     turmaId: aula.turma_id,
     turmaNome: aula.turma_nome,
     numeroAulaNaTurma: aula.numero_aula_na_turma,
-    tipo: aula.tipo as TipoEventoAula,
+    tipo: aula.tipo,
     horarioInicio: aula.horario_inicio,
     horarioFim: aula.horario_fim,
-    status: aula.status as StatusAula,
+    status: aula.status,
     jogadores,
     times,
     partidasCount: (aula.partidas ?? []).length,
@@ -87,13 +55,40 @@ function mapDia(data: any): Dia {
   return {
     dataIso: data.data_iso,
     aulas: (data.aulas ?? []).map(mapAula),
-    feriado: undefined, // backend ainda não trata feriado
+    feriado: undefined,
   };
 }
 
-// ------------------------------------------------------------------
-// DIAS
-// ------------------------------------------------------------------
+// --- MAPPERS AUXILIARES (frontend -> backend) ---
+
+function toBackendPresenca(j: PresencaJogadorDia): any {
+  return {
+    id: j.jogadorId,
+    jogador_id: j.jogadorId,
+    nome: j.nome,
+    status: j.status,
+    time_id: j.timeId != null ? Number(j.timeId) : null,
+    // ainda não usamos atributos no front; mandamos zerado
+    atributos: {
+      gols: 0,
+      assistencias: 0,
+      defesas: 0,
+      chiliques: 0,
+      faltas: 0,
+    },
+  };
+}
+
+function toBackendTime(t: TimeDia): any {
+  return {
+    id: isNaN(Number(t.id)) ? undefined : Number(t.id),
+    nome: t.nome,
+    caracteristica: null,
+    cor_camisa: null,
+  };
+}
+
+// --- SERVICES ---
 
 export async function obterDiaPorData(dataIso: string): Promise<Dia> {
   const resp = await fetch(`${API_BASE_URL}/dias/${dataIso}`);
@@ -106,42 +101,22 @@ export async function obterDiaPorData(dataIso: string): Promise<Dia> {
   return mapDia(json);
 }
 
-/**
- * Agenda de dias para a página /dias.
- * Por enquanto, busca algumas datas fixas (pode evoluir depois).
- */
+// (ainda mockado em cima de obterDiaPorData; depois teremos GET /dias)
 export async function listarDias(): Promise<Dia[]> {
-  // datas que você está usando no swagger / testes
   const datas = ["2025-11-20", "2025-11-21"];
 
-  const dias = await Promise.all(
-    datas.map(async (d) => {
-      try {
-        return await obterDiaPorData(d);
-      } catch (err) {
-        // se uma data falhar, só loga e ignora
-        // eslint-disable-next-line no-console
-        console.error("Erro ao carregar dia", d, err);
-        return null;
-      }
-    }),
-  );
+  const dias = await Promise.all(datas.map(obterDiaPorData));
 
-  const filtrados = dias.filter((d): d is Dia => d !== null);
-
-  return filtrados.sort((a, b) => a.dataIso.localeCompare(b.dataIso));
+  return dias.sort((a, b) => a.dataIso.localeCompare(b.dataIso));
 }
 
-// Ordena aulas pelo horário de início (utilizado em DiaDetalhe)
 export function ordenarAulasPorHorario(aulas: AulaDia[]): AulaDia[] {
   return [...aulas].sort((a, b) =>
     a.horarioInicio.localeCompare(b.horarioInicio),
   );
 }
 
-// ------------------------------------------------------------------
-// AULAS
-// ------------------------------------------------------------------
+// --- CRIAR AULA ---
 
 export type NovaAulaInput = {
   turmaId: string;
@@ -186,9 +161,7 @@ export async function criarAulaNoDia(
   return mapAula(json);
 }
 
-// ------------------------------------------------------------------
-// TIMES DA AULA
-// ------------------------------------------------------------------
+// --- TIMES DA AULA ---
 
 export type NovoTimeInput = {
   nome: string;
@@ -234,42 +207,39 @@ export async function criarTimeNaAula(
   return time;
 }
 
-// ------------------------------------------------------------------
-// ESTADO DE EQUIPES DA AULA (JOGADORES + TIMES)
-// ------------------------------------------------------------------
+// --- ESTADO DE EQUIPES (SNAPSHOT JSON) ---
+
+export type EstadoEquipesSnapshot = {
+  jogadores: PresencaJogadorDia[];
+  times: TimeDia[];
+};
 
 export async function carregarEstadoEquipesAula(
   dataIso: string,
   aulaId: string,
-): Promise<{ aulaId: string; jogadores: PresencaJogadorDia[]; times: TimeDia[] }> {
+): Promise<EstadoEquipesSnapshot | null> {
   const resp = await fetch(
     `${API_BASE_URL}/dias/${dataIso}/aulas/${aulaId}/estado-equipes`,
   );
 
-  if (resp.status === 404) {
-    // estado ainda não salvo → devolve vazio
-    return { aulaId, jogadores: [], times: [] };
-  }
-
   if (!resp.ok) {
+    if (resp.status === 404) {
+      return null;
+    }
     const msg = await resp.text().catch(() => "");
     throw new Error(
-      `Erro ao carregar estado de equipes da aula ${aulaId}: ${resp.status} ${msg}`,
+      `Erro ao carregar estado de equipes da aula ${aulaId} do dia ${dataIso}: ${resp.status} ${msg}`,
     );
   }
 
-  const json: EstadoEquipesAPI = await resp.json();
+  const json = await resp.json();
 
   const jogadores: PresencaJogadorDia[] = (json.jogadores ?? []).map(
     mapPresencaJogador,
   );
   const times: TimeDia[] = (json.times ?? []).map(mapTime);
 
-  return {
-    aulaId: String(json.aula_id ?? aulaId),
-    jogadores,
-    times,
-  };
+  return { jogadores, times };
 }
 
 export async function salvarEstadoEquipesAula(
@@ -279,20 +249,8 @@ export async function salvarEstadoEquipesAula(
   times: TimeDia[],
 ): Promise<void> {
   const payload = {
-    jogadores: jogadores.map((j) => ({
-      id: j.jogadorId,
-      jogador_id: j.jogadorId,
-      nome: j.nome,
-      status: j.status,
-      time_id: j.timeId ? Number(j.timeId) : null,
-      atributos: j.atributos,
-    })),
-  times: times.map((t) => ({
-      id: Number(t.id),
-      nome: t.nome,
-      caracteristica: (t as any).caracteristica ?? null,
-      cor_camisa: (t as any).corCamisa ?? null,
-    })),
+    jogadores: jogadores.map(toBackendPresenca),
+    times: times.map(toBackendTime),
   };
 
   const resp = await fetch(
@@ -309,38 +267,7 @@ export async function salvarEstadoEquipesAula(
   if (!resp.ok) {
     const msg = await resp.text().catch(() => "");
     throw new Error(
-      `Erro ao salvar estado de equipes da aula ${aulaId}: ${resp.status} ${msg}`,
+      `Erro ao salvar estado de equipes da aula ${aulaId} do dia ${dataIso}: ${resp.status} ${msg}`,
     );
   }
-}
-
-// ------------------------------------------------------------------
-// JOGADORES DA TURMA (PROVISÓRIO / MOCK)
-// ------------------------------------------------------------------
-
-/**
- * Lista de jogadores de uma turma.
- * Hoje está como MOCK; quando existir o endpoint real
- * (/turmas/{turmaId}/jogadores), é só trocar o fetch aqui.
- */
-export async function listarJogadoresDaTurma(
-  turmaId: string,
-): Promise<JogadorTurmaDTO[]> {
-  // TODO: trocar por chamada real pro backend assim que existir:
-  // const resp = await fetch(`${API_BASE_URL}/turmas/${turmaId}/jogadores`);
-  // ...
-
-  // Mock simples só pra ter dados na tela:
-  const mock: JogadorTurmaDTO[] = [
-    { id: 1, nome: "Felipe Dal Molin – Fixo" },
-    { id: 2, nome: "André Silva – Pivô" },
-    { id: 3, nome: "Carlos Eduardo – Ala" },
-    { id: 4, nome: "Bruno Souza – Goleiro" },
-  ];
-
-  // só pra não ficar estranho usar turmaId pra nada:
-  // eslint-disable-next-line no-console
-  console.debug("listarJogadoresDaTurma (mock) turmaId=", turmaId);
-
-  return mock;
 }
