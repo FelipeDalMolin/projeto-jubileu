@@ -1,4 +1,7 @@
 # app/routers/dias.py
+
+from __future__ import annotations
+
 from typing import Any, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -46,16 +49,15 @@ def get_db() -> Generator[Session, None, None]:
 def obter_dia_por_data(data_iso: str, db: Session = Depends(get_db)) -> DiaOut:
     """
     Retorna o dia pela data ISO (YYYY-MM-DD).
+
     Se não existir, cria um dia vazio no banco e devolve.
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
-
     if not dia:
         dia = DiaModel(data_iso=data_iso)
         db.add(dia)
         db.commit()
         db.refresh(dia)
-
     return dia
 
 
@@ -74,6 +76,7 @@ def criar_aula_no_dia(
 ) -> AulaOut:
     """
     Cria uma nova aula em um dia.
+
     Se o dia não existir, é criado automaticamente.
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
@@ -93,11 +96,9 @@ def criar_aula_no_dia(
         horario_fim=payload.horario_fim,
         status=payload.status,
     )
-
     db.add(aula)
     db.commit()
     db.refresh(aula)
-
     return aula
 
 
@@ -112,6 +113,7 @@ def obter_aula_no_dia(
 ) -> AulaOut:
     """
     Retorna uma aula específica de um dia.
+
     Garante que a aula pertence ao dia informado.
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
@@ -123,10 +125,11 @@ def obter_aula_no_dia(
         .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
         .first()
     )
-
     if not aula:
-        raise HTTPException(status_code=404, detail="Aula não encontrada para este dia")
-
+        raise HTTPException(
+            status_code=404,
+            detail="Aula não encontrada para este dia",
+        )
     return aula
 
 
@@ -159,7 +162,10 @@ def criar_time_na_aula(
         .first()
     )
     if not aula:
-        raise HTTPException(status_code=404, detail="Aula não encontrada para este dia")
+        raise HTTPException(
+            status_code=404,
+            detail="Aula não encontrada para este dia",
+        )
 
     novo_time = TimeAulaModel(
         aula_id=aula.id,
@@ -167,12 +173,18 @@ def criar_time_na_aula(
         caracteristica=payload.caracteristica,
         cor_camisa=payload.cor_camisa,
     )
-
     db.add(novo_time)
     db.commit()
     db.refresh(novo_time)
 
-    return novo_time
+    # Transformamos o modelo de banco no DTO que o front espera
+    return TimeAulaOut(
+        id=str(novo_time.id),
+        nome=novo_time.nome,
+        jogadoresIds=[],
+        caracteristica=novo_time.caracteristica,
+        corCamisa=novo_time.cor_camisa,
+    )
 
 
 # ---------------- ESTADO DE EQUIPES (SNAPSHOT JSON) ----------------
@@ -189,6 +201,7 @@ def obter_estado_equipes_aula(
 ) -> EstadoEquipesAulaOut:
     """
     Retorna o snapshot JSON do estado das equipes de uma aula.
+
     Usado para sincronizar separação de times entre clientes.
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
@@ -201,7 +214,10 @@ def obter_estado_equipes_aula(
         .first()
     )
     if not aula:
-        raise HTTPException(status_code=404, detail="Aula não encontrada para este dia")
+        raise HTTPException(
+            status_code=404,
+            detail="Aula não encontrada para este dia",
+        )
 
     estado_row = (
         db.query(AulaEquipesEstadoModel)
@@ -224,9 +240,7 @@ def obter_estado_equipes_aula(
     jogadores = [
         PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw
     ]
-    times = [
-        TimeAulaOut.model_validate(t) for t in times_raw
-    ]
+    times = [TimeAulaOut.model_validate(t) for t in times_raw]
 
     return EstadoEquipesAulaOut(
         aula_id=aula.id,
@@ -258,7 +272,10 @@ def salvar_estado_equipes_aula(
         .first()
     )
     if not aula:
-        raise HTTPException(status_code=404, detail="Aula não encontrada para este dia")
+        raise HTTPException(
+            status_code=404,
+            detail="Aula não encontrada para este dia",
+        )
 
     estado_dict: dict[str, Any] = {
         "jogadores": [j.model_dump() for j in payload.jogadores],
@@ -288,8 +305,7 @@ def salvar_estado_equipes_aula(
         for j in estado_dict["jogadores"]
     ]
     times = [
-        TimeAulaOut.model_validate(t)
-        for t in estado_dict["times"]
+        TimeAulaOut.model_validate(t) for t in estado_dict["times"]
     ]
 
     return EstadoEquipesAulaOut(

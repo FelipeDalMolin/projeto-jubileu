@@ -1,28 +1,50 @@
 # app/schemas/jogador.py
+
+from enum import Enum
 from typing import Optional
-from pydantic import BaseModel, ConfigDict
+
+from pydantic import BaseModel, Field
+
+
+class StatusJogadorEnum(str, Enum):
+    ATIVO = "ativo"
+    INATIVO = "inativo"
+    LESIONADO = "lesionado"
+    AFASTADO = "afastado"
+    # Ajuste os valores conforme o domínio real do Jubileu
 
 
 class JogadorBase(BaseModel):
-    nome: str
+    nome: str = Field(..., min_length=1)
     apelido: Optional[str] = None
-    status: str = "ativo"
+    status: StatusJogadorEnum = StatusJogadorEnum.ATIVO
 
 
 class JogadorCreate(JogadorBase):
-    """DTO de entrada para criar jogador."""
+    """
+    Schema para criação de jogador.
+    Herda de JogadorBase, então já tem nome, apelido e status.
+    """
     pass
 
 
 class JogadorUpdate(BaseModel):
-    """DTO de entrada para atualizar jogador (campos opcionais)."""
-    nome: Optional[str] = None
+    """
+    Schema para atualização parcial de jogador.
+    Todos os campos opcionais.
+    """
+    nome: Optional[str] = Field(None, min_length=1)
     apelido: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[StatusJogadorEnum] = None
 
 
 class JogadorOut(JogadorBase):
-    """DTO de saída (response) com id."""
+    """
+    Schema de saída (response) com ID.
+    """
     id: int
 
-    model_config = ConfigDict(from_attributes=True)
+    class Config:
+        from_attributes = True  # FastAPI/Pydantic v2
+        # Se você ainda estiver com Pydantic v1, troque por:
+        # orm_mode = True
