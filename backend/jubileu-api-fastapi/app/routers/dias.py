@@ -6,6 +6,7 @@ from typing import Any, Generator
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from datetime import date
 
 from app.database import SessionLocal
 from app.models.dia_aula import (
@@ -81,7 +82,12 @@ def criar_aula_no_dia(
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
-        dia = DiaModel(data_iso=data_iso)
+        dia = DiaModel(
+            data=date.fromisoformat(data_iso),
+            data_iso=data_iso,
+            feriado_nome=None,
+            feriado_tipo=None,
+        )
         db.add(dia)
         db.commit()
         db.refresh(dia)

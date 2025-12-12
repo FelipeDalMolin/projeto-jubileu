@@ -1,7 +1,7 @@
 // src/services/equipesService.ts
 import type { EstadoEquipesDia } from "../types/equipes";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 export async function obterEstadoEquipes(
   diaId: string
