@@ -3,14 +3,15 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-from app.core.config import settings
-from app.db.base import Base
+from app.database import Base, DATABASE_URL
+# importa modelos para registrar tabelas no metadata
+import app.models  # noqa: F401
 
 # Alembic Config
 config = context.config
 
-# Usa DATABASE_URL do settings (.env)
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Usa DATABASE_URL do app.database (mesmo stack do FastAPI)
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # Logging
 if config.config_file_name is not None:
@@ -22,7 +23,7 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Rodar migrações no modo offline."""
-    url = settings.DATABASE_URL
+    url = DATABASE_URL
 
     context.configure(
         url=url,
@@ -38,7 +39,7 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Rodar migrações no modo online."""
     connectable = create_engine(
-        settings.DATABASE_URL,
+        DATABASE_URL,
         poolclass=pool.NullPool,
         future=True,
     )

@@ -80,6 +80,8 @@ export type TimeDia = {
   id: string;
   nome: string; // "Time 1", "Time Azul" etc.
   jogadoresIds: number[];
+  caracteristica?: string;
+  corCamisa?: string;
 };
 
 export type TipoEventoAula = "AULA" | "JOGO" | "OUTRO";

@@ -8,25 +8,28 @@ import type {
   TipoEventoAula,
 } from "../types/dia";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 // --- MAPPERS AUXILIARES (backend -> frontend) ---
 
 function mapPresencaJogador(j: any): PresencaJogadorDia {
+  const jogadorId = j.jogadorId ?? j.jogador_id ?? j.id;
   return {
-    jogadorId: j.jogador_id ?? j.id,
+    jogadorId: jogadorId != null ? Number(jogadorId) : 0,
     nome: j.nome,
     status: j.status,
-    timeId: j.time_id != null ? String(j.time_id) : undefined,
+    timeId: j.timeId ?? (j.time_id != null ? String(j.time_id) : undefined),
   };
 }
 
 function mapTime(t: any): TimeDia {
+  const jogadoresIdsRaw = t.jogadoresIds ?? t.jogadores_ids ?? [];
   return {
     id: String(t.id),
     nome: t.nome,
-    jogadoresIds: [], // ainda não recebemos isso do backend
+    jogadoresIds: jogadoresIdsRaw.map((id: any) => Number(id)),
+    caracteristica: t.caracteristica ?? undefined,
+    corCamisa: t.corCamisa ?? t.cor_camisa ?? undefined,
   };
 }
 
@@ -52,10 +55,15 @@ function mapAula(aula: any): AulaDia {
 }
 
 function mapDia(data: any): Dia {
+  const feriadoNome = data.feriado_nome ?? data.feriado?.nome;
+  const feriadoTipo = data.feriado_tipo ?? data.feriado?.tipo;
   return {
     dataIso: data.data_iso,
     aulas: (data.aulas ?? []).map(mapAula),
-    feriado: undefined,
+    feriado:
+      feriadoNome && feriadoTipo
+        ? { nome: feriadoNome, tipo: feriadoTipo }
+        : null,
   };
 }
 
@@ -63,11 +71,10 @@ function mapDia(data: any): Dia {
 
 function toBackendPresenca(j: PresencaJogadorDia): any {
   return {
-    id: j.jogadorId,
-    jogador_id: j.jogadorId,
+    jogadorId: j.jogadorId,
     nome: j.nome,
     status: j.status,
-    time_id: j.timeId != null ? Number(j.timeId) : null,
+    timeId: j.timeId ?? null,
     // ainda não usamos atributos no front; mandamos zerado
     atributos: {
       gols: 0,
@@ -81,10 +88,11 @@ function toBackendPresenca(j: PresencaJogadorDia): any {
 
 function toBackendTime(t: TimeDia): any {
   return {
-    id: isNaN(Number(t.id)) ? undefined : Number(t.id),
+    id: t.id,
     nome: t.nome,
-    caracteristica: null,
-    cor_camisa: null,
+    jogadoresIds: t.jogadoresIds ?? [],
+    caracteristica: t.caracteristica ?? null,
+    corCamisa: t.corCamisa ?? null,
   };
 }
 
@@ -103,10 +111,12 @@ export async function obterDiaPorData(dataIso: string): Promise<Dia> {
 
 // (ainda mockado em cima de obterDiaPorData; depois teremos GET /dias)
 export async function listarDias(): Promise<Dia[]> {
-  const datas = ["2025-11-20", "2025-11-21"];
-
-  const dias = await Promise.all(datas.map(obterDiaPorData));
-
+  const resp = await fetch(`${API_BASE_URL}/dias`);
+  if (!resp.ok) {
+    throw new Error(`Erro ao listar dias: ${resp.status}`);
+  }
+  const json = await resp.json();
+  const dias = (json ?? []).map(mapDia) as Dia[];
   return dias.sort((a, b) => a.dataIso.localeCompare(b.dataIso));
 }
 

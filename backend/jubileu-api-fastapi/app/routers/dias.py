@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Generator
+from typing import Any, Generator, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -44,6 +44,12 @@ def get_db() -> Generator[Session, None, None]:
 
 
 # ---------------- DIA ----------------
+
+
+@router.get("/", response_model=List[DiaOut])
+def listar_dias(db: Session = Depends(get_db)) -> List[DiaOut]:
+    """Lista todos os dias cadastrados (ordenados por data_iso)."""
+    return db.query(DiaModel).order_by(DiaModel.data_iso.asc()).all()
 
 
 @router.get("/{data_iso}", response_model=DiaOut)
