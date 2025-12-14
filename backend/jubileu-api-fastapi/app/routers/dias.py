@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from datetime import date
 
 from app.deps import get_db
+from app.models.jogador_turma import Turma as TurmaModel
 from app.models.dia_aula import (
     Dia as DiaModel,
     Aula as AulaModel,
@@ -78,7 +79,6 @@ def criar_aula_no_dia(
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
         dia = DiaModel(
-            data=date.fromisoformat(data_iso),
             data_iso=data_iso,
             feriado_nome=None,
             feriado_tipo=None,
@@ -87,10 +87,14 @@ def criar_aula_no_dia(
         db.commit()
         db.refresh(dia)
 
+    turma = db.query(TurmaModel).filter(TurmaModel.id == payload.turma_id).first()
+    if not turma:
+        raise HTTPException(status_code=404, detail="Turma nÇœo encontrada")
+
     aula = AulaModel(
         dia_id=dia.id,
         turma_id=payload.turma_id,
-        turma_nome=payload.turma_nome,
+        turma_nome=turma.nome,
         numero_aula_na_turma=payload.numero_aula_na_turma,
         tipo=payload.tipo,
         horario_inicio=payload.horario_inicio,

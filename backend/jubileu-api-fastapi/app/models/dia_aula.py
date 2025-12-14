@@ -7,6 +7,7 @@ from sqlalchemy import Integer, String, Enum as SAEnum, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.jogador_turma import Turma
 
 
 # -------- ENUMS --------
@@ -64,7 +65,9 @@ class Aula(Base):
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
 
     dia_id: Mapped[int] = mapped_column(ForeignKey("dias.id"), nullable=False)
-    turma_id: Mapped[str] = mapped_column(String, nullable=False)
+    turma_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("turmas.id"), nullable=False
+    )
     turma_nome: Mapped[str] = mapped_column(String, nullable=False)
 
     numero_aula_na_turma: Mapped[int] = mapped_column(
@@ -90,6 +93,7 @@ class Aula(Base):
     # -------- RELACIONAMENTOS --------
 
     dia: Mapped["Dia"] = relationship("Dia", back_populates="aulas")
+    turma: Mapped["Turma"] = relationship("Turma")
 
     estado_equipes: Mapped[Optional["AulaEquipesEstado"]] = relationship(
         "AulaEquipesEstado",

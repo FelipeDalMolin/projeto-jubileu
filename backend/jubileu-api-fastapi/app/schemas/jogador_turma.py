@@ -12,7 +12,19 @@ class JogadorOut(BaseModel):
 
 
 class TurmaOut(BaseModel):
-  id: str
+  id: int
   nome: str
 
   model_config = ConfigDict(from_attributes=True)
+
+
+class TurmaBase(BaseModel):
+  nome: str
+
+
+class TurmaCreate(TurmaBase):
+  pass
+
+
+class TurmaUpdate(BaseModel):
+  nome: str | None = None

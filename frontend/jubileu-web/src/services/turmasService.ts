@@ -1,82 +1,70 @@
 // src/services/turmasService.ts
-import type { Turma, ParticipanteTurma } from "../types/turma";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
-// MOCK simples em memória
-let TURMAS_MOCK: Turma[] = [
-  {
-    id: 1,
-    nome: "Adulto",
-    categoria: "Adulto",
-    participantes: [
-      {
-        id: 1,
-        jogadorId: 1,
-        nome: "Felipe",
-        papel: "aluno",
-        ativo: true,
-        podeJogar: true,
-      },
-      {
-        id: 2,
-        jogadorId: 2,
-        nome: "Lucas",
-        papel: "professor",
-        ativo: true,
-        podeJogar: true, // professor que joga
-      },
-      {
-        id: 3,
-        jogadorId: 3,
-        nome: "Ex-Aluno",
-        papel: "aluno",
-        ativo: false,
-        podeJogar: false, // histórico apenas
-      },
-    ],
-  },
-];
+export type Turma = {
+  id: number;
+  nome: string;
+  categoria?: string | null;
+};
+
+export type TurmaJogador = {
+  jogador_id: number;
+  nome: string;
+  apelido?: string | null;
+  ativo: boolean;
+};
 
 export async function listarTurmas(): Promise<Turma[]> {
-  // depois troca por fetch(".../turmas")
-  return Promise.resolve([...TURMAS_MOCK]);
+  const resp = await fetch(`${API_BASE_URL}/turmas`);
+  if (!resp.ok) throw new Error("Erro ao listar turmas");
+  return resp.json();
 }
 
-export async function obterTurma(id: number): Promise<Turma | null> {
-  const turma = TURMAS_MOCK.find((t) => t.id === id) ?? null;
-  // clone para evitar mutação externa
-  return Promise.resolve(turma ? { ...turma, participantes: [...turma.participantes] } : null);
+export async function obterTurma(id: number): Promise<Turma> {
+  const resp = await fetch(`${API_BASE_URL}/turmas/${id}`);
+  if (!resp.ok) throw new Error("Turma não encontrada");
+  return resp.json();
 }
 
-export interface SalvarTurmaInput {
-  id?: number;
-  nome: string;
-  categoria?: string;
-  participantes: ParticipanteTurma[];
+export async function criarTurma(data: Omit<Turma, "id">): Promise<Turma> {
+  const resp = await fetch(`${API_BASE_URL}/turmas`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!resp.ok) throw new Error("Erro ao criar turma");
+  return resp.json();
 }
 
-export async function salvarTurma(dados: SalvarTurmaInput): Promise<Turma> {
-  if (dados.id) {
-    TURMAS_MOCK = TURMAS_MOCK.map((t) =>
-      t.id === dados.id
-        ? {
-            ...t,
-            nome: dados.nome,
-            categoria: dados.categoria,
-            participantes: [...dados.participantes],
-          }
-        : t
-    );
-    const atualizado = TURMAS_MOCK.find((t) => t.id === dados.id)!;
-    return Promise.resolve(atualizado);
-  }
+export async function atualizarTurma(id: number, data: Partial<Turma>): Promise<Turma> {
+  const resp = await fetch(`${API_BASE_URL}/turmas/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!resp.ok) throw new Error("Erro ao atualizar turma");
+  return resp.json();
+}
 
-  const novoId = TURMAS_MOCK.length ? Math.max(...TURMAS_MOCK.map((t) => t.id)) + 1 : 1;
-  const turma: Turma = {
-    id: novoId,
-    nome: dados.nome,
-    categoria: dados.categoria,
-    participantes: [...dados.participantes],
-  };
-  TURMAS_MOCK.push(turma);
-  return Promise.resolve(turma);
+export async function listarJogadoresDaTurma(turmaId: number): Promise<TurmaJogador[]> {
+  const resp = await fetch(`${API_BASE_URL}/turmas/${turmaId}/jogadores`);
+  if (!resp.ok) throw new Error("Erro ao listar jogadores da turma");
+  return resp.json();
+}
+
+export async function adicionarJogadorNaTurma(turmaId: number, jogadorId: number) {
+  const resp = await fetch(`${API_BASE_URL}/turmas/${turmaId}/jogadores`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ jogador_id: jogadorId }),
+  });
+  if (!resp.ok) throw new Error("Erro ao adicionar jogador");
+}
+
+export async function removerJogadorDaTurma(turmaId: number, jogadorId: number) {
+  const resp = await fetch(
+    `${API_BASE_URL}/turmas/${turmaId}/jogadores/${jogadorId}`,
+    { method: "DELETE" }
+  );
+  if (!resp.ok) throw new Error("Erro ao remover jogador");
 }

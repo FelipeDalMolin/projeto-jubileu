@@ -106,8 +106,7 @@ class PartidaOut(BaseModel):
 
 
 class AulaBase(BaseModel):
-    turma_id: str
-    turma_nome: str
+    turma_id: int
     numero_aula_na_turma: int = 1
     tipo: TipoEventoAulaEnum = TipoEventoAulaEnum.AULA
     horario_inicio: str  # "19:00"
@@ -118,7 +117,8 @@ class AulaBase(BaseModel):
 class AulaCreate(AulaBase):
     """DTO de entrada para criar uma nova aula em um dia."""
 
-    pass
+    # turma_nome opcional (será sobrescrito pelo nome da turma no backend)
+    turma_nome: Optional[str] = None
 
 
 class AulaOut(AulaBase):
@@ -133,6 +133,7 @@ class AulaOut(AulaBase):
 
     id: int
     dia_id: int
+    turma_nome: str
 
     model_config = ConfigDict(from_attributes=True)
 

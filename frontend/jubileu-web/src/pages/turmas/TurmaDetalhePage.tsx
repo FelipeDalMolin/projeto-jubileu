@@ -1,309 +1,101 @@
 import { useEffect, useState } from "react";
-import type { ChangeEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   obterTurma,
-  salvarTurma,
+  atualizarTurma,
+  listarJogadoresDaTurma,
+  adicionarJogadorNaTurma,
+  removerJogadorDaTurma,
 } from "../../services/turmasService";
-import type {
-  Turma,
-  ParticipanteTurma,
-  PapelParticipanteTurma,
-} from "../../types/turma";
-
-type RouteParams = {
-  turmaId: string;
-};
+import { listarJogadores, type JogadorDTO } from "../../services/jogadoresService";
 
 export default function TurmaDetalhePage() {
-  const { turmaId } = useParams<RouteParams>();
+  const { turmaId } = useParams<{ turmaId: string }>();
   const navigate = useNavigate();
 
-  const [turma, setTurma] = useState<Turma | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [salvando, setSalvando] = useState(false);
-
-  // campos básicos
-  const [nome, setNome] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [participantes, setParticipantes] = useState<ParticipanteTurma[]>([]);
-
-  const ehNova = turmaId === "nova";
+  const [turma, setTurma] = useState<any>(null);
+  const [jogadoresTurma, setJogadoresTurma] = useState<any[]>([]);
+  const [todosJogadores, setTodosJogadores] = useState<JogadorDTO[]>([]);
+  const [novoJogadorId, setNovoJogadorId] = useState<number | "">("");
 
   useEffect(() => {
-    if (ehNova) {
-      setTurma(null);
-      setNome("");
-      setCategoria("");
-      setParticipantes([]);
-      setLoading(false);
-      return;
-    }
-
     if (!turmaId) return;
 
-    const idNum = Number(turmaId);
-    if (Number.isNaN(idNum)) {
-      setLoading(false);
-      return;
-    }
+    obterTurma(Number(turmaId)).then(setTurma);
+    listarJogadoresDaTurma(Number(turmaId)).then(setJogadoresTurma);
+    listarJogadores().then(setTodosJogadores);
+  }, [turmaId]);
 
-    obterTurma(idNum).then((t) => {
-      setTurma(t);
-      if (t) {
-        setNome(t.nome);
-        setCategoria(t.categoria ?? "");
-        setParticipantes(t.participantes ?? []);
-      }
-      setLoading(false);
-    });
-  }, [turmaId, ehNova]);
+  if (!turma) return <p className="container py-3">Carregando...</p>;
 
-  const handleChangeParticipanteCampo = (
-    idx: number,
-    campo: keyof ParticipanteTurma,
-    valor: any
-  ) => {
-    setParticipantes((prev) =>
-      prev.map((p, i) =>
-        i === idx
-          ? {
-              ...p,
-              [campo]: valor,
-            }
-          : p
-      )
-    );
-  };
-
-  const handleToggleAtivo = (idx: number) => {
-    setParticipantes((prev) =>
-      prev.map((p, i) =>
-        i === idx
-          ? {
-              ...p,
-              ativo: !p.ativo,
-            }
-          : p
-      )
-    );
-  };
-
-  const handleTogglePodeJogar = (idx: number) => {
-    setParticipantes((prev) =>
-      prev.map((p, i) =>
-        i === idx
-          ? {
-              ...p,
-              podeJogar: !p.podeJogar,
-            }
-          : p
-      )
-    );
-  };
-
-  const handleChangePapel = (
-    idx: number,
-    e: ChangeEvent<HTMLSelectElement>
-  ) => {
-    const papel = e.target.value as PapelParticipanteTurma;
-    handleChangeParticipanteCampo(idx, "papel", papel);
-  };
-
-  const handleAdicionarParticipante = () => {
-    const novoId =
-      participantes.length === 0
-        ? 1
-        : Math.max(...participantes.map((p) => p.id)) + 1;
-
-    const novo: ParticipanteTurma = {
-      id: novoId,
-      jogadorId: novoId, // por enquanto usamos o mesmo id
-      nome: "",
-      papel: "aluno",
-      ativo: true,
-      podeJogar: true,
-    };
-
-    setParticipantes((prev) => [...prev, novo]);
-  };
-
-  const handleRemoverParticipante = (idx: number) => {
-    setParticipantes((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const handleSalvar = async () => {
-    if (!nome.trim()) {
-      alert("Informe o nome da turma.");
-      return;
-    }
-
-    setSalvando(true);
-    try {
-      const payload = {
-        id: turma?.id,
-        nome: nome.trim(),
-        categoria: categoria.trim() || undefined,
-        participantes,
-      };
-
-      const salvo = await salvarTurma(payload);
-      setTurma(salvo);
-      alert("Turma salva com sucesso!");
-      navigate("/turmas");
-    } catch (err) {
-      console.error(err);
-      alert("Erro ao salvar turma (mock). Veja o console.");
-    } finally {
-      setSalvando(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <main className="container py-3">
-        <button
-          className="btn btn-link p-0 mb-3"
-          onClick={() => navigate("/turmas")}
-        >
-          ← Voltar
-        </button>
-        <p>Carregando turma...</p>
-      </main>
-    );
-  }
+  const jogadoresDisponiveis = todosJogadores.filter(
+    (j) => !jogadoresTurma.some((jt) => jt.jogador_id === j.id)
+  );
 
   return (
     <main className="container py-3">
-      <button
-        className="btn btn-link p-0 mb-3"
-        onClick={() => navigate("/turmas")}
-      >
-        ← Voltar para turmas
+      <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/turmas")}>
+        ← Voltar
       </button>
 
-      <h1 className="h4 mb-3">
-        {ehNova ? "Nova turma" : `Turma: ${turma?.nome ?? nome}`}
-      </h1>
-
-      <div className="mb-3">
-        <label className="form-label">Nome da turma</label>
-        <input
-          className="form-control"
-          value={nome}
-          onChange={(e) => setNome(e.target.value)}
-        />
-      </div>
-
-      <div className="mb-4">
-        <label className="form-label">Categoria/Faixa etária</label>
-        <input
-          className="form-control"
-          placeholder="Ex.: Adulto, Sub-11..."
-          value={categoria}
-          onChange={(e) => setCategoria(e.target.value)}
-        />
-      </div>
+      <h1 className="h4 mb-3">{turma.nome}</h1>
 
       <section className="mb-4">
-        <div className="d-flex justify-content-between align-items-center mb-2">
-          <h2 className="h5 mb-0">Participantes da turma</h2>
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-primary"
-            onClick={handleAdicionarParticipante}
+        <h2 className="h6">Adicionar jogador</h2>
+        <div className="d-flex gap-2">
+          <select
+            className="form-select form-select-sm"
+            value={novoJogadorId}
+            onChange={(e) => setNovoJogadorId(Number(e.target.value))}
           >
-            + Adicionar participante
+            <option value="">Selecione</option>
+            {jogadoresDisponiveis.map((j) => (
+              <option key={j.id} value={j.id}>
+                {j.nome}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn btn-sm btn-primary"
+            disabled={!novoJogadorId}
+            onClick={async () => {
+              await adicionarJogadorNaTurma(turma.id, Number(novoJogadorId));
+              setJogadoresTurma(await listarJogadoresDaTurma(turma.id));
+              setNovoJogadorId("");
+            }}
+          >
+            Adicionar
           </button>
         </div>
-
-        <p className="text-muted" style={{ fontSize: 12 }}>
-          Use <strong>Ativo</strong> para marcar ex-alunos/professores
-          (mantidos para histórico). Use <strong>Pode jogar</strong> para
-          indicar quem entra na lista de jogadores da Aula.
-        </p>
-
-        {participantes.length === 0 ? (
-          <p className="text-muted">Nenhum participante cadastrado.</p>
-        ) : (
-          <div className="table-responsive">
-            <table className="table table-sm align-middle">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Papel</th>
-                  <th>Ativo</th>
-                  <th>Pode jogar</th>
-                  <th style={{ width: 80 }}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {participantes.map((p, idx) => (
-                  <tr key={p.id}>
-                    <td>
-                      <input
-                        className="form-control form-control-sm"
-                        value={p.nome}
-                        onChange={(e) =>
-                          handleChangeParticipanteCampo(
-                            idx,
-                            "nome",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </td>
-                    <td>
-                      <select
-                        className="form-select form-select-sm"
-                        value={p.papel}
-                        onChange={(e) => handleChangePapel(idx, e)}
-                      >
-                        <option value="aluno">Aluno</option>
-                        <option value="professor">Professor</option>
-                      </select>
-                    </td>
-                    <td className="text-center">
-                      <input
-                        type="checkbox"
-                        checked={p.ativo}
-                        onChange={() => handleToggleAtivo(idx)}
-                      />
-                    </td>
-                    <td className="text-center">
-                      <input
-                        type="checkbox"
-                        checked={p.podeJogar}
-                        onChange={() => handleTogglePodeJogar(idx)}
-                      />
-                    </td>
-                    <td className="text-end">
-                      <button
-                        type="button"
-                        className="btn btn-link btn-sm text-danger p-0"
-                        onClick={() => handleRemoverParticipante(idx)}
-                      >
-                        Remover
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </section>
 
-      <div className="d-flex justify-content-end">
-        <button
-          type="button"
-          className="btn btn-success"
-          disabled={salvando}
-          onClick={handleSalvar}
-        >
-          {salvando ? "Salvando..." : "Salvar turma (mock)"}
-        </button>
-      </div>
+      <section>
+        <h2 className="h6">Jogadores da turma</h2>
+        {jogadoresTurma.length === 0 ? (
+          <p className="text-muted">Nenhum jogador vinculado.</p>
+        ) : (
+          <table className="table table-sm">
+            <tbody>
+              {jogadoresTurma.map((j) => (
+                <tr key={j.jogador_id}>
+                  <td>{j.nome}</td>
+                  <td className="text-end">
+                    <button
+                      className="btn btn-link btn-sm text-danger"
+                      onClick={async () => {
+                        await removerJogadorDaTurma(turma.id, j.jogador_id);
+                        setJogadoresTurma(await listarJogadoresDaTurma(turma.id));
+                      }}
+                    >
+                      Remover
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </main>
   );
 }
