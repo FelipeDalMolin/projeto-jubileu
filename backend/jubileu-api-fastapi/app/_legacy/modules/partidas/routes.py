@@ -1,1 +1,0 @@
-# rotas de partidas

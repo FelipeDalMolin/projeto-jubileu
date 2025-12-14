@@ -1,1 +1,0 @@
-# regras de negÃ³cio de partidas

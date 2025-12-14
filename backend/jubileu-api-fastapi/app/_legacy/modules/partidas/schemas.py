@@ -1,1 +1,0 @@
-# schemas de partidas
