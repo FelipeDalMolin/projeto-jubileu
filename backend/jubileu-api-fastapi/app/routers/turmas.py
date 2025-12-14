@@ -2,7 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
+from app.deps import get_db
 from app.models.jogador_turma import Turma, TurmaJogador, Jogador
 from app.schemas.jogador_turma import JogadorOut
 
@@ -10,14 +10,6 @@ router = APIRouter(
     prefix="/turmas",
     tags=["Turmas"],
 )
-
-
-def get_db():
-  db = SessionLocal()
-  try:
-    yield db
-  finally:
-    db.close()
 
 
 @router.get("/{turma_id}/jogadores", response_model=list[JogadorOut])

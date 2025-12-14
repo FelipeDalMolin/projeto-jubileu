@@ -4,42 +4,37 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from app.database import Base, DATABASE_URL
-# importa modelos para registrar tabelas no metadata
 import app.models  # noqa: F401
 
-# Alembic Config
 config = context.config
 
-# Usa DATABASE_URL do app.database (mesmo stack do FastAPI)
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# Converte para str UMA vez (e resolve Pylance)
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL não definido (app.database).")
+db_url: str = DATABASE_URL
 
-# Logging
+config.set_main_option("sqlalchemy.url", db_url)
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Metadados dos modelos (para autogenerate)
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
-    """Rodar migrações no modo offline."""
-    url = DATABASE_URL
-
     context.configure(
-        url=url,
+        url=db_url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
-
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Rodar migrações no modo online."""
     connectable = create_engine(
-        DATABASE_URL,
+        db_url,
         poolclass=pool.NullPool,
         future=True,
     )
@@ -49,7 +44,6 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
         )
-
         with context.begin_transaction():
             context.run_migrations()
 

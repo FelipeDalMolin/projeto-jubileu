@@ -1,41 +1,28 @@
-# app/database.py
 from __future__ import annotations
 
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-
-if not DATABASE_URL:
+if not DATABASE_URL or not DATABASE_URL.strip():
     raise RuntimeError(
-        "DATABASE_URL não definida.\n"
-        "➡️ Defina DATABASE_URL no seu ambiente (.env, variáveis do sistema, Docker, etc).\n\n"
-        "Exemplos:\n"
-        "  Postgres (local): DATABASE_URL=postgresql+psycopg2://postgres:postgres@localhost:5432/jubileu_dev\n"
-        "  Postgres (docker compose): DATABASE_URL=postgresql+psycopg2://postgres:postgres@jubileu-postgres:5432/jubileu_dev\n"
+        "DATABASE_URL não definido. Configure ex: "
+        "postgresql+psycopg2://user:pass@localhost:5432/jubileu_dev"
     )
 
-# Garante que você não está rodando em sqlite sem querer (e dá erro explícito)
-if DATABASE_URL.strip().lower().startswith("sqlite"):
+# Postgres obrigatório (sem sqlite)
+if DATABASE_URL.startswith("sqlite"):
     raise RuntimeError(
-        "DATABASE_URL aponta para SQLite, mas este projeto NÃO suporta SQLite.\n"
-        f"Valor atual: {DATABASE_URL}\n"
-        "➡️ Use Postgres com postgresql+psycopg2://..."
+        "SQLite não é suportado neste projeto. Use Postgres em DATABASE_URL."
     )
 
-engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,  # evita conexões mortas
-)
+engine = create_engine(DATABASE_URL, future=True)
 
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
-)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, future=True)
 
 Base = declarative_base()

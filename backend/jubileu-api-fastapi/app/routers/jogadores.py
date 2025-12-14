@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.database import SessionLocal
+from app.deps import get_db
 from app.models.jogador_turma import Jogador
 from app.schemas.jogador import (
     JogadorOut,
@@ -16,14 +16,6 @@ router = APIRouter(
     prefix="/jogadores",
     tags=["Jogadores"],
 )
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.get("/", response_model=List[JogadorOut])

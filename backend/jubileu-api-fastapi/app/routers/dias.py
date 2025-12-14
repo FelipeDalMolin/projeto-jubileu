@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Any, Generator, List
+from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import date
 
-from app.database import SessionLocal
+from app.deps import get_db
 from app.models.dia_aula import (
     Dia as DiaModel,
     Aula as AulaModel,
@@ -30,17 +30,6 @@ router = APIRouter(
     prefix="/dias",
     tags=["Dias"],
 )
-
-
-# ---------------- DEPENDENCY ----------------
-
-
-def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 # ---------------- DIA ----------------
