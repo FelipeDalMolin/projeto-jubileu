@@ -12,7 +12,6 @@ import UsuarioPerfil from "../pages/UsuarioPerfil";
 import JogadoresPage from "../pages/jogadores/JogadoresPage";
 import DashboardsPage from "../pages/dashboards/DashboardPage";
 import TurmasPage from "../pages/turmas/TurmasPage";
-import TurmaPage from "../pages/turmas/TurmaPage";
 import TurmaDetalhe from "../pages/turmas/TurmaDetalhePage";
 
 // Wrapper de rotas protegidas: se não tiver user, manda pro /login
@@ -50,6 +49,7 @@ export default function AppRoutes() {
 
         {/* Turmas */}
         <Route path="/turmas" element={<TurmasPage />} />
+        <Route path="/turmas/nova" element={<TurmaDetalhe />} />
         <Route path="/turmas/:turmaId" element={<TurmaDetalhe />} />
 
         {/* Jogadores */}

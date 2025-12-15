@@ -30,4 +30,4 @@ def read_root():
 app.include_router(jogadores.router, prefix="/jogadores", tags=["Jogadores"])
 # o router de dias já tem prefix="/dias" lá dentro
 app.include_router(dias.router)
-app.include_router(turmas.router, prefix="/turmas", tags=["Turmas"])
+app.include_router(turmas.router)
