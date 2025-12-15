@@ -20,35 +20,50 @@ def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
 
-    # --- dias ---
+    # ==========================================================
+    # dias
+    # ==========================================================
     if _table_exists(inspector, "dias"):
         cols = {c["name"]: c for c in inspector.get_columns("dias")}
 
         if "data_iso" not in cols:
             op.add_column("dias", sa.Column("data_iso", sa.String(), nullable=True))
 
-        # cria valores para data_iso a partir de data (legado)
-        op.execute(
-            """
-            UPDATE dias
-            SET data_iso = COALESCE(data_iso, to_char(data, 'YYYY-MM-DD'))
-            WHERE data_iso IS NULL
-            """
-        )
-
-        # garanta nullable em data legado para evitar NotNull ao criar via API nova
+        # Preenche data_iso a partir de data (legado), somente se a coluna existir
         op.execute(
             """
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name='dias' AND column_name='data'
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'dias'
+                      AND column_name = 'data'
+                ) THEN
+                    UPDATE dias
+                    SET data_iso = COALESCE(data_iso, to_char(data, 'YYYY-MM-DD'))
+                    WHERE data_iso IS NULL;
+                END IF;
+            END$$;
+            """
+        )
+
+        # Garante que coluna data legado não seja NOT NULL (se existir)
+        op.execute(
+            """
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'dias'
+                      AND column_name = 'data'
                 ) THEN
                     BEGIN
                         ALTER TABLE dias ALTER COLUMN data DROP NOT NULL;
                     EXCEPTION WHEN others THEN
-                        -- ignora se jǭ estiver nullable
                         NULL;
                     END;
                 END IF;
@@ -56,14 +71,31 @@ def upgrade() -> None:
             """
         )
 
-        # not null + unique para data_iso
+        # Fail-fast: não permitir NULL antes de impor NOT NULL
+        op.execute(
+            """
+            DO $$
+            BEGIN
+                IF EXISTS (SELECT 1 FROM dias WHERE data_iso IS NULL) THEN
+                    RAISE EXCEPTION
+                      'Migracao 0002: existe dias.data_iso NULL. Corrija os dados antes de aplicar NOT NULL.';
+                END IF;
+            END$$;
+            """
+        )
+
+        # NOT NULL + UNIQUE
         op.execute("ALTER TABLE dias ALTER COLUMN data_iso SET NOT NULL;")
+
         op.execute(
             """
             DO $$
             BEGIN
                 IF NOT EXISTS (
-                    SELECT 1 FROM pg_indexes WHERE schemaname='public' AND indexname='uq_dias_data_iso'
+                    SELECT 1
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND indexname = 'uq_dias_data_iso'
                 ) THEN
                     CREATE UNIQUE INDEX uq_dias_data_iso ON dias (data_iso);
                 END IF;
@@ -75,7 +107,9 @@ def upgrade() -> None:
             if col_name not in cols:
                 op.add_column("dias", sa.Column(col_name, sa.String(), nullable=True))
 
-    # --- aulas ---
+    # ==========================================================
+    # aulas
+    # ==========================================================
     if _table_exists(inspector, "aulas"):
         cols = {c["name"]: c for c in inspector.get_columns("aulas")}
 
@@ -95,15 +129,15 @@ def upgrade() -> None:
                 ),
             )
 
-        # enums
+        # Enums
         op.execute(
             """
             DO $$
             BEGIN
-                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='statusaulaenum') THEN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'statusaulaenum') THEN
                     CREATE TYPE statusaulaenum AS ENUM ('PLANEJADA','EM_ANDAMENTO','CONCLUIDA','CANCELADA');
                 END IF;
-                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname='tipoeventoaulaenum') THEN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipoeventoaulaenum') THEN
                     CREATE TYPE tipoeventoaulaenum AS ENUM ('AULA','JOGO','OUTRO');
                 END IF;
             END$$;
@@ -116,14 +150,17 @@ def upgrade() -> None:
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name='aulas' AND column_name='tipo'
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'aulas'
+                      AND column_name = 'tipo'
                       AND udt_name <> 'tipoeventoaulaenum'
                 ) THEN
                     ALTER TABLE aulas
                     ALTER COLUMN tipo DROP DEFAULT,
-                    ALTER COLUMN tipo TYPE tipoeventoaulaenum USING
-                        UPPER(COALESCE(tipo, 'AULA'))::tipoeventoaulaenum,
+                    ALTER COLUMN tipo TYPE tipoeventoaulaenum
+                        USING UPPER(COALESCE(tipo, 'AULA'))::tipoeventoaulaenum,
                     ALTER COLUMN tipo SET DEFAULT 'AULA',
                     ALTER COLUMN tipo SET NOT NULL;
                 END IF;
@@ -137,14 +174,17 @@ def upgrade() -> None:
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name='aulas' AND column_name='status'
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'aulas'
+                      AND column_name = 'status'
                       AND udt_name <> 'statusaulaenum'
                 ) THEN
                     ALTER TABLE aulas
                     ALTER COLUMN status DROP DEFAULT,
-                    ALTER COLUMN status TYPE statusaulaenum USING
-                        CASE LOWER(status)
+                    ALTER COLUMN status TYPE statusaulaenum
+                        USING CASE LOWER(status)
                             WHEN 'planejada' THEN 'PLANEJADA'
                             WHEN 'em_andamento' THEN 'EM_ANDAMENTO'
                             WHEN 'concluida' THEN 'CONCLUIDA'
@@ -158,15 +198,19 @@ def upgrade() -> None:
             """
         )
 
-        # horários -> varchar
+        # Horários: time -> varchar
         for col in ("horario_inicio", "horario_fim"):
             op.execute(
                 f"""
                 DO $$
                 BEGIN
                     IF EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_name='aulas' AND column_name='{col}' AND data_type='time without time zone'
+                        SELECT 1
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'aulas'
+                          AND column_name = '{col}'
+                          AND data_type = 'time without time zone'
                     ) THEN
                         ALTER TABLE aulas
                         ALTER COLUMN {col} TYPE varchar
@@ -177,14 +221,17 @@ def upgrade() -> None:
                 """
             )
 
-        # turma_id deve existir e ser not null
+        # turma_id NOT NULL
         op.execute(
             """
             DO $$
             BEGIN
                 IF EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_name='aulas' AND column_name='turma_id'
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'aulas'
+                      AND column_name = 'turma_id'
                 ) THEN
                     ALTER TABLE aulas ALTER COLUMN turma_id SET NOT NULL;
                 END IF;
@@ -192,7 +239,9 @@ def upgrade() -> None:
             """
         )
 
-    # --- times_aula ---
+    # ==========================================================
+    # times_aula
+    # ==========================================================
     if not _table_exists(inspector, "times_aula"):
         op.create_table(
             "times_aula",
@@ -203,7 +252,9 @@ def upgrade() -> None:
             sa.Column("cor_camisa", sa.String(), nullable=True),
         )
 
-    # --- aula_equipes_estado ---
+    # ==========================================================
+    # aula_equipes_estado
+    # ==========================================================
     if not _table_exists(inspector, "aula_equipes_estado"):
         op.create_table(
             "aula_equipes_estado",
@@ -218,7 +269,9 @@ def upgrade() -> None:
             sa.Column("estado", sa.JSON(), nullable=False),
         )
 
-    # --- jogadores_aula ---
+    # ==========================================================
+    # jogadores_aula
+    # ==========================================================
     if not _table_exists(inspector, "jogadores_aula"):
         op.create_table(
             "jogadores_aula",
@@ -252,7 +305,9 @@ def upgrade() -> None:
             sa.Column("time_id", sa.Integer(), sa.ForeignKey("times_aula.id"), nullable=True),
         )
 
-    # --- partidas ---
+    # ==========================================================
+    # partidas
+    # ==========================================================
     if not _table_exists(inspector, "partidas"):
         op.create_table(
             "partidas",
@@ -265,7 +320,9 @@ def upgrade() -> None:
             sa.Column("gols_time_b", sa.Integer(), nullable=False, server_default="0"),
         )
 
-    # --- estatisticas_jogador_partida ---
+    # ==========================================================
+    # estatisticas_jogador_partida
+    # ==========================================================
     if not _table_exists(inspector, "estatisticas_jogador_partida"):
         op.create_table(
             "estatisticas_jogador_partida",
@@ -292,7 +349,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    # Mantemos downgrade simples (drop novas tabelas/constraints); enums removidos ao final.
     op.drop_table("estatisticas_jogador_partida")
     op.drop_table("partidas")
     op.drop_table("jogadores_aula")
