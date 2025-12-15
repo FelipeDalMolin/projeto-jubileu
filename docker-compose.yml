@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16
+    # Optional: Set a container name for easier reference
+    container_name: jubileu_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: jubileu
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+# Named volume to persist database data across container restarts
+volumes:
+  postgres_data:
