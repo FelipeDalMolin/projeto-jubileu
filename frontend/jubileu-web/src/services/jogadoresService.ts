@@ -1,7 +1,6 @@
 // src/services/jogadoresService.ts
-
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? "/api";
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 export type JogadorDTO = {
   id: number;
@@ -12,18 +11,22 @@ export type JogadorDTO = {
 
 export type CriarJogadorInput = {
   nome: string;
-  apelido?: string;
+  apelido?: string | null;
   status?: string;
 };
 
 export type AtualizarJogadorInput = {
   nome?: string;
-  apelido?: string;
+  apelido?: string | null;
   status?: string;
 };
 
+function url(path: string) {
+  return `${API_BASE_URL}${path}`;
+}
+
 export async function listarJogadores(): Promise<JogadorDTO[]> {
-  const resp = await fetch(`${API_BASE_URL}/jogadores`);
+  const resp = await fetch(url(`/jogadores`));
   if (!resp.ok) {
     throw new Error(`Erro ao listar jogadores: ${resp.status}`);
   }
@@ -31,57 +34,37 @@ export async function listarJogadores(): Promise<JogadorDTO[]> {
 }
 
 export async function criarJogador(
-  data: CriarJogadorInput,
+  data: CriarJogadorInput
 ): Promise<JogadorDTO> {
-  const payload = {
-    nome: data.nome,
-    apelido: data.apelido ?? null,
-    status: data.status ?? "ativo",
-  };
-
-  const resp = await fetch(`${API_BASE_URL}/jogadores`, {
+  const resp = await fetch(url(`/jogadores`), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
   });
-
   if (!resp.ok) {
-    const msg = await resp.text().catch(() => "");
-    throw new Error(`Erro ao criar jogador: ${resp.status} ${msg}`);
+    throw new Error(`Erro ao criar jogador: ${resp.status}`);
   }
-
   return resp.json();
 }
 
 export async function atualizarJogador(
   id: number,
-  data: AtualizarJogadorInput,
+  data: AtualizarJogadorInput
 ): Promise<JogadorDTO> {
-  const resp = await fetch(`${API_BASE_URL}/jogadores/${id}`, {
+  const resp = await fetch(url(`/jogadores/${id}`), {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-
   if (!resp.ok) {
-    const msg = await resp.text().catch(() => "");
-    throw new Error(`Erro ao atualizar jogador: ${resp.status} ${msg}`);
+    throw new Error(`Erro ao atualizar jogador: ${resp.status}`);
   }
-
   return resp.json();
 }
 
-export async function excluirJogador(id: number): Promise<void> {
-  const resp = await fetch(`${API_BASE_URL}/jogadores/${id}`, {
-    method: "DELETE",
-  });
-
-  if (!resp.ok && resp.status !== 204) {
-    const msg = await resp.text().catch(() => "");
-    throw new Error(`Erro ao excluir jogador: ${resp.status} ${msg}`);
+export async function deletarJogador(id: number): Promise<void> {
+  const resp = await fetch(url(`/jogadores/${id}`), { method: "DELETE" });
+  if (!resp.ok) {
+    throw new Error(`Erro ao deletar jogador: ${resp.status}`);
   }
 }

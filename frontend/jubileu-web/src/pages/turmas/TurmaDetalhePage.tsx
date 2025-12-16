@@ -1,199 +1,120 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
-  obterTurma,
   criarTurma,
+  obterTurma,
   atualizarTurma,
   listarJogadoresDaTurma,
-  adicionarJogadorNaTurma,
-  removerJogadorDaTurma,
   type Turma,
   type TurmaJogador,
 } from "../../services/turmasService";
 import { listarJogadores, type JogadorDTO } from "../../services/jogadoresService";
 
-type RouteParams = {
-  turmaId?: string;
-};
-
-type LoadState = "idle" | "loading" | "ready" | "error";
-
 export default function TurmaDetalhePage() {
-  const { turmaId } = useParams<RouteParams>();
+  const { turmaId } = useParams<{ turmaId: string }>();
+  const ehNova = turmaId === "nova";
   const navigate = useNavigate();
 
-  const ehNova = !turmaId || turmaId === "nova";
   const turmaIdNum = useMemo(() => {
-    if (!turmaId || turmaId === "nova") return null;
+    if (!turmaId || ehNova) return null;
     const n = Number(turmaId);
     return Number.isFinite(n) ? n : null;
-  }, [turmaId]);
+  }, [turmaId, ehNova]);
 
-  const [state, setState] = useState<LoadState>("loading");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   const [turma, setTurma] = useState<Turma | null>(null);
-  const [nome, setNome] = useState<string>("");
+  const [nome, setNome] = useState("");
 
   const [jogadoresTurma, setJogadoresTurma] = useState<TurmaJogador[]>([]);
   const [todosJogadores, setTodosJogadores] = useState<JogadorDTO[]>([]);
-  const [novoJogadorId, setNovoJogadorId] = useState<number | "">("");
-
-  const [salvandoTurma, setSalvandoTurma] = useState(false);
-  const [vinculando, setVinculando] = useState(false);
-  const [removendoId, setRemovendoId] = useState<number | null>(null);
-
-  const jogadoresDisponiveis = useMemo(() => {
-    const idsNaTurma = new Set(jogadoresTurma.map((j) => j.jogador_id));
-    return todosJogadores.filter((j) => !idsNaTurma.has(j.id));
-  }, [todosJogadores, jogadoresTurma]);
-
-  async function carregarTudo(id: number) {
-    const [t, jt, todos] = await Promise.all([
-      obterTurma(id),
-      listarJogadoresDaTurma(id),
-      listarJogadores(),
-    ]);
-    setTurma(t);
-    setNome(t.nome ?? "");
-    setJogadoresTurma(jt);
-    setTodosJogadores(todos);
-  }
-
-  async function carregarApenasListas(id: number) {
-    const [jt, todos] = await Promise.all([
-      listarJogadoresDaTurma(id),
-      listarJogadores(),
-    ]);
-    setJogadoresTurma(jt);
-    setTodosJogadores(todos);
-  }
 
   useEffect(() => {
     let alive = true;
 
-    async function run() {
-      setErrorMsg(null);
-      setState("loading");
+    async function carregar() {
+      setLoading(true);
+      setErro(null);
 
       try {
-        // Sempre carregamos a lista de jogadores (serve pra nova turma também)
-        const todos = await listarJogadores();
+        // sempre podemos carregar a lista de jogadores do sistema (para futuro add/remove)
+        const all = await listarJogadores();
         if (!alive) return;
-        setTodosJogadores(todos);
+        setTodosJogadores(all);
 
         if (ehNova) {
+          // modo NOVA: não chama backend por id
           setTurma(null);
           setNome("");
           setJogadoresTurma([]);
-          setNovoJogadorId("");
-          setState("ready");
           return;
         }
 
         if (!turmaIdNum) {
-          setErrorMsg("ID de turma inválido.");
-          setState("error");
+          setErro("Turma inválida.");
           return;
         }
 
-        await carregarTudo(turmaIdNum);
+        const t = await obterTurma(turmaIdNum);
         if (!alive) return;
-        setState("ready");
-      } catch (e) {
+        setTurma(t);
+        setNome(t.nome);
+
+        const jt = await listarJogadoresDaTurma(turmaIdNum);
+        if (!alive) return;
+        setJogadoresTurma(jt);
+      } catch (e: any) {
         console.error(e);
-        if (!alive) return;
-        setErrorMsg("Falha ao carregar dados da turma. Veja o console.");
-        setState("error");
+        setErro("Falha ao carregar dados da turma. Veja o console.");
+      } finally {
+        if (alive) setLoading(false);
       }
     }
 
-    run();
+    carregar();
     return () => {
       alive = false;
     };
   }, [ehNova, turmaIdNum]);
 
-  async function handleSalvarTurma() {
-    const nomeTrim = nome.trim();
-    if (!nomeTrim) {
+  async function onSalvar() {
+    const nomeOk = nome.trim();
+    if (!nomeOk) {
       alert("Informe o nome da turma.");
       return;
     }
 
-    setSalvandoTurma(true);
-    setErrorMsg(null);
-
     try {
+      setLoading(true);
+
       if (ehNova) {
-        const criada = await criarTurma({ nome: nomeTrim });
-        // Depois de criar, navega para a rota da turma criada
+        const criada = await criarTurma({ nome: nomeOk });
+        setTurma(criada);
         navigate(`/turmas/${criada.id}`, { replace: true });
         return;
       }
 
-      if (!turma) {
-        throw new Error("Turma não carregada.");
+      if (!turmaIdNum) {
+        alert("Turma inválida.");
+        return;
       }
 
-      const atualizada = await atualizarTurma(turma.id, { nome: nomeTrim });
+      const atualizada = await atualizarTurma(turmaIdNum, { nome: nomeOk });
       setTurma(atualizada);
-      setNome(atualizada.nome);
-      alert("Turma salva!");
+      alert("Turma atualizada!");
     } catch (e) {
       console.error(e);
-      setErrorMsg("Erro ao salvar turma.");
+      alert("Erro ao salvar. Veja o console.");
     } finally {
-      setSalvandoTurma(false);
+      setLoading(false);
     }
   }
 
-  async function handleAdicionarJogador() {
-    if (!turma) {
-      alert("Salve a turma antes de adicionar jogadores.");
-      return;
-    }
-    if (!novoJogadorId) return;
-
-    setVinculando(true);
-    setErrorMsg(null);
-
-    try {
-      await adicionarJogadorNaTurma(turma.id, Number(novoJogadorId));
-      setNovoJogadorId("");
-      await carregarApenasListas(turma.id);
-    } catch (e) {
-      console.error(e);
-      setErrorMsg("Erro ao adicionar jogador na turma.");
-    } finally {
-      setVinculando(false);
-    }
-  }
-
-  async function handleRemoverJogador(jogadorId: number) {
-    if (!turma) return;
-
-    setRemovendoId(jogadorId);
-    setErrorMsg(null);
-
-    try {
-      await removerJogadorDaTurma(turma.id, jogadorId);
-      await carregarApenasListas(turma.id);
-    } catch (e) {
-      console.error(e);
-      setErrorMsg("Erro ao remover jogador da turma.");
-    } finally {
-      setRemovendoId(null);
-    }
-  }
-
-  if (state === "loading") {
+  if (loading) {
     return (
       <main className="container py-3">
-        <button
-          className="btn btn-link p-0 mb-3"
-          onClick={() => navigate("/turmas")}
-        >
+        <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/turmas")}>
           ← Voltar
         </button>
         <p>Carregando...</p>
@@ -201,162 +122,89 @@ export default function TurmaDetalhePage() {
     );
   }
 
-  if (state === "error") {
+  if (erro) {
     return (
       <main className="container py-3">
-        <button
-          className="btn btn-link p-0 mb-3"
-          onClick={() => navigate("/turmas")}
-        >
+        <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/turmas")}>
           ← Voltar
         </button>
-        <div className="alert alert-danger" role="alert">
-          {errorMsg ?? "Erro inesperado."}
-        </div>
+        <p style={{ color: "crimson" }}>{erro}</p>
       </main>
     );
   }
 
   return (
     <main className="container py-3">
-      <button
-        className="btn btn-link p-0 mb-3"
-        onClick={() => navigate("/turmas")}
-      >
+      <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/turmas")}>
         ← Voltar
       </button>
 
-      <div className="d-flex align-items-start justify-content-between gap-3 flex-wrap">
-        <div>
-          <h1 className="h4 mb-1">{ehNova ? "Nova turma" : turma?.nome}</h1>
-          <p className="text-muted mb-0" style={{ fontSize: 13 }}>
-            {ehNova
-              ? "Crie a turma e depois vincule jogadores."
-              : "Gerencie os jogadores vinculados à turma."}
-          </p>
-        </div>
+      <h1 className="h4 mb-3">{ehNova ? "Nova turma" : `Turma: ${turma?.nome ?? ""}`}</h1>
 
-        <div className="d-flex gap-2">
-          <button
-            className="btn btn-success"
-            disabled={salvandoTurma}
-            onClick={handleSalvarTurma}
-          >
-            {salvandoTurma ? "Salvando..." : ehNova ? "Criar turma" : "Salvar"}
+      <section className="card" style={{ padding: 16, marginBottom: 16 }}>
+        <label className="form-label">Nome</label>
+        <input
+          className="form-control"
+          value={nome}
+          onChange={(e) => setNome(e.target.value)}
+          placeholder="Ex.: Adulto Ter/Qui 18:45"
+        />
+
+        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12, gap: 8 }}>
+          <button className="btn btn-outline-secondary" onClick={() => navigate("/turmas")}>
+            Cancelar
+          </button>
+          <button className="btn btn-primary" onClick={onSalvar}>
+            {ehNova ? "Criar turma" : "Salvar alterações"}
           </button>
         </div>
-      </div>
-
-      {errorMsg && (
-        <div className="alert alert-warning mt-3" role="alert">
-          {errorMsg}
-        </div>
-      )}
-
-      <section className="card mt-3">
-        <div className="card-body">
-          <label className="form-label">Nome da turma</label>
-          <input
-            className="form-control"
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            placeholder="Ex.: Adulto"
-          />
-
-          <div className="text-muted mt-2" style={{ fontSize: 12 }}>
-            Dica: depois vamos evoluir aqui para “recorrência / horários”, mas
-            primeiro vamos estabilizar CRUD + vínculo de jogadores.
-          </div>
-        </div>
       </section>
 
-      <section className="card mt-3">
-        <div className="card-body">
-          <h2 className="h6 mb-3">Adicionar jogador</h2>
-
-          <div className="d-flex gap-2 flex-wrap">
-            <select
-              className="form-select"
-              value={novoJogadorId}
-              onChange={(e) => {
-                const v = e.target.value;
-                setNovoJogadorId(v ? Number(v) : "");
-              }}
-              disabled={!turma && !ehNova ? true : false}
-            >
-              <option value="">Selecione</option>
-              {jogadoresDisponiveis.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.nome}
-                </option>
-              ))}
-            </select>
-
-            <button
-              className="btn btn-primary"
-              disabled={!novoJogadorId || vinculando || !turma}
-              onClick={handleAdicionarJogador}
-              title={!turma ? "Salve a turma antes" : ""}
-            >
-              {vinculando ? "Adicionando..." : "Adicionar"}
-            </button>
-          </div>
-
-          {!turma && (
-            <div className="text-muted mt-2" style={{ fontSize: 12 }}>
-              Salve a turma primeiro para liberar o vínculo de jogadores.
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section className="card mt-3">
-        <div className="card-body">
-          <div className="d-flex justify-content-between align-items-center">
-            <h2 className="h6 mb-0">Jogadores da turma</h2>
+      {!ehNova && (
+        <section className="card" style={{ padding: 16 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <h2 className="h6" style={{ margin: 0 }}>
+              Jogadores da turma
+            </h2>
             <span className="text-muted" style={{ fontSize: 12 }}>
               {jogadoresTurma.length} vinculados
             </span>
           </div>
 
-          <hr />
-
           {jogadoresTurma.length === 0 ? (
-            <p className="text-muted mb-0">Nenhum jogador vinculado.</p>
+            <p className="text-muted" style={{ marginTop: 12 }}>
+              Nenhum jogador vinculado ainda.
+            </p>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-sm align-middle mb-0">
+            <div className="table-responsive" style={{ marginTop: 12 }}>
+              <table className="table table-sm align-middle">
                 <thead>
                   <tr>
                     <th>Nome</th>
-                    <th style={{ width: 160 }} className="text-end">
-                      Ações
-                    </th>
+                    <th>Apelido</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {jogadoresTurma.map((j) => (
-                    <tr key={j.jogador_id}>
+                    <tr key={j.id}>
                       <td>{j.nome}</td>
-                      <td className="text-end">
-                        <button
-                          className="btn btn-link btn-sm text-danger"
-                          disabled={removendoId === j.jogador_id}
-                          onClick={() => handleRemoverJogador(j.jogador_id)}
-                        >
-                          {removendoId === j.jogador_id
-                            ? "Removendo..."
-                            : "Remover"}
-                        </button>
-                      </td>
+                      <td>{j.apelido ?? "-"}</td>
+                      <td>{j.status}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </div>
-      </section>
+
+          {/* Futuro: aqui entra "Adicionar / Remover jogador", quando existir endpoint no backend */}
+          <p className="text-muted" style={{ fontSize: 12, marginTop: 12 }}>
+            Próximo passo: criar endpoints para vincular/desvincular jogadores na turma (POST/DELETE),
+            e então habilitar o seletor aqui.
+          </p>
+        </section>
+      )}
     </main>
   );
 }
