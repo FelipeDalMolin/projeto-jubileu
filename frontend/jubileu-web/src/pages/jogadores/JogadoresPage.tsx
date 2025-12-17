@@ -5,7 +5,7 @@ import {
   listarJogadores,
   criarJogador,
   atualizarJogador,
-  excluirJogador,
+  deletarJogador,
   type JogadorDTO,
 } from "../../services/jogadoresService";
 
@@ -134,7 +134,7 @@ export default function JogadoresPage() {
     if (!ok) return;
 
     try {
-      await excluirJogador(j.id);
+      await deletarJogador(j.id);
       setJogadores((prev) => prev.filter((x) => x.id !== j.id));
       if (jogadorEditando?.id === j.id) {
         resetForm();

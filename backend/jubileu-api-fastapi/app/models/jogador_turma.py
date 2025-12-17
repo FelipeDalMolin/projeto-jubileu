@@ -1,5 +1,5 @@
 # app/models/jogador_turma.py
-from sqlalchemy import Integer, String, Boolean, ForeignKey, UniqueConstraint
+from sqlalchemy import Integer, String, Boolean, ForeignKey, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -11,7 +11,20 @@ class Jogador(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String, nullable=False)
     apelido: Mapped[str | None] = mapped_column(String, nullable=True)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="ativo")
+
+    # status: mantenha default no nível do banco também, pra não depender só do Python
+    status: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
+        server_default=text("'ativo'"),
+    )
+
+    # >>> ESTA É A COLUNA QUE ESTÁ FALTANDO NO MODEL <<<
+    ativo: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
+    )
 
     turmas_rel: Mapped[list["TurmaJogador"]] = relationship(
         "TurmaJogador",
@@ -23,7 +36,6 @@ class Jogador(Base):
 class Turma(Base):
     __tablename__ = "turmas"
 
-    # mantém ID inteiro para bater com o que já existe no banco
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     nome: Mapped[str] = mapped_column(String, nullable=False)
 
@@ -53,7 +65,11 @@ class TurmaJogador(Base):
         nullable=False,
     )
 
-    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    ativo: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("true"),
+    )
 
     turma: Mapped["Turma"] = relationship("Turma", back_populates="jogadores_rel")
     jogador: Mapped["Jogador"] = relationship("Jogador", back_populates="turmas_rel")

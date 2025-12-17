@@ -89,7 +89,7 @@ export type TipoEventoAula = "AULA" | "JOGO" | "OUTRO";
 // Aula / evento em um determinado dia
 export type AulaDia = {
   id: string;
-  turmaId: string;
+  turmaId: number;
   turmaNome: string;
   /**
    * Número sequencial da aula da turma (ex.: Aula #12 da turma Sub-11).

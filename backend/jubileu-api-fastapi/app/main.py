@@ -11,6 +11,8 @@ app = FastAPI(
 ALLOWED_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 )
 
 app.add_middleware(
@@ -27,7 +29,6 @@ def read_root():
     return {"status": "ok", "message": "Jubileu API rodando"}
 
 
-app.include_router(jogadores.router, prefix="/jogadores", tags=["Jogadores"])
-# o router de dias já tem prefix="/dias" lá dentro
+app.include_router(jogadores.router)
 app.include_router(dias.router)
 app.include_router(turmas.router)

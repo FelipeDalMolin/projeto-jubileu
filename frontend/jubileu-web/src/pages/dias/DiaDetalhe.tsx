@@ -1,7 +1,12 @@
 // src/pages/dias/DiaDetalhe.tsx
-import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { obterDiaPorData, ordenarAulasPorHorario, criarAulaNoDia } from "../../services/diasService";
+import {
+  obterDiaPorData,
+  ordenarAulasPorHorario,
+  criarAulaNoDia,
+} from "../../services/diasService";
+import { listarTurmas, type Turma } from "../../services/turmasService";
 import type { Dia, AulaDia } from "../../types/dia";
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -11,14 +16,44 @@ export default function DiaDetalhe() {
   const navigate = useNavigate();
 
   const [dia, setDia] = useState<Dia | null>(null);
+  const [turmas, setTurmas] = useState<Turma[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  // estado do form de nova aula
-  const [novaTurmaNome, setNovaTurmaNome] = useState<string>("");
-  const [novaHorarioInicio, setNovaHorarioInicio] = useState<string>("19:00");
-  const [novaHorarioFim, setNovaHorarioFim] = useState<string>("20:00");
+  // form nova aula
+  const [novaTurmaId, setNovaTurmaId] = useState<number | "">("");
+  const [novaHorarioInicio, setNovaHorarioInicio] = useState("19:00");
+  const [novaHorarioFim, setNovaHorarioFim] = useState("20:00");
   const [criandoAula, setCriandoAula] = useState(false);
+
+  const tituloData = useMemo(() => {
+    if (!dataIso) return "Dia inválido";
+    const dataObj = parseISO(dataIso);
+    return format(dataObj, "dd/MM/yyyy (EEEE)", { locale: ptBR });
+  }, [dataIso]);
+
+  async function carregarTudo(iso: string) {
+    setLoading(true);
+    setErro(null);
+    try {
+      const [d, t] = await Promise.all([obterDiaPorData(iso), listarTurmas()]);
+      setTurmas(t);
+
+      const ordenadas = ordenarAulasPorHorario(d.aulas ?? []);
+      setDia({ ...d, aulas: ordenadas });
+
+      // define default turma no select
+      if (t.length > 0 && novaTurmaId === "") {
+        setNovaTurmaId(t[0].id);
+      }
+    } catch (e: any) {
+      console.error(e);
+      setErro(e?.message ?? "Erro ao carregar informações do dia.");
+      setDia(null);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (!dataIso) {
@@ -26,60 +61,25 @@ export default function DiaDetalhe() {
       setLoading(false);
       return;
     }
-
-    setLoading(true);
-    setErro(null);
-
-    obterDiaPorData(dataIso)
-      .then((d) => {
-        const ordenadas = ordenarAulasPorHorario(d.aulas ?? []);
-        setDia({ ...d, aulas: ordenadas });
-      })
-      .catch((e) => {
-        console.error(e);
-        setErro("Erro ao carregar informações do dia.");
-      })
-      .finally(() => setLoading(false));
+    carregarTudo(dataIso);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataIso]);
-
-  if (!dataIso) {
-    return (
-      <div style={{ padding: 24 }}>
-        <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
-        <h1>Dia inválido</h1>
-      </div>
-    );
-  }
-
-  const dataObj = parseISO(dataIso);
-  const tituloData = format(dataObj, "dd/MM/yyyy (EEEE)", { locale: ptBR });
 
   const handleSubmitNovaAula = async (e: FormEvent) => {
     e.preventDefault();
+    if (!dataIso) return;
     if (!dia) return;
-    if (!novaTurmaNome.trim()) {
-      alert("Informe o nome da turma.");
+
+    if (novaTurmaId === "") {
+      alert("Selecione uma turma.");
       return;
     }
 
     try {
       setCriandoAula(true);
 
-      // Calcula o número da aula dentro da turma
-      const totalNaTurma = dia.aulas.filter(
-        (a) => a.turmaNome.toLowerCase() === novaTurmaNome.toLowerCase(),
-      ).length;
-      const numeroAulaNaTurma = totalNaTurma + 1;
-
-      const turmaId = novaTurmaNome
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/[^a-z0-9-]/g, "");
-
       const nova = await criarAulaNoDia(dataIso, {
-        turmaId,
-        turmaNome: novaTurmaNome.trim(),
-        numeroAulaNaTurma,
+        turmaId: Number(novaTurmaId),
         horarioInicio: novaHorarioInicio,
         horarioFim: novaHorarioFim,
       });
@@ -90,33 +90,29 @@ export default function DiaDetalhe() {
         return { ...prev, aulas: novasAulas };
       });
 
-      // limpa o form
-      setNovaTurmaNome("");
+      // mantém turma selecionada e reseta horários (opcional)
       setNovaHorarioInicio("19:00");
       setNovaHorarioFim("20:00");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erro ao criar aula. Veja o console para detalhes.");
+      alert(err?.message ?? "Erro ao criar aula. Veja o console.");
     } finally {
       setCriandoAula(false);
     }
   };
 
-  const handleChangeTurmaNome = (e: ChangeEvent<HTMLInputElement>) => {
-    setNovaTurmaNome(e.target.value);
-  };
-
-  const handleChangeHorarioInicio = (e: ChangeEvent<HTMLInputElement>) => {
-    setNovaHorarioInicio(e.target.value);
-  };
-
-  const handleChangeHorarioFim = (e: ChangeEvent<HTMLInputElement>) => {
-    setNovaHorarioFim(e.target.value);
-  };
-
   const irParaAula = (aula: AulaDia) => {
     navigate(`/dias/${dataIso}/aulas/${aula.id}`);
   };
+
+  if (!dataIso) {
+    return (
+      <div style={{ padding: 24 }}>
+        <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
+        <h1>Dia inválido</h1>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -160,6 +156,7 @@ export default function DiaDetalhe() {
         }}
       >
         <h2 style={{ marginTop: 0, fontSize: 16 }}>Nova aula / evento</h2>
+
         <form
           onSubmit={handleSubmitNovaAula}
           style={{
@@ -169,7 +166,7 @@ export default function DiaDetalhe() {
             alignItems: "center",
           }}
         >
-          <div style={{ minWidth: 180 }}>
+          <div style={{ minWidth: 220 }}>
             <label
               style={{
                 display: "block",
@@ -180,19 +177,31 @@ export default function DiaDetalhe() {
             >
               Turma
             </label>
-            <input
-              type="text"
-              value={novaTurmaNome}
-              onChange={handleChangeTurmaNome}
-              placeholder="Ex.: Sub-11, Adulto..."
+
+            <select
+              value={novaTurmaId}
+              onChange={(e) =>
+                setNovaTurmaId(e.target.value ? Number(e.target.value) : "")
+              }
               style={{
                 width: "100%",
-                padding: "4px 8px",
+                padding: "6px 8px",
                 borderRadius: 6,
                 border: "1px solid #cbd5e1",
                 fontSize: 13,
+                background: "#fff",
               }}
-            />
+            >
+              {turmas.length === 0 ? (
+                <option value="">Nenhuma turma cadastrada</option>
+              ) : (
+                turmas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nome}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
           <div>
@@ -209,9 +218,9 @@ export default function DiaDetalhe() {
             <input
               type="time"
               value={novaHorarioInicio}
-              onChange={handleChangeHorarioInicio}
+              onChange={(e) => setNovaHorarioInicio(e.target.value)}
               style={{
-                padding: "4px 8px",
+                padding: "6px 8px",
                 borderRadius: 6,
                 border: "1px solid #cbd5e1",
                 fontSize: 13,
@@ -233,9 +242,9 @@ export default function DiaDetalhe() {
             <input
               type="time"
               value={novaHorarioFim}
-              onChange={handleChangeHorarioFim}
+              onChange={(e) => setNovaHorarioFim(e.target.value)}
               style={{
-                padding: "4px 8px",
+                padding: "6px 8px",
                 borderRadius: 6,
                 border: "1px solid #cbd5e1",
                 fontSize: 13,
@@ -246,15 +255,21 @@ export default function DiaDetalhe() {
           <div style={{ alignSelf: "flex-end" }}>
             <button
               type="submit"
-              disabled={criandoAula}
+              disabled={criandoAula || turmas.length === 0 || novaTurmaId === ""}
               style={{
                 padding: "6px 14px",
                 borderRadius: 999,
                 border: "1px solid #16a34a",
-                background: criandoAula ? "#bbf7d0" : "#22c55e",
+                background:
+                  criandoAula || turmas.length === 0 || novaTurmaId === ""
+                    ? "#bbf7d0"
+                    : "#22c55e",
                 color: "#fff",
                 fontSize: 13,
-                cursor: criandoAula ? "default" : "pointer",
+                cursor:
+                  criandoAula || turmas.length === 0 || novaTurmaId === ""
+                    ? "default"
+                    : "pointer",
               }}
             >
               {criandoAula ? "Criando..." : "Adicionar aula"}
@@ -263,7 +278,7 @@ export default function DiaDetalhe() {
         </form>
       </section>
 
-      {/* Lista de aulas já cadastradas */}
+      {/* Lista de aulas */}
       <section>
         <h2 style={{ marginTop: 0, fontSize: 16 }}>Aulas do dia</h2>
 
@@ -273,20 +288,9 @@ export default function DiaDetalhe() {
             a primeira aula.
           </p>
         ) : (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 12,
-            }}
-          >
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {dia.aulas.map((aula) => (
-              <AulaCard
-                key={aula.id}
-                dia={dia}
-                aula={aula}
-                onAbrir={() => irParaAula(aula)}
-              />
+              <AulaCard key={aula.id} aula={aula} onAbrir={() => irParaAula(aula)} />
             ))}
           </div>
         )}
@@ -296,12 +300,11 @@ export default function DiaDetalhe() {
 }
 
 type AulaCardProps = {
-  dia: Dia;
   aula: AulaDia;
   onAbrir: () => void;
 };
 
-function AulaCard({ dia, aula, onAbrir }: AulaCardProps) {
+function AulaCard({ aula, onAbrir }: AulaCardProps) {
   return (
     <div
       style={{
@@ -324,7 +327,7 @@ function AulaCard({ dia, aula, onAbrir }: AulaCardProps) {
       >
         <div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>
-            {aula.turmaNome} – Aula #{aula.numeroAulaNaTurma}
+            {aula.turmaNome || `Turma #${aula.turmaId}`} – Aula #{aula.numeroAulaNaTurma}
           </div>
           <div style={{ fontSize: 12, color: "#64748b" }}>
             {aula.horarioInicio} – {aula.horarioFim} • {aula.tipo}

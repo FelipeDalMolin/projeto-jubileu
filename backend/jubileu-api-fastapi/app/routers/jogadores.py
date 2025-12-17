@@ -6,43 +6,45 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db
 from app.models.jogador_turma import Jogador
-from app.schemas.jogador import (
-    JogadorOut,
-    JogadorCreate,
-    JogadorUpdate,
-)
+from app.schemas.jogador import JogadorOut, JogadorCreate, JogadorUpdate
 
-router = APIRouter(
-    prefix="/jogadores",
-    tags=["Jogadores"],
-)
+router = APIRouter(prefix="/jogadores", tags=["Jogadores"])
+
+STATUS_VALIDOS = {"ativo", "inativo", "lesionado", "afastado"}
+
+def normalizar_status(v: str | None) -> str:
+    if v is None:
+        return "ativo"
+    s = v.strip().lower()
+    if s == "":
+        return "ativo"
+    if s not in STATUS_VALIDOS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"status inválido. Use um de: {sorted(STATUS_VALIDOS)}",
+        )
+    return s
 
 
 @router.get("/", response_model=List[JogadorOut])
 def listar_jogadores(db: Session = Depends(get_db)) -> List[Jogador]:
-    """
-    Lista todos os jogadores cadastrados, ordenados por nome.
-    """
     return db.query(Jogador).order_by(Jogador.nome).all()
 
 
-@router.post(
-    "/",
-    response_model=JogadorOut,
-    status_code=status.HTTP_201_CREATED,
-)
-def criar_jogador(
-    payload: JogadorCreate,
-    db: Session = Depends(get_db),
-) -> Jogador:
-    """
-    Cria um novo jogador.
-    """
+@router.post("/", response_model=JogadorOut, status_code=status.HTTP_201_CREATED)
+def criar_jogador(payload: JogadorCreate, db: Session = Depends(get_db)) -> Jogador:
+    nome = (payload.nome or "").strip()
+    if not nome:
+        raise HTTPException(status_code=422, detail="nome é obrigatório")
+
+    apelido = payload.apelido.strip() if payload.apelido else None
     jogador = Jogador(
         nome=payload.nome,
         apelido=payload.apelido,
         status=payload.status or "ativo",
+        ativo=True,
     )
+
     db.add(jogador)
     db.commit()
     db.refresh(jogador)
@@ -50,14 +52,8 @@ def criar_jogador(
 
 
 @router.get("/{jogador_id}", response_model=JogadorOut)
-def obter_jogador(
-    jogador_id: int,
-    db: Session = Depends(get_db),
-) -> Jogador:
-    """
-    Retorna um jogador específico pelo ID.
-    """
-    jogador = db.query(Jogador).filter(Jogador.id == jogador_id).first()
+def obter_jogador(jogador_id: int, db: Session = Depends(get_db)) -> Jogador:
+    jogador = db.get(Jogador, jogador_id)
     if not jogador:
         raise HTTPException(status_code=404, detail="Jogador não encontrado")
     return jogador
@@ -69,19 +65,21 @@ def atualizar_jogador(
     payload: JogadorUpdate,
     db: Session = Depends(get_db),
 ) -> Jogador:
-    """
-    Atualiza dados de um jogador.
-    """
-    jogador = db.query(Jogador).filter(Jogador.id == jogador_id).first()
+    jogador = db.get(Jogador, jogador_id)
     if not jogador:
         raise HTTPException(status_code=404, detail="Jogador não encontrado")
 
     if payload.nome is not None:
-        jogador.nome = payload.nome
+        nome = payload.nome.strip()
+        if not nome:
+            raise HTTPException(status_code=422, detail="nome não pode ser vazio")
+        jogador.nome = nome
+
     if payload.apelido is not None:
-        jogador.apelido = payload.apelido
+        jogador.apelido = payload.apelido.strip() if payload.apelido else None
+
     if payload.status is not None:
-        jogador.status = payload.status
+        jogador.status = normalizar_status(payload.status)
 
     db.commit()
     db.refresh(jogador)
@@ -89,14 +87,8 @@ def atualizar_jogador(
 
 
 @router.delete("/{jogador_id}", status_code=status.HTTP_204_NO_CONTENT)
-def deletar_jogador(
-    jogador_id: int,
-    db: Session = Depends(get_db),
-) -> None:
-    """
-    Remove um jogador.
-    """
-    jogador = db.query(Jogador).filter(Jogador.id == jogador_id).first()
+def deletar_jogador(jogador_id: int, db: Session = Depends(get_db)) -> None:
+    jogador = db.get(Jogador, jogador_id)
     if not jogador:
         raise HTTPException(status_code=404, detail="Jogador não encontrado")
 

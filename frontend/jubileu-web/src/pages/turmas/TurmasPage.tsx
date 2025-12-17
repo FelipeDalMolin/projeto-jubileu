@@ -30,7 +30,6 @@ export default function TurmasPage() {
           <thead>
             <tr>
               <th>Nome</th>
-              <th>Categoria</th>
               <th></th>
             </tr>
           </thead>
@@ -38,7 +37,6 @@ export default function TurmasPage() {
             {turmas.map((t) => (
               <tr key={t.id}>
                 <td>{t.nome}</td>
-                <td>{t.categoria ?? "-"}</td>
                 <td className="text-end">
                   <Link to={`/turmas/${t.id}`} className="btn btn-outline-primary btn-sm">
                     Abrir
