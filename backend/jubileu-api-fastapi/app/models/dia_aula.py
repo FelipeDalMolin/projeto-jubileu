@@ -71,7 +71,8 @@ class Aula(Base):
     turma_nome: Mapped[str] = mapped_column(String, nullable=False)
 
     numero_aula_na_turma: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1
+        Integer,
+        nullable=False,
     )
 
     tipo: Mapped[TipoEventoAulaEnum] = mapped_column(

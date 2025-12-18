@@ -1,6 +1,7 @@
 // src/pages/dias/AulaPage.tsx
 import {
   useEffect,
+  useMemo,
   useState,
   type ChangeEvent,
   type DragEvent,
@@ -50,6 +51,14 @@ type TimeAula = TimeDia & {
   caracteristica?: string;
 };
 
+const DEFAULT_STATS: StatsJogador = {
+  gols: 0,
+  assistencias: 0,
+  defesas: 0,
+  chiliques: 0,
+  faltas: 0,
+};
+
 export default function AulaPage() {
   const { dataIso, aulaId } = useParams<{ dataIso: string; aulaId: string }>();
   const navigate = useNavigate();
@@ -69,8 +78,32 @@ export default function AulaPage() {
   const [novoTimeAId, setNovoTimeAId] = useState<string>("");
   const [novoTimeBId, setNovoTimeBId] = useState<string>("");
 
-  // ---------------- CARREGAMENTO ----------------
+  // ✅ HOOKS DERIVADOS SEMPRE NO TOPO (Rules of Hooks)
+  const dataObj = useMemo(() => {
+    try {
+      return dataIso ? parseISO(dataIso) : null;
+    } catch {
+      return null;
+    }
+  }, [dataIso]);
 
+  const tituloData = useMemo(() => {
+    if (!dataObj) return "";
+    return format(dataObj, "dd/MM/yyyy", { locale: ptBR });
+  }, [dataObj]);
+
+  const jogadoresSemTimeLista = useMemo(
+    () => jogadores.filter((j) => !j.timeId),
+    [jogadores],
+  );
+
+  const jogadoresFiltrados = useMemo(() => {
+    if (!filtroNome.trim()) return jogadoresSemTimeLista;
+    const f = filtroNome.toLowerCase();
+    return jogadoresSemTimeLista.filter((j) => j.nome.toLowerCase().includes(f));
+  }, [filtroNome, jogadoresSemTimeLista]);
+
+  // ---------------- CARREGAMENTO ----------------
   useEffect(() => {
     if (!dataIso || !aulaId) return;
 
@@ -81,8 +114,7 @@ export default function AulaPage() {
         const diaResp = await obterDiaPorData(dataIso);
         setDia(diaResp);
 
-        const aulaEncontrada =
-          diaResp.aulas.find((x) => x.id === aulaId) ?? null;
+        const aulaEncontrada = diaResp.aulas.find((x) => x.id === aulaId) ?? null;
         setAula(aulaEncontrada);
 
         if (!aulaEncontrada) {
@@ -102,10 +134,7 @@ export default function AulaPage() {
 
         // tenta carregar snapshot salvo (estado-equipes)
         try {
-          const snap = await carregarEstadoEquipesAula(
-            diaResp.dataIso,
-            aulaEncontrada.id,
-          );
+          const snap = await carregarEstadoEquipesAula(diaResp.dataIso, aulaEncontrada.id);
 
           if (snap && (snap.jogadores.length > 0 || snap.times.length > 0)) {
             jogadoresBase = snap.jogadores;
@@ -117,7 +146,6 @@ export default function AulaPage() {
             }
           }
         } catch (err) {
-          // eslint-disable-next-line no-console
           console.warn("Erro ao carregar estado-equipes (ignorado):", err);
         }
 
@@ -132,14 +160,10 @@ export default function AulaPage() {
   }, [dataIso, aulaId]);
 
   // ---------------- ESTADOS BÁSICOS / GUARDAS ----------------
-
   if (!dataIso || !aulaId) {
     return (
       <main className="container py-3">
-        <button
-          className="btn btn-link p-0 mb-3"
-          onClick={() => navigate("/dias")}
-        >
+        <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/dias")}>
           ← Voltar
         </button>
         <h1>Parâmetros inválidos</h1>
@@ -148,16 +172,10 @@ export default function AulaPage() {
     );
   }
 
-  const dataObj = parseISO(dataIso);
-  const tituloData = format(dataObj, "dd/MM/yyyy", { locale: ptBR });
-
   if (loading) {
     return (
       <main className="container py-3">
-        <button
-          className="btn btn-link p-0 mb-3"
-          onClick={() => navigate(`/dias/${dataIso}`)}
-        >
+        <button className="btn btn-link p-0 mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
           ← Voltar
         </button>
         <h1>Aula</h1>
@@ -169,84 +187,52 @@ export default function AulaPage() {
   if (!dia || !aula) {
     return (
       <main className="container py-3">
-        <button
-          className="btn btn-link p-0 mb-3"
-          onClick={() => navigate(`/dias/${dataIso}`)}
-        >
+        <button className="btn btn-link p-0 mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
           ← Voltar
         </button>
         <h1>Aula não encontrada</h1>
-        <p>
-          Não foi possível localizar a aula selecionada para o dia {tituloData}.
-        </p>
+        <p>Não foi possível localizar a aula selecionada para o dia {tituloData}.</p>
       </main>
     );
   }
 
   // ---------------- PRESENÇA / FILTRO ----------------
-
   const handleFiltroChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFiltroNome(e.target.value);
   };
 
-  const handleAlterarStatus = (
-    jogadorId: number,
-    novoStatus: StatusPresenca,
-  ) => {
+  const handleAlterarStatus = (jogadorId: number, novoStatus: StatusPresenca) => {
     setJogadores((prev) =>
-      prev.map((j) =>
-        j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j,
-      ),
+      prev.map((j) => (j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j)),
     );
   };
 
   const handleMarcarTodosSoTreino = () => {
-    setJogadores((prev) =>
-      prev.map((j) => ({
-        ...j,
-        status: "so_treino",
-      })),
-    );
+    setJogadores((prev) => prev.map((j) => ({ ...j, status: "so_treino" })));
   };
 
   const handleLimparStatus = () => {
+    // volta ao padrão: quem não está em time fica "so_treino"
+    // (ou ajuste aqui se você quiser um status default diferente)
     setJogadores((prev) =>
       prev.map((j) => ({
         ...j,
-        status: "so_treino",
+        status: j.timeId ? "presente" : "so_treino",
       })),
     );
   };
 
-  const jogadoresSemTimeLista = jogadores.filter((j) => !j.timeId);
-
-  const jogadoresFiltrados = filtroNome
-    ? jogadoresSemTimeLista.filter((j) =>
-        j.nome.toLowerCase().includes(filtroNome.toLowerCase()),
-      )
-    : jogadoresSemTimeLista;
-
   // --------------- EQUIPES / DRAG & DROP -------------
-
   const handleAdicionarEquipe = async () => {
-    if (!dia || !aula) return;
-
     try {
       const idx = times.length + 1;
       const nome = `Time ${idx}`;
 
-      const timeBackend = await criarTimeNaAula(dia.dataIso, aula.id, {
-        nome,
-      });
+      const timeBackend = await criarTimeNaAula(dia.dataIso, aula.id, { nome });
 
-      const novo: TimeAula = {
-        ...timeBackend,
-        caracteristica: "",
-      };
-
+      const novo: TimeAula = { ...timeBackend, caracteristica: "" };
       setTimes((prev) => [...prev, novo]);
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error(err);
       alert("Erro ao criar equipe. Veja o console para detalhes.");
     }
@@ -256,17 +242,11 @@ export default function AulaPage() {
     setTimes([]);
     setPartidas([]);
     setStats({});
-    setJogadores((prev) =>
-      prev.map((j) => ({
-        ...j,
-        timeId: undefined,
-      })),
-    );
+    setJogadores((prev) => prev.map((j) => ({ ...j, timeId: undefined })));
   };
 
   const moverJogadorParaTime = (jogadorId: number, timeId: string | null) => {
     setTimes((prev) => {
-      // remove de todos
       const semJogador = prev.map((t) => ({
         ...t,
         jogadoresIds: t.jogadoresIds.filter((id) => id !== jogadorId),
@@ -290,9 +270,7 @@ export default function AulaPage() {
 
     setJogadores((prev) =>
       prev.map((j) =>
-        j.jogadorId === jogadorId
-          ? { ...j, timeId: timeId || undefined }
-          : j,
+        j.jogadorId === jogadorId ? { ...j, timeId: timeId || undefined } : j,
       ),
     );
   };
@@ -314,19 +292,11 @@ export default function AulaPage() {
     e.preventDefault();
   };
 
-  const jogadoresPorTime = (timeId: string) =>
-    jogadores.filter((j) => j.timeId === timeId);
+  const jogadoresPorTime = (timeId: string) => jogadores.filter((j) => j.timeId === timeId);
 
-  const handleChangeCaracteristica = (
-    timeId: string,
-    e: ChangeEvent<HTMLInputElement>,
-  ) => {
+  const handleChangeCaracteristica = (timeId: string, e: ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setTimes((prev) =>
-      prev.map((t) =>
-        t.id === timeId ? { ...t, caracteristica: value } : t,
-      ),
-    );
+    setTimes((prev) => prev.map((t) => (t.id === timeId ? { ...t, caracteristica: value } : t)));
   };
 
   const handleRemoverDoTime = (jogadorId: number) => {
@@ -334,7 +304,6 @@ export default function AulaPage() {
   };
 
   // ---------------- PARTIDAS / SÚMULA ---------------
-
   const handleAdicionarPartida = () => {
     if (times.length < 2) return;
     if (!novoTimeAId || !novoTimeBId) return;
@@ -374,34 +343,22 @@ export default function AulaPage() {
   ) => {
     setStats((prev) => {
       const statsPartida = prev[partidaId] ?? {};
-      const statsJogador: StatsJogador = statsPartida[jogadorId] ?? {
-        gols: 0,
-        assistencias: 0,
-        defesas: 0,
-        chiliques: 0,
-        faltas: 0,
-      };
-
-      const atualizado: StatsJogador = {
-        ...statsJogador,
-        [campo]: valor,
-      };
+      const statsJogador: StatsJogador = statsPartida[jogadorId] ?? { ...DEFAULT_STATS };
 
       return {
         ...prev,
         [partidaId]: {
           ...statsPartida,
-          [jogadorId]: atualizado,
+          [jogadorId]: {
+            ...statsJogador,
+            [campo]: valor,
+          },
         },
       };
     });
   };
 
-  const getStat = (
-    partidaId: string,
-    jogadorId: number,
-    campo: keyof StatsJogador,
-  ): number => {
+  const getStat = (partidaId: string, jogadorId: number, campo: keyof StatsJogador): number => {
     return stats[partidaId]?.[jogadorId]?.[campo] ?? 0;
   };
 
@@ -410,23 +367,15 @@ export default function AulaPage() {
     campo: "golsTimeA" | "golsTimeB",
     valor: number,
   ) => {
-    setPartidas((prev) =>
-      prev.map((p) =>
-        p.id === partidaId ? { ...p, [campo]: valor } : p,
-      ),
-    );
+    setPartidas((prev) => prev.map((p) => (p.id === partidaId ? { ...p, [campo]: valor } : p)));
   };
 
   // ---------------- SALVAR ESTADO EQUIPES ---------------
-
   const handleSalvarEstadoEquipes = async () => {
-    if (!dia || !aula) return;
-
     try {
       await salvarEstadoEquipesAula(dia.dataIso, aula.id, jogadores, times);
       alert("Estado das equipes salvo com sucesso!");
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error(err);
       alert("Erro ao salvar estado das equipes. Veja o console para detalhes.");
     }
@@ -435,13 +384,9 @@ export default function AulaPage() {
   // -------------------------------------------------
   // ------------------- RENDER ----------------------
   // -------------------------------------------------
-
   return (
     <main className="container py-3">
-      <button
-        className="btn btn-link p-0 mb-3"
-        onClick={() => navigate(`/dias/${dataIso}`)}
-      >
+      <button className="btn btn-link p-0 mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
         ← Voltar para o dia
       </button>
 
@@ -456,14 +401,12 @@ export default function AulaPage() {
       </p>
 
       <div className="row">
-        {/* COLUNA ESQUERDA: lista + status + drag start */}
+        {/* COLUNA ESQUERDA */}
         <section className="col-12 col-lg-4 mb-4">
           <h3 className="h5">Jogadores da turma</h3>
 
           {jogadores.length === 0 ? (
-            <p className="text-muted">
-              Nenhum jogador associado a esta turma ainda.
-            </p>
+            <p className="text-muted">Nenhum jogador associado a esta turma ainda.</p>
           ) : (
             <>
               <div className="d-flex gap-2 mb-2">
@@ -491,13 +434,10 @@ export default function AulaPage() {
                 onChange={handleFiltroChange}
               />
 
-              <div
-                className="border rounded p-2"
-                style={{ maxHeight: 420, overflowY: "auto" }}
-              >
+              <div className="border rounded p-2" style={{ maxHeight: 420, overflowY: "auto" }}>
                 <div className="d-flex justify-content-between mb-1">
                   <strong>Jogador</strong>
-                  <small className="text-muted">Status (não jogou)</small>
+                  <small className="text-muted">Status</small>
                 </div>
 
                 {jogadoresFiltrados.map((j) => (
@@ -511,49 +451,36 @@ export default function AulaPage() {
               </div>
 
               <p className="mt-2 mb-0" style={{ fontSize: 12 }}>
-                Jogadores que estiverem em algum time são considerados{" "}
-                <strong>presentes em jogo</strong>. Para quem não entrar em
-                campo, selecione se foi <em>Só treino</em>, <em>Faltou</em> ou{" "}
-                <em>Atestado</em>.
+                Jogadores em algum time são <strong>presentes em jogo</strong>. Para quem não
+                entrar, selecione <em>Só treino</em>, <em>Faltou</em> ou <em>Atestado</em>.
               </p>
             </>
           )}
         </section>
 
-        {/* COLUNA DIREITA: equipes + partidas */}
+        {/* COLUNA DIREITA */}
         <section className="col-12 col-lg-8">
           {/* Equipes */}
           <div className="mb-4">
             <div className="d-flex justify-content-between align-items-center mb-2">
               <h3 className="h5 mb-0">Equipes</h3>
               <div className="d-flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  onClick={handleAdicionarEquipe}
-                >
+                <button type="button" className="btn btn-sm btn-primary" onClick={handleAdicionarEquipe}>
                   + Adicionar equipe
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={handleLimparEquipes}
-                >
+                <button type="button" className="btn btn-sm btn-outline-danger" onClick={handleLimparEquipes}>
                   Limpar equipes
                 </button>
               </div>
             </div>
 
             <p className="text-muted" style={{ fontSize: 12 }}>
-              Arraste o nome do jogador a partir da lista à esquerda para as
-              colunas abaixo para montar os times. Para tirar alguém de um time,
-              clique no “x” no chip do jogador.
+              Arraste jogadores da lista para montar os times. Para tirar alguém, clique no “x”.
             </p>
 
             {times.length === 0 ? (
               <p className="text-muted">
-                Nenhuma equipe cadastrada. Clique em{" "}
-                <strong>“Adicionar equipe”</strong> para começar.
+                Nenhuma equipe cadastrada. Clique em <strong>“Adicionar equipe”</strong>.
               </p>
             ) : (
               <div className="row g-2">
@@ -565,7 +492,7 @@ export default function AulaPage() {
                         titulo={time.nome}
                         descricao={
                           time.caracteristica ||
-                          "Defina uma característica para esse time (ex.: mais experiente, mais leve, etc.)"
+                          "Defina uma característica (ex.: mais experiente, mais leve, etc.)"
                         }
                         onDrop={(e) => onAreaDrop(e, time.id)}
                         onDragOver={onAreaDragOver}
@@ -575,25 +502,16 @@ export default function AulaPage() {
                           className="form-control form-control-sm mb-2"
                           placeholder="Característica do time..."
                           value={time.caracteristica ?? ""}
-                          onChange={(e) =>
-                            handleChangeCaracteristica(time.id, e)
-                          }
+                          onChange={(e) => handleChangeCaracteristica(time.id, e)}
                         />
 
                         <div className="d-flex flex-wrap gap-1">
                           {jogadoresTime.map((j) => (
-                            <ChipJogador
-                              key={j.jogadorId}
-                              jogador={j}
-                              onRemover={handleRemoverDoTime}
-                            />
+                            <ChipJogador key={j.jogadorId} jogador={j} onRemover={handleRemoverDoTime} />
                           ))}
 
                           {jogadoresTime.length === 0 && (
-                            <span
-                              className="text-muted"
-                              style={{ fontSize: 12 }}
-                            >
+                            <span className="text-muted" style={{ fontSize: 12 }}>
                               Arraste jogadores para cá
                             </span>
                           )}
@@ -606,18 +524,16 @@ export default function AulaPage() {
             )}
           </div>
 
-          {/* Partidas + súmula */}
+          {/* Partidas */}
           <div className="mb-4">
             <h3 className="h5">Partidas</h3>
 
             {times.length < 2 ? (
               <p className="text-muted">
-                Para criar partidas, é necessário ter pelo menos{" "}
-                <strong>2 equipes</strong>.
+                Para criar partidas, é necessário ter pelo menos <strong>2 equipes</strong>.
               </p>
             ) : (
               <>
-                {/* Formulário para adicionar partida */}
                 <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
                   <span>Nova partida:</span>
                   <select
@@ -650,17 +566,11 @@ export default function AulaPage() {
                     ))}
                   </select>
 
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-success"
-                    onClick={handleAdicionarPartida}
-                  >
+                  <button type="button" className="btn btn-sm btn-success" onClick={handleAdicionarPartida}>
                     Adicionar partida
                   </button>
 
-                  <small className="text-muted">
-                    Monte na ordem real (ex.: vencedor continua).
-                  </small>
+                  <small className="text-muted">Monte na ordem real (ex.: vencedor continua).</small>
                 </div>
 
                 {partidas.length === 0 ? (
@@ -671,19 +581,11 @@ export default function AulaPage() {
                       const timeA = times.find((t) => t.id === p.timeAId);
                       const timeB = times.find((t) => t.id === p.timeBId);
 
-                      const jogadoresA = timeA
-                        ? jogadoresPorTime(timeA.id)
-                        : [];
-                      const jogadoresB = timeB
-                        ? jogadoresPorTime(timeB.id)
-                        : [];
+                      const jogadoresA = timeA ? jogadoresPorTime(timeA.id) : [];
+                      const jogadoresB = timeB ? jogadoresPorTime(timeB.id) : [];
 
                       return (
-                        <div
-                          key={p.id}
-                          className="border rounded p-2"
-                          style={{ fontSize: 13 }}
-                        >
+                        <div key={p.id} className="border rounded p-2" style={{ fontSize: 13 }}>
                           <div className="d-flex justify-content-between align-items-center mb-2">
                             <strong>Partida {p.ordem}</strong>
                             <button
@@ -704,11 +606,7 @@ export default function AulaPage() {
                               style={{ width: 50 }}
                               value={p.golsTimeA}
                               onChange={(e) =>
-                                handleAlterarPlacar(
-                                  p.id,
-                                  "golsTimeA",
-                                  Number(e.target.value) || 0,
-                                )
+                                handleAlterarPlacar(p.id, "golsTimeA", Number(e.target.value) || 0)
                               }
                             />
                             <span>x</span>
@@ -719,11 +617,7 @@ export default function AulaPage() {
                               style={{ width: 50 }}
                               value={p.golsTimeB}
                               onChange={(e) =>
-                                handleAlterarPlacar(
-                                  p.id,
-                                  "golsTimeB",
-                                  Number(e.target.value) || 0,
-                                )
+                                handleAlterarPlacar(p.id, "golsTimeB", Number(e.target.value) || 0)
                               }
                             />
                             <span>{timeB?.nome ?? "Time B"}</span>
@@ -759,11 +653,7 @@ export default function AulaPage() {
           </div>
 
           <div className="d-flex justify-content-end">
-            <button
-              type="button"
-              className="btn btn-success"
-              onClick={handleSalvarEstadoEquipes}
-            >
+            <button type="button" className="btn btn-success" onClick={handleSalvarEstadoEquipes}>
               Salvar estado das equipes
             </button>
           </div>
@@ -781,11 +671,7 @@ type LinhaJogadorProps = {
   onDragStart: (e: DragEvent<HTMLSpanElement>, id: number) => void;
 };
 
-function LinhaJogador({
-  jogador,
-  onAlterarStatus,
-  onDragStart,
-}: LinhaJogadorProps) {
+function LinhaJogador({ jogador, onAlterarStatus, onDragStart }: LinhaJogadorProps) {
   const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
     onAlterarStatus(jogador.jogadorId, e.target.value as StatusPresenca);
   };
@@ -800,6 +686,7 @@ function LinhaJogador({
       >
         {jogador.nome}
       </span>
+
       <select
         className="form-select form-select-sm"
         style={{ maxWidth: 140 }}
@@ -824,19 +711,9 @@ type DropAreaProps = {
   children: ReactNode;
 };
 
-function DropArea({
-  titulo,
-  descricao,
-  onDrop,
-  onDragOver,
-  children,
-}: DropAreaProps) {
+function DropArea({ titulo, descricao, onDrop, onDragOver, children }: DropAreaProps) {
   return (
-    <div
-      className="border rounded p-2 h-100"
-      onDrop={onDrop}
-      onDragOver={onDragOver}
-    >
+    <div className="border rounded p-2 h-100" onDrop={onDrop} onDragOver={onDragOver}>
       <div className="d-flex flex-column mb-1">
         <strong>{titulo}</strong>
         <small className="text-muted">{descricao}</small>
@@ -877,33 +754,12 @@ type TabelaSumulaTimeProps = {
   titulo: string;
   partidaId: string;
   jogadores: PresencaJogadorDia[];
-  getStat: (
-    partidaId: string,
-    jogadorId: number,
-    campo: keyof StatsJogador,
-  ) => number;
-  onAlterarStat: (
-    partidaId: string,
-    jogadorId: number,
-    campo: keyof StatsJogador,
-    valor: number,
-  ) => void;
+  getStat: (partidaId: string, jogadorId: number, campo: keyof StatsJogador) => number;
+  onAlterarStat: (partidaId: string, jogadorId: number, campo: keyof StatsJogador, valor: number) => void;
 };
 
-function TabelaSumulaTime({
-  titulo,
-  partidaId,
-  jogadores,
-  getStat,
-  onAlterarStat,
-}: TabelaSumulaTimeProps) {
-  const campos: (keyof StatsJogador)[] = [
-    "gols",
-    "assistencias",
-    "defesas",
-    "chiliques",
-    "faltas",
-  ];
+function TabelaSumulaTime({ titulo, partidaId, jogadores, getStat, onAlterarStat }: TabelaSumulaTimeProps) {
+  const campos: (keyof StatsJogador)[] = ["gols", "assistencias", "defesas", "chiliques", "faltas"];
 
   const labels: Record<keyof StatsJogador, string> = {
     gols: "G",
@@ -913,11 +769,7 @@ function TabelaSumulaTime({
     faltas: "F",
   };
 
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement>,
-    jogadorId: number,
-    campo: keyof StatsJogador,
-  ) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>, jogadorId: number, campo: keyof StatsJogador) => {
     const valor = Number(e.target.value) || 0;
     onAlterarStat(partidaId, jogadorId, campo, valor);
   };
@@ -938,11 +790,7 @@ function TabelaSumulaTime({
             <tr>
               <th style={{ fontSize: 11 }}>Jogador</th>
               {campos.map((c) => (
-                <th
-                  key={c}
-                  className="text-center"
-                  style={{ width: 40, fontSize: 11 }}
-                >
+                <th key={c} className="text-center" style={{ width: 40, fontSize: 11 }}>
                   {labels[c]}
                 </th>
               ))}
@@ -958,11 +806,7 @@ function TabelaSumulaTime({
                       type="number"
                       min={0}
                       className="form-control form-control-sm"
-                      style={{
-                        width: 40,
-                        fontSize: 10,
-                        textAlign: "center",
-                      }}
+                      style={{ width: 40, fontSize: 10, textAlign: "center" }}
                       value={getStat(partidaId, j.jogadorId, c)}
                       onChange={(e) => handleChange(e, j.jogadorId, c)}
                     />

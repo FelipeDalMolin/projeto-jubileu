@@ -1,15 +1,17 @@
 // src/pages/dias/DiaDetalhe.tsx
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { parseISO, format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
 import {
   obterDiaPorData,
   ordenarAulasPorHorario,
   criarAulaNoDia,
+  deletarAulaNoDia,
 } from "../../services/diasService";
 import { listarTurmas, type Turma } from "../../services/turmasService";
 import type { Dia, AulaDia } from "../../types/dia";
-import { parseISO, format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 
 export default function DiaDetalhe() {
   const { dataIso } = useParams<{ dataIso: string }>();
@@ -27,7 +29,7 @@ export default function DiaDetalhe() {
   const [criandoAula, setCriandoAula] = useState(false);
 
   const tituloData = useMemo(() => {
-    if (!dataIso) return "Dia inválido";
+    if (!dataIso) return "Dia invalido";
     const dataObj = parseISO(dataIso);
     return format(dataObj, "dd/MM/yyyy (EEEE)", { locale: ptBR });
   }, [dataIso]);
@@ -48,7 +50,7 @@ export default function DiaDetalhe() {
       }
     } catch (e: any) {
       console.error(e);
-      setErro(e?.message ?? "Erro ao carregar informações do dia.");
+      setErro(e?.message ?? "Erro ao carregar informacoes do dia.");
       setDia(null);
     } finally {
       setLoading(false);
@@ -57,7 +59,7 @@ export default function DiaDetalhe() {
 
   useEffect(() => {
     if (!dataIso) {
-      setErro("Data inválida.");
+      setErro("Data invalida.");
       setLoading(false);
       return;
     }
@@ -90,7 +92,7 @@ export default function DiaDetalhe() {
         return { ...prev, aulas: novasAulas };
       });
 
-      // mantém turma selecionada e reseta horários (opcional)
+      // mantem turma selecionada e reseta horarios (opcional)
       setNovaHorarioInicio("19:00");
       setNovaHorarioFim("20:00");
     } catch (err: any) {
@@ -105,11 +107,31 @@ export default function DiaDetalhe() {
     navigate(`/dias/${dataIso}/aulas/${aula.id}`);
   };
 
+  const handleExcluirAula = async (aula: AulaDia) => {
+    if (!dataIso) return;
+    const confirmar = window.confirm(
+      `Excluir a Aula #${aula.numeroAulaNaTurma} da turma ${aula.turmaNome}?`,
+    );
+    if (!confirmar) return;
+
+    try {
+      await deletarAulaNoDia(dataIso, aula.id);
+      setDia((prev) => {
+        if (!prev) return prev;
+        const filtradas = prev.aulas.filter((a) => a.id !== aula.id);
+        return { ...prev, aulas: filtradas };
+      });
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message ?? "Erro ao excluir aula. Veja o console.");
+    }
+  };
+
   if (!dataIso) {
     return (
       <div style={{ padding: 24 }}>
         <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
-        <h1>Dia inválido</h1>
+        <h1>Dia invalido</h1>
       </div>
     );
   }
@@ -119,7 +141,7 @@ export default function DiaDetalhe() {
       <div style={{ padding: 24 }}>
         <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
         <h1>Dia {tituloData}</h1>
-        <p>Carregando informações do dia...</p>
+        <p>Carregando informacoes do dia...</p>
       </div>
     );
   }
@@ -129,7 +151,7 @@ export default function DiaDetalhe() {
       <div style={{ padding: 24 }}>
         <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
         <h1>Dia {tituloData}</h1>
-        <p style={{ color: "#b91c1c" }}>{erro ?? "Dia não encontrado."}</p>
+        <p style={{ color: "#b91c1c" }}>{erro ?? "Dia nao encontrado."}</p>
       </div>
     );
   }
@@ -141,7 +163,7 @@ export default function DiaDetalhe() {
       <header style={{ marginTop: 12, marginBottom: 24 }}>
         <h1 style={{ margin: 0 }}>Dia {tituloData}</h1>
         <p style={{ fontSize: 13, color: "#64748b" }}>
-          Aqui você gerencia as aulas e as equipes deste dia.
+          Aqui voce gerencia as aulas e as equipes deste dia.
         </p>
       </header>
 
@@ -213,7 +235,7 @@ export default function DiaDetalhe() {
                 color: "#0f172a",
               }}
             >
-              Início
+              Inicio
             </label>
             <input
               type="time"
@@ -284,13 +306,18 @@ export default function DiaDetalhe() {
 
         {dia.aulas.length === 0 ? (
           <p style={{ fontSize: 13, color: "#64748b" }}>
-            Nenhuma aula planejada ainda. Use o formulário acima para cadastrar
+            Nenhuma aula planejada ainda. Use o formulario acima para cadastrar
             a primeira aula.
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {dia.aulas.map((aula) => (
-              <AulaCard key={aula.id} aula={aula} onAbrir={() => irParaAula(aula)} />
+              <AulaCard
+                key={aula.id}
+                aula={aula}
+                onAbrir={() => irParaAula(aula)}
+                onExcluir={() => handleExcluirAula(aula)}
+              />
             ))}
           </div>
         )}
@@ -302,9 +329,10 @@ export default function DiaDetalhe() {
 type AulaCardProps = {
   aula: AulaDia;
   onAbrir: () => void;
+  onExcluir: () => void;
 };
 
-function AulaCard({ aula, onAbrir }: AulaCardProps) {
+function AulaCard({ aula, onAbrir, onExcluir }: AulaCardProps) {
   return (
     <div
       style={{
@@ -327,31 +355,48 @@ function AulaCard({ aula, onAbrir }: AulaCardProps) {
       >
         <div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>
-            {aula.turmaNome || `Turma #${aula.turmaId}`} – Aula #{aula.numeroAulaNaTurma}
+            {aula.turmaNome || `Turma #${aula.turmaId}`} - Aula #{aula.numeroAulaNaTurma}
           </div>
           <div style={{ fontSize: 12, color: "#64748b" }}>
-            {aula.horarioInicio} – {aula.horarioFim} • {aula.tipo}
+            {aula.horarioInicio} - {aula.horarioFim} - {aula.tipo}
           </div>
           <div style={{ fontSize: 11, color: "#0f172a" }}>
-            {aula.times.length} time(s) • {aula.partidasCount} partida(s)
+            {aula.times.length} time(s) - {aula.partidasCount} partida(s)
           </div>
         </div>
 
-        <button
-          onClick={onAbrir}
-          style={{
-            padding: "4px 10px",
-            borderRadius: 999,
-            border: "1px solid #2563eb",
-            background: "#2563eb",
-            color: "#fff",
-            fontSize: 12,
-            cursor: "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Abrir gestão da turma
-        </button>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <button
+            onClick={onExcluir}
+            style={{
+              padding: "4px 10px",
+              borderRadius: 999,
+              border: "1px solid #dc2626",
+              background: "#fff1f2",
+              color: "#dc2626",
+              fontSize: 12,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            🗑 Excluir aula
+          </button>
+          <button
+            onClick={onAbrir}
+            style={{
+              padding: "4px 10px",
+              borderRadius: 999,
+              border: "1px solid #2563eb",
+              background: "#2563eb",
+              color: "#fff",
+              fontSize: 12,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Abrir gestao da turma
+          </button>
+        </div>
       </div>
     </div>
   );

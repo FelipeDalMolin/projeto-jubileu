@@ -4,17 +4,22 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from datetime import date
+from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
-from app.models.jogador_turma import Turma as TurmaModel
+from app.models.jogador_turma import (
+    Turma as TurmaModel,
+    TurmaJogador as TurmaJogadorModel,
+    Jogador as JogadorModel,
+)
 from app.models.dia_aula import (
     Dia as DiaModel,
     Aula as AulaModel,
     TimeAula as TimeAulaModel,
     AulaEquipesEstado as AulaEquipesEstadoModel,
+    JogadorAula as JogadorAulaModel,
+    StatusPresencaEnum,
 )
 from app.schemas.dia_aula import (
     DiaOut,
@@ -28,8 +33,8 @@ from app.schemas.dia_aula import (
 )
 
 router = APIRouter(
-    prefix="/dias",
-    tags=["Dias"],
+  prefix="/dias",
+  tags=["Dias"],
 )
 
 
@@ -39,7 +44,12 @@ router = APIRouter(
 @router.get("/", response_model=List[DiaOut])
 def listar_dias(db: Session = Depends(get_db)) -> List[DiaOut]:
     """Lista todos os dias cadastrados (ordenados por data_iso)."""
-    return db.query(DiaModel).order_by(DiaModel.data_iso.asc()).all()
+    return (
+        db.query(DiaModel)
+        .options(selectinload(DiaModel.aulas).selectinload(AulaModel.jogadores))
+        .order_by(DiaModel.data_iso.asc())
+        .all()
+    )
 
 
 @router.get("/{data_iso}", response_model=DiaOut)
@@ -47,9 +57,14 @@ def obter_dia_por_data(data_iso: str, db: Session = Depends(get_db)) -> DiaOut:
     """
     Retorna o dia pela data ISO (YYYY-MM-DD).
 
-    Se não existir, cria um dia vazio no banco e devolve.
+    Se nao existir, cria um dia vazio no banco e devolve.
     """
-    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    dia = (
+        db.query(DiaModel)
+        .options(selectinload(DiaModel.aulas).selectinload(AulaModel.jogadores))
+        .filter(DiaModel.data_iso == data_iso)
+        .first()
+    )
     if not dia:
         dia = DiaModel(data_iso=data_iso)
         db.add(dia)
@@ -74,7 +89,7 @@ def criar_aula_no_dia(
     """
     Cria uma nova aula em um dia.
 
-    Se o dia não existir, é criado automaticamente.
+    Se o dia nao existir, ele e criado automaticamente.
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
@@ -89,21 +104,52 @@ def criar_aula_no_dia(
 
     turma = db.query(TurmaModel).filter(TurmaModel.id == payload.turma_id).first()
     if not turma:
-        raise HTTPException(status_code=404, detail="Turma nÇœo encontrada")
+        raise HTTPException(status_code=404, detail="Turma nao encontrada")
+
+    ultima_aula = (
+        db.query(AulaModel)
+        .filter(AulaModel.turma_id == payload.turma_id)
+        .order_by(AulaModel.numero_aula_na_turma.desc())
+        .first()
+    )
+    novo_numero = (
+        (ultima_aula.numero_aula_na_turma or 0) + 1 if ultima_aula else 1
+    )
 
     aula = AulaModel(
         dia_id=dia.id,
         turma_id=payload.turma_id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=payload.numero_aula_na_turma,
+        numero_aula_na_turma=novo_numero,
         tipo=payload.tipo,
         horario_inicio=payload.horario_inicio,
         horario_fim=payload.horario_fim,
         status=payload.status,
     )
     db.add(aula)
+    db.flush()
+
+    jogadores_ativos = (
+        db.query(TurmaJogadorModel)
+        .join(JogadorModel, TurmaJogadorModel.jogador)
+        .filter(TurmaJogadorModel.turma_id == payload.turma_id)
+        .filter(TurmaJogadorModel.ativo.is_(True))
+        .all()
+    )
+
+    for rel in jogadores_ativos:
+        jogador_nome = rel.jogador.nome if rel.jogador else ""
+        jogador_id = rel.jogador.id if rel.jogador else rel.jogador_id
+        novo_jogador_aula = JogadorAulaModel(
+            aula_id=aula.id,
+            jogador_id=jogador_id,
+            nome=jogador_nome or f"Jogador {jogador_id}",
+            status=StatusPresencaEnum.so_treino,
+        )
+        db.add(novo_jogador_aula)
+
     db.commit()
-    db.refresh(aula)
+    db.refresh(aula, attribute_names=["jogadores"])
     return aula
 
 
@@ -117,13 +163,40 @@ def obter_aula_no_dia(
     db: Session = Depends(get_db),
 ) -> AulaOut:
     """
-    Retorna uma aula específica de um dia.
+    Retorna uma aula especifica de um dia.
 
     Garante que a aula pertence ao dia informado.
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
-        raise HTTPException(status_code=404, detail="Dia não encontrado")
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .options(selectinload(AulaModel.jogadores))
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(
+            status_code=404,
+            detail="Aula nao encontrada para este dia",
+        )
+    return aula
+
+
+@router.delete(
+    "/{data_iso}/aulas/{aula_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def deletar_aula_no_dia(
+    data_iso: str,
+    aula_id: int,
+    db: Session = Depends(get_db),
+) -> Response:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
 
     aula = (
         db.query(AulaModel)
@@ -133,9 +206,12 @@ def obter_aula_no_dia(
     if not aula:
         raise HTTPException(
             status_code=404,
-            detail="Aula não encontrada para este dia",
+            detail="Aula nao encontrada para este dia",
         )
-    return aula
+
+    db.delete(aula)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # ---------------- TIMES DA AULA ----------------
@@ -153,13 +229,13 @@ def criar_time_na_aula(
     db: Session = Depends(get_db),
 ) -> TimeAulaOut:
     """
-    Cria um novo time (TimeAula) dentro de uma aula específica de um dia.
+    Cria um novo time (TimeAula) dentro de uma aula especifica de um dia.
 
-    Usado diretamente pela tela de Aula (botão “Adicionar equipe”).
+    Usado diretamente pela tela de Aula (botao "Adicionar equipe").
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
-        raise HTTPException(status_code=404, detail="Dia não encontrado")
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
 
     aula = (
         db.query(AulaModel)
@@ -169,7 +245,7 @@ def criar_time_na_aula(
     if not aula:
         raise HTTPException(
             status_code=404,
-            detail="Aula não encontrada para este dia",
+            detail="Aula nao encontrada para este dia",
         )
 
     novo_time = TimeAulaModel(
@@ -207,11 +283,11 @@ def obter_estado_equipes_aula(
     """
     Retorna o snapshot JSON do estado das equipes de uma aula.
 
-    Usado para sincronizar separação de times entre clientes.
+    Usado para sincronizar separacao de times entre clientes.
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
-        raise HTTPException(status_code=404, detail="Dia não encontrado")
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
 
     aula = (
         db.query(AulaModel)
@@ -221,7 +297,7 @@ def obter_estado_equipes_aula(
     if not aula:
         raise HTTPException(
             status_code=404,
-            detail="Aula não encontrada para este dia",
+            detail="Aula nao encontrada para este dia",
         )
 
     estado_row = (
@@ -269,7 +345,7 @@ def salvar_estado_equipes_aula(
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
-        raise HTTPException(status_code=404, detail="Dia não encontrado")
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
 
     aula = (
         db.query(AulaModel)
@@ -279,7 +355,7 @@ def salvar_estado_equipes_aula(
     if not aula:
         raise HTTPException(
             status_code=404,
-            detail="Aula não encontrada para este dia",
+            detail="Aula nao encontrada para este dia",
         )
 
     estado_dict: dict[str, Any] = {

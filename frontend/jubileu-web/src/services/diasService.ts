@@ -198,6 +198,18 @@ export async function criarAulaNoDia(
   return mapAula(await resp.json());
 }
 
+export async function deletarAulaNoDia(dataIso: string, aulaId: string): Promise<void> {
+  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}`), {
+    method: "DELETE",
+  });
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao excluir aula ${aulaId} em ${dataIso}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+}
+
 // -------------------------
 // TIMES DA AULA
 // -------------------------

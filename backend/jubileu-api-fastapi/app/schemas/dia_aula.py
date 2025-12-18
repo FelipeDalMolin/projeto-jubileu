@@ -26,17 +26,14 @@ class AtributosJogadorDia(BaseModel):
 
 class PresencaJogadorDiaOut(BaseModel):
     """
-    Snapshot do jogador dentro da AULA (não é o Jogador global).
-
-    Este formato é o que vamos guardar no JSON de estado de equipes
-    e mandar/receber do front.
+    Snapshot do jogador dentro da aula (nao e o Jogador global).
     """
 
     jogadorId: int
     nome: str
     status: StatusPresencaEnum
     atributos: AtributosJogadorDia
-    # id lógico do time dentro da aula (ex.: "time-1")
+    # id logico do time dentro da aula (ex.: "time-1")
     timeId: Optional[str] = None
 
 
@@ -53,8 +50,6 @@ class TimeAulaOut(BaseModel):
 class TimeAulaCreate(BaseModel):
     """
     DTO de entrada para criar um time no banco (model TimeAula).
-
-    Esse é usado no endpoint POST /dias/{data_iso}/aulas/{aula_id}/times.
     """
 
     nome: str
@@ -70,8 +65,6 @@ class TimeAulaCreate(BaseModel):
 class EstadoEquipesAulaIn(BaseModel):
     """
     Payload que o front envia para salvar o estado de equipes da aula.
-
-    Vamos armazenar esse conteúdo no JSON da tabela aula_equipes_estado.
     """
 
     jogadores: List[PresencaJogadorDiaOut] = Field(default_factory=list)
@@ -85,7 +78,7 @@ class EstadoEquipesAulaOut(EstadoEquipesAulaIn):
 
 
 # ---------------------------------------------------------
-# PARTIDA (por enquanto só para futuro uso)
+# PARTIDA (por enquanto so para futuro uso)
 # ---------------------------------------------------------
 
 
@@ -107,7 +100,6 @@ class PartidaOut(BaseModel):
 
 class AulaBase(BaseModel):
     turma_id: int
-    numero_aula_na_turma: int = 1
     tipo: TipoEventoAulaEnum = TipoEventoAulaEnum.AULA
     horario_inicio: str  # "19:00"
     horario_fim: str  # "20:00"
@@ -117,23 +109,33 @@ class AulaBase(BaseModel):
 class AulaCreate(AulaBase):
     """DTO de entrada para criar uma nova aula em um dia."""
 
-    # turma_nome opcional (será sobrescrito pelo nome da turma no backend)
+    # turma_nome opcional (sera sobrescrito pelo nome da turma no backend)
     turma_nome: Optional[str] = None
+    numero_aula_na_turma: Optional[int] = None
+
+
+class JogadorAulaOut(BaseModel):
+    id: int
+    jogador_id: Optional[int] = None
+    nome: str
+    status: StatusPresencaEnum
+    time_id: Optional[int] = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AulaOut(AulaBase):
     """
-    Representação da Aula retornada pelos endpoints:
+    Representacao da Aula retornada pelos endpoints:
     - GET /dias/{data_iso}
     - GET /dias/{data_iso}/aulas/{aula_id}
-
-    OBS: Aqui não estamos retornando times/jogadores/partidas diretamente;
-    o estado de equipes fica no endpoint específico /estado-equipes.
     """
 
     id: int
     dia_id: int
     turma_nome: str
+    numero_aula_na_turma: int
+    jogadores: List[JogadorAulaOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -144,7 +146,7 @@ class AulaOut(AulaBase):
 
 
 class DiaOut(BaseModel):
-    """Representação de um dia com suas aulas."""
+    """Representacao de um dia com suas aulas."""
 
     id: int
     data_iso: str
