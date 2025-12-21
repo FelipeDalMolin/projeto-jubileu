@@ -1,23 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type {
   AulaDia,
   EstatisticaJogadorPartida,
-  PartidaAula,
   PresencaJogadorDia,
   TimeDia,
 } from "../../types/dia";
+import type { PartidaEstado } from "../../types/aulaEstado";
 import {
-  listarPartidas,
   criarPartida,
   atualizarPartida,
   deletarPartida,
 } from "../../services/partidasService";
+import { useAulaEstadoPolling } from "../../hooks/useAulaEstadoPolling";
 
 type Props = {
   dataIso: string;
   aula: AulaDia;
-  jogadores: PresencaJogadorDia[];
-  times: TimeDia[];
 };
 
 type CampoStat = keyof Pick<
@@ -25,87 +23,74 @@ type CampoStat = keyof Pick<
   "gols" | "assistencias" | "defesas" | "chiliques" | "faltas"
 >;
 
-function calcularPlacar(
-  partida: PartidaAula,
+const normalizeTimeId = (id: string) => (id.startsWith("time-") ? id : `time-${id}`);
+
+function normalizarPartidas(partidas: PartidaEstado[]) {
+  return partidas.map((p) => ({
+    ...p,
+    timeAId: normalizeTimeId(p.timeAId),
+    timeBId: normalizeTimeId(p.timeBId),
+    estatisticas: p.estatisticas ?? [],
+  }));
+}
+
+function normalizarEquipes(
   jogadores: PresencaJogadorDia[],
-) {
-  let golsA = 0;
-  let golsB = 0;
-
-  for (const estat of partida.estatisticas) {
-    const jogador = jogadores.find(
-      (j) => j.jogadorId === estat.jogadorAulaId,
-    );
-    if (!jogador || !jogador.timeId) continue;
-    if (jogador.timeId === partida.timeAId) {
-      golsA += estat.gols;
-    } else if (jogador.timeId === partida.timeBId) {
-      golsB += estat.gols;
-    }
-  }
-
-  return { golsA, golsB };
+  times: TimeDia[],
+): { jogadores: PresencaJogadorDia[]; times: TimeDia[] } {
+  const timesNorm = times.map((t) => ({ ...t, id: normalizeTimeId(t.id) }));
+  const jogadoresNorm = jogadores.map((j) => ({
+    ...j,
+    timeId: j.timeId ? normalizeTimeId(j.timeId) : undefined,
+  }));
+  return { jogadores: jogadoresNorm, times: timesNorm };
 }
 
 function normalizarStat(valor: number) {
   return Math.max(0, Math.floor(Number(valor) || 0));
 }
 
-export default function DiaPartidasTab({
-  dataIso,
-  aula,
-  jogadores,
-  times,
-}: Props) {
-  const [partidas, setPartidas] = useState<PartidaAula[]>([]);
-  const [carregando, setCarregando] = useState(true);
+export default function DiaPartidasTab({ dataIso, aula }: Props) {
   const [salvando, setSalvando] = useState(false);
 
-  const timesPorId = useMemo(
-    () => Object.fromEntries(times.map((t) => [t.id, t])),
-    [times],
-  );
+  const { estado, setEstado, loading, error, refreshNow } = useAulaEstadoPolling({
+    dataIso,
+    aulaId: Number(aula.id),
+    enabled: true,
+  });
 
-  useEffect(() => {
-    let ativo = true;
-    setCarregando(true);
+  const equipes = useMemo(() => {
+    const eq = estado?.equipes ?? { jogadores: aula.jogadores ?? [], times: aula.times ?? [] };
+    return normalizarEquipes(eq.jogadores ?? [], eq.times ?? []);
+  }, [estado, aula.jogadores, aula.times]);
 
-    listarPartidas(dataIso, aula.id)
-      .then((lista) => {
-        if (!ativo) return;
-        setPartidas(lista);
-      })
-      .catch((err) => {
-        console.error(err);
-        if (ativo) setPartidas([]);
-      })
-      .finally(() => {
-        if (ativo) setCarregando(false);
-      });
-
-    return () => {
-      ativo = false;
-    };
-  }, [dataIso, aula.id]);
+  const partidas = useMemo(() => {
+    return normalizarPartidas(estado?.partidas ?? []);
+  }, [estado?.partidas]);
 
   const jogadoresPorTime = useMemo(() => {
     const map: Record<string, PresencaJogadorDia[]> = {};
-    for (const j of jogadores) {
+    for (const j of equipes.jogadores) {
       if (!j.timeId) continue;
       if (!map[j.timeId]) map[j.timeId] = [];
       map[j.timeId].push(j);
     }
     return map;
-  }, [jogadores]);
+  }, [equipes.jogadores]);
+
+  const timesPorId = useMemo(
+    () => Object.fromEntries(equipes.times.map((t) => [t.id, t])),
+    [equipes.times],
+  );
 
   async function handleCriarPartida() {
-    if (times.length < 2) {
+    if (equipes.times.length < 2) {
       alert("Crie pelo menos 2 times para registrar partidas.");
       return;
     }
 
-    const timeA = times[0];
-    const timeB = times[1];
+    const timeA = equipes.times[0];
+    const timeB = equipes.times[1];
 
     try {
       setSalvando(true);
@@ -114,7 +99,19 @@ export default function DiaPartidasTab({
         timeBId: timeB.id,
         estatisticas: [],
       });
-      setPartidas((prev) => [...prev, nova]);
+      const novaNorm = {
+        ...nova,
+        timeAId: normalizeTimeId(nova.timeAId),
+        timeBId: normalizeTimeId(nova.timeBId),
+        estatisticas: nova.estatisticas ?? [],
+      };
+
+      setEstado((prev) =>
+        prev
+          ? { ...prev, partidas: [...prev.partidas, novaNorm] }
+          : prev,
+      );
+      await refreshNow();
     } catch (err: any) {
       console.error(err);
       alert(err?.message ?? "Erro ao criar partida.");
@@ -126,36 +123,38 @@ export default function DiaPartidasTab({
   async function handleRemoverPartida(id: number) {
     const confirmar = window.confirm("Remover esta partida?");
     if (!confirmar) return;
-    const anterior = [...partidas];
-    setPartidas((prev) => prev.filter((p) => p.id !== id));
+
+    const anterior = partidas;
+    setEstado((prev) =>
+      prev
+        ? { ...prev, partidas: prev.partidas.filter((p) => p.id !== id) }
+        : prev,
+    );
 
     try {
       await deletarPartida(dataIso, aula.id, String(id));
+      await refreshNow();
     } catch (err: any) {
       console.error(err);
       alert(err?.message ?? "Erro ao remover partida.");
-      setPartidas(anterior);
+      setEstado((prev) =>
+        prev
+          ? { ...prev, partidas: anterior }
+          : prev,
+      );
     }
   }
 
-  async function persistirPartida(partida: PartidaAula) {
+  async function persistirPartida(partida: PartidaEstado) {
     setSalvando(true);
     try {
-      const atualizada = await atualizarPartida(
-        dataIso,
-        aula.id,
-        String(partida.id),
-        {
-          ordem: partida.ordem,
-          timeAId: partida.timeAId,
-          timeBId: partida.timeBId,
-          estatisticas: partida.estatisticas,
-        },
-      );
-
-      setPartidas((prev) =>
-        prev.map((p) => (p.id === partida.id ? atualizada : p)),
-      );
+      await atualizarPartida(dataIso, aula.id, String(partida.id), {
+        ordem: partida.ordem,
+        timeAId: partida.timeAId,
+        timeBId: partida.timeBId,
+        estatisticas: partida.estatisticas ?? [],
+      });
+      await refreshNow();
     } catch (err: any) {
       console.error(err);
       alert(err?.message ?? "Erro ao salvar estatisticas da partida.");
@@ -171,23 +170,25 @@ export default function DiaPartidasTab({
     valor: number,
   ) => {
     const novoValor = normalizarStat(valor);
-    let partidaAtualizada: PartidaAula | null = null;
+    let partidaAtualizada: PartidaEstado | null = null;
 
-    setPartidas((prev) =>
-      prev.map((p) => {
+    setEstado((prev) => {
+      if (!prev) return prev;
+      const partidasAtualizadas = prev.partidas.map((p) => {
         if (p.id !== partidaId) return p;
-        const statExistente = p.estatisticas.find(
+        const estatisticas = (p.estatisticas ?? []) as EstatisticaJogadorPartida[];
+        const statExistente = estatisticas.find(
           (s) => s.jogadorAulaId === jogadorId,
         );
 
         let novasStats: EstatisticaJogadorPartida[];
         if (statExistente) {
-          novasStats = p.estatisticas.map((s) =>
+          novasStats = estatisticas.map((s) =>
             s.jogadorAulaId === jogadorId ? { ...s, [campo]: novoValor } : s,
           );
         } else {
           novasStats = [
-            ...p.estatisticas,
+            ...estatisticas,
             {
               jogadorAulaId: jogadorId,
               gols: 0,
@@ -199,18 +200,20 @@ export default function DiaPartidasTab({
             },
           ];
         }
+        const partidaNova = { ...p, estatisticas: novasStats };
+        partidaAtualizada = partidaNova;
+        return partidaNova;
+      });
 
-        partidaAtualizada = { ...p, estatisticas: novasStats };
-        return partidaAtualizada;
-      }),
-    );
+      return { ...prev, partidas: partidasAtualizadas };
+    });
 
     if (partidaAtualizada) {
       void persistirPartida(partidaAtualizada);
     }
   };
 
-  if (carregando) {
+  if (loading && !estado) {
     return <p>Carregando partidas...</p>;
   }
 
@@ -234,7 +237,7 @@ export default function DiaPartidasTab({
           {partidas.map((p) => {
             const jogadoresA = jogadoresPorTime[p.timeAId] ?? [];
             const jogadoresB = jogadoresPorTime[p.timeBId] ?? [];
-            const placar = calcularPlacar(p, jogadores);
+            const placar = { golsA: p.golsTimeA, golsB: p.golsTimeB };
             const timeA = timesPorId[p.timeAId];
             const timeB = timesPorId[p.timeBId];
 
@@ -265,15 +268,7 @@ export default function DiaPartidasTab({
                         titulo={timeA?.nome ?? "Time A"}
                         partidaId={p.id}
                         jogadores={jogadoresA}
-                        getStat={(partidaId, jogadorId, campo) => {
-                          const partida = partidas.find(
-                            (pp) => pp.id === partidaId,
-                          );
-                          const stat = partida?.estatisticas.find(
-                            (s) => s.jogadorAulaId === jogadorId,
-                          );
-                          return stat ? stat[campo] : 0;
-                        }}
+                        partidaStats={p.estatisticas ?? []}
                         onAlterarStat={handleAlterarStat}
                       />
                     </div>
@@ -282,15 +277,7 @@ export default function DiaPartidasTab({
                         titulo={timeB?.nome ?? "Time B"}
                         partidaId={p.id}
                         jogadores={jogadoresB}
-                        getStat={(partidaId, jogadorId, campo) => {
-                          const partida = partidas.find(
-                            (pp) => pp.id === partidaId,
-                          );
-                          const stat = partida?.estatisticas.find(
-                            (s) => s.jogadorAulaId === jogadorId,
-                          );
-                          return stat ? stat[campo] : 0;
-                        }}
+                        partidaStats={p.estatisticas ?? []}
                         onAlterarStat={handleAlterarStat}
                       />
                     </div>
@@ -301,6 +288,12 @@ export default function DiaPartidasTab({
           })}
         </div>
       )}
+
+      {error && (
+        <div className="text-danger" style={{ fontSize: 12 }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
@@ -309,11 +302,7 @@ type TabelaProps = {
   titulo: string;
   partidaId: number;
   jogadores: PresencaJogadorDia[];
-  getStat: (
-    partidaId: number,
-    jogadorId: number,
-    campo: CampoStat,
-  ) => number;
+  partidaStats: EstatisticaJogadorPartida[];
   onAlterarStat: (
     partidaId: number,
     jogadorId: number,
@@ -326,7 +315,7 @@ function TabelaSumulaTime({
   titulo,
   partidaId,
   jogadores,
-  getStat,
+  partidaStats,
   onAlterarStat,
 }: TabelaProps) {
   const campos: CampoStat[] = [
@@ -343,6 +332,14 @@ function TabelaSumulaTime({
     defesas: "D",
     chiliques: "Ch",
     faltas: "F",
+  };
+
+  const getStatValue = (
+    jogadorId: number,
+    campo: CampoStat,
+  ) => {
+    const stat = partidaStats.find((s) => s.jogadorAulaId === jogadorId);
+    return stat ? stat[campo] : 0;
   };
 
   return (
@@ -382,7 +379,7 @@ function TabelaSumulaTime({
                       min={0}
                       className="form-control form-control-sm"
                       style={{ width: 40, fontSize: 10, textAlign: "center" }}
-                      value={getStat(partidaId, j.jogadorId, c)}
+                      value={getStatValue(j.jogadorId, c)}
                       onChange={(e) =>
                         onAlterarStat(
                           partidaId,

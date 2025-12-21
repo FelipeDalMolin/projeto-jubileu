@@ -52,11 +52,16 @@ type PartidaInput = {
   estatisticas?: EstatisticaJogadorPartida[];
 };
 
+function parseTimeId(raw: string): number {
+  const cleaned = raw.startsWith("time-") ? raw.slice(5) : raw;
+  return Number(cleaned);
+}
+
 function toPayload(input: PartidaInput) {
   return {
     ordem: input.ordem,
-    time_a_id: Number(input.timeAId),
-    time_b_id: Number(input.timeBId),
+    time_a_id: parseTimeId(input.timeAId),
+    time_b_id: parseTimeId(input.timeBId),
     estatisticas: (input.estatisticas ?? []).map((e) => ({
       jogador_aula_id: e.jogadorAulaId,
       gols: e.gols ?? 0,

@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { AulaDia, PresencaJogadorDia, TimeDia } from "../../types/dia";
-import {
-  carregarEstadoEquipesAula,
-  salvarEstadoEquipesAula,
-  criarTimeNaAula,
-} from "../../services/diasService";
+import { salvarEstadoEquipesAula, criarTimeNaAula } from "../../services/diasService";
+import { useAulaEstadoPolling } from "../../hooks/useAulaEstadoPolling";
 
 type Props = {
   dataIso: string;
@@ -12,43 +9,36 @@ type Props = {
 };
 
 export default function DiaEquipesTab({ dataIso, aula }: Props) {
-  const [jogadores, setJogadores] = useState<PresencaJogadorDia[]>([]);
-  const [times, setTimes] = useState<TimeDia[]>([]);
-  const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [novoTimeNome, setNovoTimeNome] = useState("");
 
-  useEffect(() => {
-    let ativo = true;
-    setCarregando(true);
+  const { estado, setEstado, loading, refreshNow, error } = useAulaEstadoPolling({
+    dataIso,
+    aulaId: Number(aula.id),
+    enabled: true,
+  });
 
-    carregarEstadoEquipesAula(dataIso, aula.id)
-      .then((snap) => {
-        if (!ativo) return;
+  const normalizeTimeId = (id: string) => (id.startsWith("time-") ? id : `time-${id}`);
 
-        if (snap) {
-          setJogadores(snap.jogadores ?? []);
-          setTimes(snap.times ?? []);
-        } else {
-          setJogadores(aula.jogadores ?? []);
-          setTimes(aula.times ?? []);
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        if (ativo) {
-          setJogadores(aula.jogadores ?? []);
-          setTimes(aula.times ?? []);
-        }
-      })
-      .finally(() => {
-        if (ativo) setCarregando(false);
-      });
+  const equipes = useMemo(() => {
+    const baseJogadores = estado?.equipes?.jogadores ?? aula.jogadores ?? [];
+    const baseTimes = estado?.equipes?.times ?? aula.times ?? [];
 
-    return () => {
-      ativo = false;
-    };
-  }, [dataIso, aula.id, aula.jogadores, aula.times]);
+    const timesNorm: TimeDia[] = baseTimes.map((t) => ({
+      ...t,
+      id: normalizeTimeId(t.id),
+    }));
+
+    const jogadoresNorm: PresencaJogadorDia[] = baseJogadores.map((j) => ({
+      ...j,
+      timeId: j.timeId ? normalizeTimeId(j.timeId) : undefined,
+    }));
+
+    return { jogadores: jogadoresNorm, times: timesNorm };
+  }, [estado, aula.jogadores, aula.times]);
+
+  const jogadores = equipes.jogadores;
+  const times = equipes.times;
 
   const jogadoresDisponiveis = useMemo(
     () => jogadores.filter((j) => !j.timeId),
@@ -61,12 +51,8 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
   ) {
     setSalvando(true);
     try {
-      await salvarEstadoEquipesAula(
-        dataIso,
-        aula.id,
-        jogadoresAtualizados,
-        timesAtualizados,
-      );
+      await salvarEstadoEquipesAula(dataIso, aula.id, jogadoresAtualizados, timesAtualizados);
+      refreshNow();
     } catch (err) {
       console.error(err);
       alert("Erro ao salvar estado das equipes.");
@@ -82,7 +68,16 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
     const novos = jogadores.map((j) =>
       j.jogadorId === jogadorId ? { ...j, timeId: novoTimeId ?? undefined } : j,
     );
-    setJogadores(novos);
+
+    setEstado((prev) =>
+      prev
+        ? {
+            ...prev,
+            equipes: { ...prev.equipes, jogadores: novos },
+          }
+        : prev,
+    );
+
     await salvarEstado(novos, times);
   }
 
@@ -96,10 +91,21 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
     try {
       setSalvando(true);
       const novo = await criarTimeNaAula(dataIso, aula.id, { nome });
-      const timesAtualizados = [...times, novo];
-      setTimes(timesAtualizados);
+      const timeId = normalizeTimeId(novo.id);
+      const timesAtualizados = [...times, { ...novo, id: timeId }];
       setNovoTimeNome("");
+
+      setEstado((prev) =>
+        prev
+          ? {
+              ...prev,
+              equipes: { ...prev.equipes, times: timesAtualizados },
+            }
+          : prev,
+      );
+
       await salvarEstado(jogadores, timesAtualizados);
+      await refreshNow();
     } catch (err: any) {
       console.error(err);
       alert(err?.message ?? "Erro ao criar time.");
@@ -108,7 +114,7 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
     }
   }
 
-  if (carregando) {
+  if (loading && !estado) {
     return <p>Carregando equipes...</p>;
   }
 
@@ -175,6 +181,12 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
           </ul>
         </div>
       ))}
+
+      {error && (
+        <div className="text-danger" style={{ fontSize: 12 }}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,0 +1,30 @@
+import type { PresencaJogadorDia, TimeDia } from "./dia";
+import type { EstatisticaJogadorPartida } from "./dia";
+
+export type PartidaEstado = {
+  id: number;
+  ordem: number;
+  timeAId: string;
+  timeBId: string;
+  golsTimeA: number;
+  golsTimeB: number;
+  estatisticas?: EstatisticaJogadorPartida[] | null;
+};
+
+export type EquipesEstado = {
+  jogadores: PresencaJogadorDia[];
+  times: TimeDia[];
+};
+
+export type AulaEstadoDTO = {
+  aula_id: number;
+  data_iso: string;
+  version: number;
+  updated_at: string;
+  equipes: EquipesEstado;
+  partidas: PartidaEstado[];
+};
+
+export type AulaEstadoResponse =
+  | { status: 204; data?: undefined }
+  | { status: 200; data: AulaEstadoDTO };

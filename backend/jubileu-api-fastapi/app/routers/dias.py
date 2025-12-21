@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, List
+import json
+import zlib
+from datetime import datetime, timezone
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session, selectinload
@@ -19,6 +22,7 @@ from app.models.dia_aula import (
     TimeAula as TimeAulaModel,
     AulaEquipesEstado as AulaEquipesEstadoModel,
     JogadorAula as JogadorAulaModel,
+    Partida as PartidaModel,
     StatusPresencaEnum,
 )
 from app.schemas.dia_aula import (
@@ -30,6 +34,9 @@ from app.schemas.dia_aula import (
     EstadoEquipesAulaIn,
     EstadoEquipesAulaOut,
     PresencaJogadorDiaOut,
+    AulaEstadoOut,
+    PartidaEstadoOut,
+    EstatisticaJogadorPartidaOut,
 )
 
 router = APIRouter(
@@ -371,10 +378,14 @@ def salvar_estado_equipes_aula(
 
     if estado_row:
         estado_row.estado = estado_dict
+        estado_row.version = (estado_row.version or 1) + 1
+        estado_row.updated_at = datetime.now(timezone.utc)
     else:
         estado_row = AulaEquipesEstadoModel(
             aula_id=aula.id,
             estado=estado_dict,
+            version=1,
+            updated_at=datetime.now(timezone.utc),
         )
         db.add(estado_row)
 
@@ -393,4 +404,156 @@ def salvar_estado_equipes_aula(
         aula_id=aula.id,
         jogadores=jogadores,
         times=times,
+    )
+
+
+# ---------------- ESTADO AGREGADO (POLLING) ----------------
+
+
+@router.get(
+    "/{data_iso}/aulas/{aula_id}/estado",
+    response_model=AulaEstadoOut,
+)
+def obter_estado_aula(
+    data_iso: str,
+    aula_id: int,
+    since_version: int | None = None,
+    include_stats: bool = False,
+    db: Session = Depends(get_db),
+):
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(
+            status_code=404,
+            detail="Aula nao encontrada para este dia",
+        )
+
+    estado_row = (
+        db.query(AulaEquipesEstadoModel)
+        .filter(AulaEquipesEstadoModel.aula_id == aula.id)
+        .first()
+    )
+    base_version = estado_row.version if estado_row else 0
+
+    if estado_row:
+        estado_dict: dict[str, Any] = estado_row.estado or {}
+        jogadores_raw = estado_dict.get("jogadores", []) or []
+        times_raw = estado_dict.get("times", []) or []
+        jogadores = [
+            PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw
+        ]
+        times = [TimeAulaOut.model_validate(t) for t in times_raw]
+        updated_at = estado_row.updated_at
+    else:
+        jogadores = []
+        times = []
+        updated_at = datetime.fromtimestamp(0, timezone.utc)
+
+    partidas_db = (
+        db.query(PartidaModel)
+        .options(selectinload(PartidaModel.estatisticas))
+        .filter(PartidaModel.aula_id == aula.id)
+        .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
+        .all()
+    )
+
+    estat_ids = [
+        estat.jogador_aula_id
+        for partida in partidas_db
+        for estat in partida.estatisticas
+    ]
+    jogadores_time_map: dict[int, Optional[int]] = {}
+    if estat_ids:
+        rows = (
+            db.query(JogadorAulaModel.id, JogadorAulaModel.time_id)
+            .filter(JogadorAulaModel.aula_id == aula.id)
+            .filter(JogadorAulaModel.id.in_(estat_ids))
+            .all()
+        )
+        jogadores_time_map = {row.id: row.time_id for row in rows}
+
+    partidas_out: List[PartidaEstadoOut] = []
+    partidas_version_payload: list = []
+    for partida in partidas_db:
+        gols_a = 0
+        gols_b = 0
+        for estat in partida.estatisticas:
+            time_id = jogadores_time_map.get(estat.jogador_aula_id)
+            if time_id == partida.time_a_id:
+                gols_a += estat.gols
+            elif time_id == partida.time_b_id:
+                gols_b += estat.gols
+
+        estat_out = (
+            [
+                EstatisticaJogadorPartidaOut.model_validate(estat)
+                for estat in partida.estatisticas
+            ]
+            if include_stats
+            else None
+        )
+        partidas_out.append(
+            PartidaEstadoOut(
+                id=partida.id,
+                ordem=partida.ordem,
+                timeAId=f"time-{partida.time_a_id}",
+                timeBId=f"time-{partida.time_b_id}",
+                golsTimeA=gols_a,
+                golsTimeB=gols_b,
+                estatisticas=estat_out,
+            )
+        )
+        partidas_version_payload.append(
+            [
+                partida.id,
+                partida.ordem,
+                partida.time_a_id,
+                partida.time_b_id,
+                gols_a,
+                gols_b,
+                [
+                    [
+                        estat.jogador_aula_id,
+                        estat.gols,
+                        estat.assistencias,
+                        estat.defesas,
+                        estat.chiliques,
+                        estat.faltas,
+                    ]
+                    for estat in sorted(
+                        partida.estatisticas,
+                        key=lambda e: (e.id or 0, e.jogador_aula_id),
+                    )
+                ],
+            ]
+        )
+
+    if partidas_version_payload:
+        partidas_version = zlib.crc32(
+            json.dumps(partidas_version_payload, sort_keys=True).encode("utf-8")
+        ) & 0xFFFFFFFF
+    else:
+        partidas_version = 0
+    current_version = max(base_version, partidas_version)
+    if partidas_version != base_version:
+        updated_at = datetime.now(timezone.utc)
+
+    if since_version is not None and since_version == current_version:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    return AulaEstadoOut(
+        aula_id=aula.id,
+        data_iso=dia.data_iso,
+        version=current_version,
+        updated_at=updated_at,
+        equipes={"jogadores": jogadores, "times": times},
+        partidas=partidas_out,
     )

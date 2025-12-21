@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -127,6 +128,30 @@ class PartidaOut(BaseModel):
     )
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PartidaEstadoOut(BaseModel):
+    id: int
+    ordem: int
+    timeAId: str
+    timeBId: str
+    golsTimeA: int
+    golsTimeB: int
+    estatisticas: Optional[List[EstatisticaJogadorPartidaOut]] = None
+
+
+class EquipesEstadoOut(BaseModel):
+    jogadores: List[PresencaJogadorDiaOut] = Field(default_factory=list)
+    times: List[TimeAulaOut] = Field(default_factory=list)
+
+
+class AulaEstadoOut(BaseModel):
+    aula_id: int
+    data_iso: str
+    version: int
+    updated_at: datetime
+    equipes: EquipesEstadoOut
+    partidas: List[PartidaEstadoOut] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------

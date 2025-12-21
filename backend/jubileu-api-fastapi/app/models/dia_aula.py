@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 import enum
+from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Integer, String, Enum as SAEnum, ForeignKey, JSON
+from sqlalchemy import (
+    Integer,
+    String,
+    Enum as SAEnum,
+    ForeignKey,
+    JSON,
+    DateTime,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -135,6 +145,17 @@ class AulaEquipesEstado(Base):
     )
     # JSON com snapshot: { jogadores: [...], times: [...] }
     estado: Mapped[dict] = mapped_column(JSON, nullable=False)
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default=text("1"),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
 
     aula: Mapped["Aula"] = relationship(
         "Aula",
