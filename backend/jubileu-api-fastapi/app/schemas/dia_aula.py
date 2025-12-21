@@ -78,17 +78,53 @@ class EstadoEquipesAulaOut(EstadoEquipesAulaIn):
 
 
 # ---------------------------------------------------------
-# PARTIDA (por enquanto so para futuro uso)
+# PARTIDA / ESTATISTICAS
 # ---------------------------------------------------------
+
+
+class EstatisticaJogadorPartidaBase(BaseModel):
+    jogador_aula_id: int
+    gols: int = Field(0, ge=0)
+    assistencias: int = Field(0, ge=0)
+    defesas: int = Field(0, ge=0)
+    chiliques: int = Field(0, ge=0)
+    faltas: int = Field(0, ge=0)
+    nota: Optional[int] = None
+
+
+class EstatisticaJogadorPartidaOut(EstatisticaJogadorPartidaBase):
+    id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PartidaCreate(BaseModel):
+    ordem: Optional[int] = None
+    time_a_id: int
+    time_b_id: int
+    estatisticas: List[EstatisticaJogadorPartidaBase] = Field(
+        default_factory=list
+    )
+
+
+class PartidaUpdate(BaseModel):
+    ordem: Optional[int] = None
+    time_a_id: Optional[int] = None
+    time_b_id: Optional[int] = None
+    estatisticas: Optional[List[EstatisticaJogadorPartidaBase]] = None
 
 
 class PartidaOut(BaseModel):
     id: int
+    aula_id: int
     ordem: int
     time_a_id: int
     time_b_id: int
     gols_time_a: int
     gols_time_b: int
+    estatisticas: List[EstatisticaJogadorPartidaOut] = Field(
+        default_factory=list
+    )
 
     model_config = ConfigDict(from_attributes=True)
 

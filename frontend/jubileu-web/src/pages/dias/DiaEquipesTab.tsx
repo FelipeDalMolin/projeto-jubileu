@@ -1,161 +1,172 @@
-// src/pages/dias/DiaEquipesTab.tsx
-import { useEffect, useState } from "react";
-import type { AulaDia, PresencaJogadorDia } from "../../types/dia";
-import type {
-  EstadoEquipesDia,
-  JogadorEquipeView,
-  EquipeView,
-} from "../../types/equipes";
+import { useEffect, useMemo, useState } from "react";
+import type { AulaDia, PresencaJogadorDia, TimeDia } from "../../types/dia";
 import {
-  obterEstadoEquipes,
-  salvarEstadoEquipes,
-} from "../../services/equipesService";
+  carregarEstadoEquipesAula,
+  salvarEstadoEquipesAula,
+  criarTimeNaAula,
+} from "../../services/diasService";
 
 type Props = {
+  dataIso: string;
   aula: AulaDia;
 };
 
-function montarEstadoInicial(aula: AulaDia): EstadoEquipesDia {
-  const diaId = aula.id;
-
-  const jogadores: JogadorEquipeView[] = aula.jogadores.map(
-    (pj: PresencaJogadorDia) => ({
-      id: pj.jogadorId,
-      nome: pj.nome,
-      equipeId: null,
-    })
-  );
-
-  const equipes: EquipeView[] = aula.times.map((t, index) => ({
-    id: index + 1,
-    nome: t.nome,
-  }));
-
-  return {
-    diaId,
-    jogadores,
-    equipes,
-    atribuicoes: [],
-  };
-}
-
-export default function DiaEquipesTab({ aula }: Props) {
-  const chaveAula = aula.id;
-
-  const [estado, setEstado] = useState<EstadoEquipesDia | null>(null);
+export default function DiaEquipesTab({ dataIso, aula }: Props) {
+  const [jogadores, setJogadores] = useState<PresencaJogadorDia[]>([]);
+  const [times, setTimes] = useState<TimeDia[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [novoTimeNome, setNovoTimeNome] = useState("");
 
-  // Carrega do backend + polling
   useEffect(() => {
     let ativo = true;
+    setCarregando(true);
 
-    async function carregar() {
-      try {
-        const daApi = await obterEstadoEquipes(chaveAula);
+    carregarEstadoEquipesAula(dataIso, aula.id)
+      .then((snap) => {
+        if (!ativo) return;
 
-        if (daApi.jogadores.length === 0 && aula.jogadores.length > 0) {
-          const inicial = montarEstadoInicial(aula);
-          const salvo = await salvarEstadoEquipes(chaveAula, inicial);
-          if (!ativo) return;
-          setEstado(salvo);
+        if (snap) {
+          setJogadores(snap.jogadores ?? []);
+          setTimes(snap.times ?? []);
         } else {
-          if (!ativo) return;
-          setEstado(daApi);
+          setJogadores(aula.jogadores ?? []);
+          setTimes(aula.times ?? []);
         }
-      } catch (e) {
-        console.error(e);
-      } finally {
+      })
+      .catch((err) => {
+        console.error(err);
+        if (ativo) {
+          setJogadores(aula.jogadores ?? []);
+          setTimes(aula.times ?? []);
+        }
+      })
+      .finally(() => {
         if (ativo) setCarregando(false);
-      }
-    }
-
-    carregar();
-
-    const intervalId = setInterval(() => {
-      obterEstadoEquipes(chaveAula)
-        .then((nov) => {
-          if (!ativo) return;
-          setEstado(nov);
-        })
-        .catch((e) => console.error(e));
-    }, 3000);
+      });
 
     return () => {
       ativo = false;
-      clearInterval(intervalId);
     };
-  }, [chaveAula, aula]);
+  }, [dataIso, aula.id, aula.jogadores, aula.times]);
 
-  async function moverJogador(
-    jogadorId: number,
-    novaEquipeId: number | null
-  ): Promise<void> {
-    if (!estado) return;
+  const jogadoresDisponiveis = useMemo(
+    () => jogadores.filter((j) => !j.timeId),
+    [jogadores],
+  );
 
-    const novasAtribuicoes = [
-      ...estado.atribuicoes.filter((a) => a.jogadorId !== jogadorId),
-      { jogadorId, equipeId: novaEquipeId },
-    ];
-
-    const novosJogadores = estado.jogadores.map((j) =>
-      j.id === jogadorId ? { ...j, equipeId: novaEquipeId } : j
-    );
-
-    const novoEstado: EstadoEquipesDia = {
-      ...estado,
-      jogadores: novosJogadores,
-      atribuicoes: novasAtribuicoes,
-    };
-
-    setEstado(novoEstado);
-
+  async function salvarEstado(
+    jogadoresAtualizados: PresencaJogadorDia[],
+    timesAtualizados: TimeDia[],
+  ) {
+    setSalvando(true);
     try {
-      await salvarEstadoEquipes(chaveAula, novoEstado);
-    } catch (e) {
-      console.error(e);
+      await salvarEstadoEquipesAula(
+        dataIso,
+        aula.id,
+        jogadoresAtualizados,
+        timesAtualizados,
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao salvar estado das equipes.");
+    } finally {
+      setSalvando(false);
     }
   }
 
-  if (carregando || !estado) {
-    return <div>Carregando equipes...</div>;
+  async function moverJogador(
+    jogadorId: number,
+    novoTimeId: string | null,
+  ) {
+    const novos = jogadores.map((j) =>
+      j.jogadorId === jogadorId ? { ...j, timeId: novoTimeId ?? undefined } : j,
+    );
+    setJogadores(novos);
+    await salvarEstado(novos, times);
+  }
+
+  async function handleCriarTime() {
+    const nome = novoTimeNome.trim();
+    if (!nome) {
+      alert("Informe um nome para o time.");
+      return;
+    }
+
+    try {
+      setSalvando(true);
+      const novo = await criarTimeNaAula(dataIso, aula.id, { nome });
+      const timesAtualizados = [...times, novo];
+      setTimes(timesAtualizados);
+      setNovoTimeNome("");
+      await salvarEstado(jogadores, timesAtualizados);
+    } catch (err: any) {
+      console.error(err);
+      alert(err?.message ?? "Erro ao criar time.");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  if (carregando) {
+    return <p>Carregando equipes...</p>;
   }
 
   return (
     <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
       <div style={{ minWidth: 260 }}>
-        <h3>Jogadores disponíveis (sincronizado)</h3>
+        <div className="d-flex align-items-center gap-2 mb-2">
+          <input
+            type="text"
+            className="form-control form-control-sm"
+            placeholder="Novo time"
+            value={novoTimeNome}
+            onChange={(e) => setNovoTimeNome(e.target.value)}
+          />
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleCriarTime}
+            disabled={salvando}
+          >
+            Adicionar
+          </button>
+        </div>
+
+        <h3>Jogadores disponiveis</h3>
         <ul style={{ paddingLeft: 16 }}>
-          {estado.jogadores
-            .filter((j) => j.equipeId === null)
-            .map((j) => (
-              <li key={j.id} style={{ marginBottom: 4 }}>
-                {j.nome}
-                {estado.equipes.map((e) => (
-                  <button
-                    key={e.id}
-                    style={{ marginLeft: 8 }}
-                    onClick={() => moverJogador(j.id, e.id)}
-                  >
-                    Mandar para {e.nome}
-                  </button>
-                ))}
-              </li>
-            ))}
+          {jogadoresDisponiveis.map((j) => (
+            <li key={j.jogadorId} style={{ marginBottom: 4 }}>
+              {j.nome}
+              {times.map((t) => (
+                <button
+                  key={t.id}
+                  className="btn btn-link btn-sm"
+                  style={{ marginLeft: 8 }}
+                  onClick={() => moverJogador(j.jogadorId, t.id)}
+                  disabled={salvando}
+                >
+                  Mandar para {t.nome}
+                </button>
+              ))}
+            </li>
+          ))}
         </ul>
       </div>
 
-      {estado.equipes.map((e) => (
-        <div key={e.id} style={{ minWidth: 220 }}>
-          <h3>{e.nome}</h3>
+      {times.map((t) => (
+        <div key={t.id} style={{ minWidth: 220 }}>
+          <h3>{t.nome}</h3>
           <ul style={{ paddingLeft: 16 }}>
-            {estado.jogadores
-              .filter((j) => j.equipeId === e.id)
+            {jogadores
+              .filter((j) => j.timeId === t.id)
               .map((j) => (
-                <li key={j.id} style={{ marginBottom: 4 }}>
+                <li key={j.jogadorId} style={{ marginBottom: 4 }}>
                   {j.nome}
                   <button
+                    className="btn btn-link btn-sm"
                     style={{ marginLeft: 8 }}
-                    onClick={() => moverJogador(j.id, null)}
+                    onClick={() => moverJogador(j.jogadorId, null)}
+                    disabled={salvando}
                   >
                     Remover
                   </button>

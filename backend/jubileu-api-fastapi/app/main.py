@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import jogadores, dias, turmas
+from app.routers import jogadores, dias, turmas, partidas
 
 app = FastAPI(
     title="Jubileu API",
@@ -32,3 +32,4 @@ def read_root():
 app.include_router(jogadores.router)
 app.include_router(dias.router)
 app.include_router(turmas.router)
+app.include_router(partidas.router)

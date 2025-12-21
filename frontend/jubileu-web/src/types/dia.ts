@@ -5,7 +5,7 @@ export type EquipeDia = {
   corCamisa?: string;
 };
 
-// Status de presença/frequência no dia
+// Status de presenca/frequencia no dia
 export type StatusPresenca =
   | "presente"
   | "faltou"
@@ -19,13 +19,14 @@ export type JogadorDia = {
   nome: string;
   apelido?: string;
   status?: StatusPresenca;
-  // null/undefined = está no pool de jogadores disponíveis (sem equipe)
+  // null/undefined = esta no pool de jogadores disponiveis (sem equipe)
   equipeId?: number | null;
 };
 
-// Estatística de um jogador dentro de UMA partida
+// Estatistica de um jogador dentro de UMA partida
 export type EstatisticaJogadorPartida = {
-  jogadorId: number;
+  id?: number;
+  jogadorAulaId: number;
   gols: number;
   assistencias: number;
   defesas: number;
@@ -34,14 +35,15 @@ export type EstatisticaJogadorPartida = {
   nota?: number;
 };
 
-// Partida do dia
-export type PartidaDia = {
+// Partida da aula
+export type PartidaAula = {
   id: number;
-  equipeAId: number;
-  equipeBId: number;
-  golsEquipeA: number;
-  golsEquipeB: number;
-  // você pode acrescentar depois: tempo, local, observações etc.
+  ordem: number;
+  timeAId: string;
+  timeBId: string;
+  golsTimeA: number;
+  golsTimeB: number;
+  estatisticas: EstatisticaJogadorPartida[];
 };
 
 // --------------------------------------------------------------
@@ -54,7 +56,7 @@ export type StatusAula =
   | "CONCLUIDA"
   | "CANCELADA";
 
-// Atributos agregados de um jogador ao longo da AULA (não de uma partida específica)
+// Atributos agregados de um jogador ao longo da AULA (nao de uma partida especifica)
 export type AtributosJogadorDia = {
   gols: number;
   assistencias: number;
@@ -63,7 +65,7 @@ export type AtributosJogadorDia = {
   faltas: number;
 };
 
-// Presença + atributos de um jogador dentro da AULA
+// Presenca + atributos de um jogador dentro da AULA
 export interface PresencaJogadorDia {
   jogadorId: number;
   nome: string;
@@ -73,7 +75,7 @@ export interface PresencaJogadorDia {
   // NOVOS CAMPOS (opcionais)
   ativoNaTurma?: boolean;
   podeJogar?: boolean;
-};
+}
 
 // Time dentro de uma AULA
 export type TimeDia = {
@@ -92,7 +94,7 @@ export type AulaDia = {
   turmaId: number;
   turmaNome: string;
   /**
-   * Número sequencial da aula da turma (ex.: Aula #12 da turma Sub-11).
+   * Numero sequencial da aula da turma (ex.: Aula #12 da turma Sub-11).
    */
   numeroAulaNaTurma: number;
   tipo: TipoEventoAula;
@@ -102,8 +104,8 @@ export type AulaDia = {
   jogadores: PresencaJogadorDia[];
   times: TimeDia[];
   /**
-   * Quantidade de partidas já configuradas para esta aula.
-   * Depois você pode trocar por um array de PartidaDia específico da aula.
+   * Quantidade de partidas ja configuradas para esta aula.
+   * Depois voce pode trocar por um array de PartidaAula especifico da aula.
    */
   partidasCount: number;
 };
@@ -115,16 +117,16 @@ export type FeriadoInfo = {
   tipo: TipoFeriado;
 };
 
-// Dia na agenda (é o que vamos usar em /dias e /dias/:dataIso)
+// Dia na agenda (e o que vamos usar em /dias e /dias/:dataIso)
 export type Dia = {
   /**
    * Data em formato ISO (YYYY-MM-DD).
-   * Também é usada na URL: /dias/:dataIso
+   * Tambem e usada na URL: /dias/:dataIso
    */
   dataIso: string;
   aulas: AulaDia[];
   /**
-   * Informações de feriado, se houver.
+   * Informacoes de feriado, se houver.
    * Pode vir de API externa + feriados cadastrados do clube.
    */
   feriado?: FeriadoInfo | null;
