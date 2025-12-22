@@ -22,11 +22,7 @@ router = APIRouter(
 )
 
 
-def _obter_aula_ou_404(
-    db: Session,
-    data_iso: str,
-    aula_id: int,
-) -> AulaModel:
+def _obter_aula_ou_404(db: Session, data_iso: str, aula_id: int) -> AulaModel:
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
         raise HTTPException(status_code=404, detail="Dia nao encontrado")
@@ -37,22 +33,13 @@ def _obter_aula_ou_404(
         .first()
     )
     if not aula:
-        raise HTTPException(
-            status_code=404, detail="Aula nao encontrada para este dia"
-        )
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
     return aula
 
 
-def _validar_times_na_aula(
-    db: Session,
-    aula_id: int,
-    time_a_id: int,
-    time_b_id: int,
-) -> None:
+def _validar_times_na_aula(db: Session, aula_id: int, time_a_id: int, time_b_id: int) -> None:
     if time_a_id == time_b_id:
-        raise HTTPException(
-            status_code=400, detail="time_a_id e time_b_id devem ser diferentes"
-        )
+        raise HTTPException(status_code=400, detail="time_a_id e time_b_id devem ser diferentes")
 
     times = (
         db.query(TimeAulaModel)
@@ -64,16 +51,10 @@ def _validar_times_na_aula(
     )
 
     if len(times) != 2:
-        raise HTTPException(
-            status_code=400, detail="Times informados nao pertencem a aula"
-        )
+        raise HTTPException(status_code=400, detail="Times informados nao pertencem a aula")
 
 
-def _mapear_jogadores_da_aula(
-    db: Session,
-    aula_id: int,
-    jogador_ids: List[int],
-) -> dict[int, JogadorAulaModel]:
+def _mapear_jogadores_da_aula(db: Session, aula_id: int, jogador_ids: List[int]) -> dict[int, JogadorAulaModel]:
     if not jogador_ids:
         return {}
 
@@ -134,6 +115,11 @@ def _calcular_placar(
     return gols_a, gols_b
 
 
+def _to_partida_out(partida: PartidaModel) -> PartidaOut:
+    # ✅ Conversão explícita (Pydantic v2)
+    return PartidaOut.model_validate(partida, from_attributes=True)
+
+
 @router.get(
     "/{data_iso}/aulas/{aula_id}/partidas",
     response_model=List[PartidaOut],
@@ -147,34 +133,22 @@ def listar_partidas(
 
     partidas = (
         db.query(PartidaModel)
-        .options(
-            selectinload(PartidaModel.estatisticas).selectinload(
-                EstatisticaModel.jogador_aula
-            )
-        )
+        .options(selectinload(PartidaModel.estatisticas))
         .filter(PartidaModel.aula_id == aula.id)
         .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
         .all()
     )
 
-    ids_jogadores = [
-        estat.jogador_aula_id
-        for partida in partidas
-        for estat in partida.estatisticas
-    ]
+    ids_jogadores = [estat.jogador_aula_id for partida in partidas for estat in partida.estatisticas]
     jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
 
+    # recalcula placar em memória (não precisa persistir)
     for partida in partidas:
-        gols_a, gols_b = _calcular_placar(
-            partida.estatisticas,
-            jogadores_por_id,
-            partida.time_a_id,
-            partida.time_b_id,
-        )
+        gols_a, gols_b = _calcular_placar(partida.estatisticas, jogadores_por_id, partida.time_a_id, partida.time_b_id)
         partida.gols_time_a = gols_a
         partida.gols_time_b = gols_b
 
-    return partidas
+    return [_to_partida_out(p) for p in partidas]
 
 
 @router.post(
@@ -189,30 +163,16 @@ def criar_partida(
     db: Session = Depends(get_db),
 ) -> PartidaOut:
     aula = _obter_aula_ou_404(db, data_iso, aula_id)
-    _validar_times_na_aula(
-        db,
-        aula_id=aula.id,
-        time_a_id=payload.time_a_id,
-        time_b_id=payload.time_b_id,
-    )
+    _validar_times_na_aula(db, aula_id=aula.id, time_a_id=payload.time_a_id, time_b_id=payload.time_b_id)
 
     ordem = payload.ordem
     if ordem is None:
-        total = (
-            db.query(PartidaModel)
-            .filter(PartidaModel.aula_id == aula.id)
-            .count()
-        )
+        total = db.query(PartidaModel).filter(PartidaModel.aula_id == aula.id).count()
         ordem = total + 1
 
     ids_jogadores = [e.jogador_aula_id for e in payload.estatisticas]
     jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
-    gols_a, gols_b = _calcular_placar(
-        payload.estatisticas,
-        jogadores_por_id,
-        payload.time_a_id,
-        payload.time_b_id,
-    )
+    gols_a, gols_b = _calcular_placar(payload.estatisticas, jogadores_por_id, payload.time_a_id, payload.time_b_id)
 
     nova_partida = PartidaModel(
         aula_id=aula.id,
@@ -239,7 +199,7 @@ def criar_partida(
     db.add(nova_partida)
     db.commit()
     db.refresh(nova_partida, attribute_names=["estatisticas"])
-    return nova_partida
+    return _to_partida_out(nova_partida)
 
 
 @router.put(
@@ -254,45 +214,28 @@ def atualizar_partida(
     db: Session = Depends(get_db),
 ) -> PartidaOut:
     aula = _obter_aula_ou_404(db, data_iso, aula_id)
+
     partida = (
         db.query(PartidaModel)
         .options(selectinload(PartidaModel.estatisticas))
         .filter(PartidaModel.id == partida_id, PartidaModel.aula_id == aula.id)
         .first()
     )
-
     if not partida:
-        raise HTTPException(
-            status_code=404, detail="Partida nao encontrada para esta aula"
-        )
+        raise HTTPException(status_code=404, detail="Partida nao encontrada para esta aula")
 
-    novo_time_a_id = (
-        payload.time_a_id if payload.time_a_id is not None else partida.time_a_id
-    )
-    novo_time_b_id = (
-        payload.time_b_id if payload.time_b_id is not None else partida.time_b_id
-    )
-    _validar_times_na_aula(
-        db,
-        aula_id=aula.id,
-        time_a_id=novo_time_a_id,
-        time_b_id=novo_time_b_id,
-    )
+    novo_time_a_id = payload.time_a_id if payload.time_a_id is not None else partida.time_a_id
+    novo_time_b_id = payload.time_b_id if payload.time_b_id is not None else partida.time_b_id
+
+    _validar_times_na_aula(db, aula_id=aula.id, time_a_id=novo_time_a_id, time_b_id=novo_time_b_id)
 
     if payload.ordem is not None:
         partida.ordem = payload.ordem
 
     if payload.estatisticas is not None:
         ids_jogadores = [e.jogador_aula_id for e in payload.estatisticas]
-        jogadores_por_id = _mapear_jogadores_da_aula(
-            db, aula.id, ids_jogadores
-        )
-        gols_a, gols_b = _calcular_placar(
-            payload.estatisticas,
-            jogadores_por_id,
-            novo_time_a_id,
-            novo_time_b_id,
-        )
+        jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+        gols_a, gols_b = _calcular_placar(payload.estatisticas, jogadores_por_id, novo_time_a_id, novo_time_b_id)
 
         partida.estatisticas.clear()
         for estat in payload.estatisticas:
@@ -309,15 +252,8 @@ def atualizar_partida(
             )
     else:
         ids_jogadores = [e.jogador_aula_id for e in partida.estatisticas]
-        jogadores_por_id = _mapear_jogadores_da_aula(
-            db, aula.id, ids_jogadores
-        )
-        gols_a, gols_b = _calcular_placar(
-            partida.estatisticas,
-            jogadores_por_id,
-            novo_time_a_id,
-            novo_time_b_id,
-        )
+        jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+        gols_a, gols_b = _calcular_placar(partida.estatisticas, jogadores_por_id, novo_time_a_id, novo_time_b_id)
 
     partida.time_a_id = novo_time_a_id
     partida.time_b_id = novo_time_b_id
@@ -326,7 +262,7 @@ def atualizar_partida(
 
     db.commit()
     db.refresh(partida, attribute_names=["estatisticas"])
-    return partida
+    return _to_partida_out(partida)
 
 
 @router.delete(
@@ -346,11 +282,8 @@ def deletar_partida(
         .filter(PartidaModel.id == partida_id, PartidaModel.aula_id == aula_id)
         .first()
     )
-
     if not partida:
-        raise HTTPException(
-            status_code=404, detail="Partida nao encontrada para esta aula"
-        )
+        raise HTTPException(status_code=404, detail="Partida nao encontrada para esta aula")
 
     db.delete(partida)
     db.commit()

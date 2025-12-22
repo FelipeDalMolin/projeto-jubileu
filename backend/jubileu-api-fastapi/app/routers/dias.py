@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import zlib
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Sequence
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session, selectinload
@@ -37,13 +37,13 @@ from app.schemas.dia_aula import (
     AulaEstadoOut,
     PartidaEstadoOut,
     EstatisticaJogadorPartidaOut,
+    EquipesEstadoOut,
 )
 
 router = APIRouter(
-  prefix="/dias",
-  tags=["Dias"],
+    prefix="/dias",
+    tags=["Dias"],
 )
-
 
 # ---------------- DIA ----------------
 
@@ -51,13 +51,13 @@ router = APIRouter(
 @router.get("/", response_model=List[DiaOut])
 def listar_dias(db: Session = Depends(get_db)) -> List[DiaOut]:
     """Lista todos os dias cadastrados (ordenados por data_iso)."""
-    return (
+    dias = (
         db.query(DiaModel)
         .options(selectinload(DiaModel.aulas).selectinload(AulaModel.jogadores))
         .order_by(DiaModel.data_iso.asc())
         .all()
     )
-
+    return [DiaOut.model_validate(d, from_attributes=True) for d in dias]
 
 @router.get("/{data_iso}", response_model=DiaOut)
 def obter_dia_por_data(data_iso: str, db: Session = Depends(get_db)) -> DiaOut:
@@ -119,9 +119,7 @@ def criar_aula_no_dia(
         .order_by(AulaModel.numero_aula_na_turma.desc())
         .first()
     )
-    novo_numero = (
-        (ultima_aula.numero_aula_na_turma or 0) + 1 if ultima_aula else 1
-    )
+    novo_numero = (ultima_aula.numero_aula_na_turma or 0) + 1 if ultima_aula else 1
 
     aula = AulaModel(
         dia_id=dia.id,
@@ -185,10 +183,7 @@ def obter_aula_no_dia(
         .first()
     )
     if not aula:
-        raise HTTPException(
-            status_code=404,
-            detail="Aula nao encontrada para este dia",
-        )
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
     return aula
 
 
@@ -211,10 +206,7 @@ def deletar_aula_no_dia(
         .first()
     )
     if not aula:
-        raise HTTPException(
-            status_code=404,
-            detail="Aula nao encontrada para este dia",
-        )
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
 
     db.delete(aula)
     db.commit()
@@ -237,8 +229,6 @@ def criar_time_na_aula(
 ) -> TimeAulaOut:
     """
     Cria um novo time (TimeAula) dentro de uma aula especifica de um dia.
-
-    Usado diretamente pela tela de Aula (botao "Adicionar equipe").
     """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
@@ -250,10 +240,7 @@ def criar_time_na_aula(
         .first()
     )
     if not aula:
-        raise HTTPException(
-            status_code=404,
-            detail="Aula nao encontrada para este dia",
-        )
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
 
     novo_time = TimeAulaModel(
         aula_id=aula.id,
@@ -265,7 +252,6 @@ def criar_time_na_aula(
     db.commit()
     db.refresh(novo_time)
 
-    # Transformamos o modelo de banco no DTO que o front espera
     return TimeAulaOut(
         id=str(novo_time.id),
         nome=novo_time.nome,
@@ -287,11 +273,6 @@ def obter_estado_equipes_aula(
     aula_id: int,
     db: Session = Depends(get_db),
 ) -> EstadoEquipesAulaOut:
-    """
-    Retorna o snapshot JSON do estado das equipes de uma aula.
-
-    Usado para sincronizar separacao de times entre clientes.
-    """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
         raise HTTPException(status_code=404, detail="Dia nao encontrado")
@@ -302,10 +283,7 @@ def obter_estado_equipes_aula(
         .first()
     )
     if not aula:
-        raise HTTPException(
-            status_code=404,
-            detail="Aula nao encontrada para este dia",
-        )
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
 
     estado_row = (
         db.query(AulaEquipesEstadoModel)
@@ -314,27 +292,16 @@ def obter_estado_equipes_aula(
     )
 
     if not estado_row:
-        # estado inicial vazio
-        return EstadoEquipesAulaOut(
-            aula_id=aula.id,
-            jogadores=[],
-            times=[],
-        )
+        return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=[], times=[])
 
     estado_dict: dict[str, Any] = estado_row.estado or {}
     jogadores_raw = estado_dict.get("jogadores", []) or []
     times_raw = estado_dict.get("times", []) or []
 
-    jogadores = [
-        PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw
-    ]
+    jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]
     times = [TimeAulaOut.model_validate(t) for t in times_raw]
 
-    return EstadoEquipesAulaOut(
-        aula_id=aula.id,
-        jogadores=jogadores,
-        times=times,
-    )
+    return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=jogadores, times=times)
 
 
 @router.put(
@@ -347,9 +314,6 @@ def salvar_estado_equipes_aula(
     payload: EstadoEquipesAulaIn,
     db: Session = Depends(get_db),
 ) -> EstadoEquipesAulaOut:
-    """
-    Salva (ou atualiza) o snapshot JSON do estado das equipes de uma aula.
-    """
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
         raise HTTPException(status_code=404, detail="Dia nao encontrado")
@@ -360,10 +324,7 @@ def salvar_estado_equipes_aula(
         .first()
     )
     if not aula:
-        raise HTTPException(
-            status_code=404,
-            detail="Aula nao encontrada para este dia",
-        )
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
 
     estado_dict: dict[str, Any] = {
         "jogadores": [j.model_dump() for j in payload.jogadores],
@@ -392,19 +353,10 @@ def salvar_estado_equipes_aula(
     db.commit()
     db.refresh(estado_row)
 
-    jogadores = [
-        PresencaJogadorDiaOut.model_validate(j)
-        for j in estado_dict["jogadores"]
-    ]
-    times = [
-        TimeAulaOut.model_validate(t) for t in estado_dict["times"]
-    ]
+    jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in estado_dict["jogadores"]]
+    times = [TimeAulaOut.model_validate(t) for t in estado_dict["times"]]
 
-    return EstadoEquipesAulaOut(
-        aula_id=aula.id,
-        jogadores=jogadores,
-        times=times,
-    )
+    return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=jogadores, times=times)
 
 
 # ---------------- ESTADO AGREGADO (POLLING) ----------------
@@ -420,7 +372,7 @@ def obter_estado_aula(
     since_version: int | None = None,
     include_stats: bool = False,
     db: Session = Depends(get_db),
-):
+) -> AulaEstadoOut | Response:
     dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
     if not dia:
         raise HTTPException(status_code=404, detail="Dia nao encontrado")
@@ -431,27 +383,23 @@ def obter_estado_aula(
         .first()
     )
     if not aula:
-        raise HTTPException(
-            status_code=404,
-            detail="Aula nao encontrada para este dia",
-        )
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
 
     estado_row = (
         db.query(AulaEquipesEstadoModel)
         .filter(AulaEquipesEstadoModel.aula_id == aula.id)
         .first()
     )
-    base_version = estado_row.version if estado_row else 0
+
+    base_version = int(estado_row.version) if estado_row and estado_row.version is not None else 0
 
     if estado_row:
         estado_dict: dict[str, Any] = estado_row.estado or {}
         jogadores_raw = estado_dict.get("jogadores", []) or []
         times_raw = estado_dict.get("times", []) or []
-        jogadores = [
-            PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw
-        ]
+        jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]
         times = [TimeAulaOut.model_validate(t) for t in times_raw]
-        updated_at = estado_row.updated_at
+        updated_at = estado_row.updated_at or datetime.fromtimestamp(0, timezone.utc)
     else:
         jogadores = []
         times = []
@@ -470,6 +418,7 @@ def obter_estado_aula(
         for partida in partidas_db
         for estat in partida.estatisticas
     ]
+
     jogadores_time_map: dict[int, Optional[int]] = {}
     if estat_ids:
         rows = (
@@ -482,6 +431,7 @@ def obter_estado_aula(
 
     partidas_out: List[PartidaEstadoOut] = []
     partidas_version_payload: list = []
+
     for partida in partidas_db:
         gols_a = 0
         gols_b = 0
@@ -493,24 +443,23 @@ def obter_estado_aula(
                 gols_b += estat.gols
 
         estat_out = (
-            [
-                EstatisticaJogadorPartidaOut.model_validate(estat)
-                for estat in partida.estatisticas
-            ]
+            [EstatisticaJogadorPartidaOut.model_validate(estat) for estat in partida.estatisticas]
             if include_stats
             else None
         )
+
         partidas_out.append(
             PartidaEstadoOut(
                 id=partida.id,
                 ordem=partida.ordem,
-                timeAId=f"time-{partida.time_a_id}",
-                timeBId=f"time-{partida.time_b_id}",
+                timeAId=str(partida.time_a_id),
+                timeBId=str(partida.time_b_id),
                 golsTimeA=gols_a,
                 golsTimeB=gols_b,
                 estatisticas=estat_out,
             )
         )
+
         partidas_version_payload.append(
             [
                 partida.id,
@@ -537,14 +486,14 @@ def obter_estado_aula(
         )
 
     if partidas_version_payload:
-        partidas_version = zlib.crc32(
-            json.dumps(partidas_version_payload, sort_keys=True).encode("utf-8")
+        partidas_crc32 = zlib.crc32(
+            json.dumps(partidas_version_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         ) & 0xFFFFFFFF
     else:
-        partidas_version = 0
-    current_version = max(base_version, partidas_version)
-    if partidas_version != base_version:
-        updated_at = datetime.now(timezone.utc)
+        partidas_crc32 = 0
+
+    # ✅ Versão combinada estável: muda se equipes OU partidas mudarem
+    current_version = (base_version << 32) | partidas_crc32
 
     if since_version is not None and since_version == current_version:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -554,6 +503,6 @@ def obter_estado_aula(
         data_iso=dia.data_iso,
         version=current_version,
         updated_at=updated_at,
-        equipes={"jogadores": jogadores, "times": times},
+        equipes=EquipesEstadoOut(jogadores=jogadores, times=times),
         partidas=partidas_out,
     )
