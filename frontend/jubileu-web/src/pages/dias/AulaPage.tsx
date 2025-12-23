@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ChangeEvent,
   type DragEvent,
   type ReactNode,
@@ -17,6 +18,7 @@ import {
   carregarEstadoEquipesAula,
   salvarEstadoEquipesAula,
 } from "../../services/diasService";
+import { obterEstadoAula } from "../../services/aulaEstadoService";
 
 import type {
   AulaDia,
@@ -71,6 +73,8 @@ export default function AulaPage() {
   const [times, setTimes] = useState<TimeAula[]>([]);
   const [partidas, setPartidas] = useState<PartidaAula[]>([]);
   const [stats, setStats] = useState<StatsPartidas>({});
+  const [pollVersion, setPollVersion] = useState<number | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
 
   const [filtroNome, setFiltroNome] = useState<string>("");
 
@@ -153,11 +157,98 @@ export default function AulaPage() {
         setTimes(timesBase);
         setPartidas([]);
         setStats({});
+        setPollVersion(null);
       } finally {
         setLoading(false);
       }
     })();
   }, [dataIso, aulaId]);
+
+  // ---------------- POLLING DO ESTADO AGREGADO ----------------
+  const isInteractingRef = useRef(false);
+  const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const marcarInteracao = () => {
+    isInteractingRef.current = true;
+    if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    interactTimerRef.current = setTimeout(() => {
+      isInteractingRef.current = false;
+    }, 3000);
+  };
+
+  const aplicarEstadoAula = (data: any) => {
+    const jogadoresSrv: PresencaJogadorDia[] = (data.equipes?.jogadores ?? []).map(
+      (j: any) => ({
+        ...j,
+        timeId: j.timeId ?? j.time_id ?? undefined,
+      }),
+    );
+    const timesSrv: TimeAula[] = (data.equipes?.times ?? []).map((t: any) => ({
+      ...t,
+      id: String(t.id),
+      caracteristica: t.caracteristica ?? "",
+    }));
+    const partidasSrv: PartidaAula[] = (data.partidas ?? []).map((p: any) => ({
+      id: String(p.id),
+      ordem: p.ordem ?? 0,
+      timeAId: p.timeAId ?? p.time_a_id ?? "",
+      timeBId: p.timeBId ?? p.time_b_id ?? "",
+      golsTimeA: p.golsTimeA ?? p.gols_time_a ?? 0,
+      golsTimeB: p.golsTimeB ?? p.gols_time_b ?? 0,
+    }));
+
+    setJogadores(jogadoresSrv);
+    setTimes(timesSrv);
+    setPartidas(partidasSrv);
+    // stats detalhadas não vêm no agregado atual
+  };
+
+  useEffect(() => {
+    if (!dataIso || !aulaId) return;
+
+    let ativo = true;
+
+    const tick = async () => {
+      if (!ativo) return;
+      if (isInteractingRef.current || document.hidden) {
+        pollingTimerRef.current = setTimeout(tick, 3000);
+        return;
+      }
+
+      try {
+        const resp = await obterEstadoAula(
+          dataIso,
+          Number(aulaId),
+          pollVersion ?? undefined,
+        );
+        if (!ativo) return;
+
+        if (resp.status === 200 && resp.data) {
+          if (pollVersion === null || resp.data.version > pollVersion) {
+            aplicarEstadoAula(resp.data);
+            setPollVersion(resp.data.version);
+          }
+          setPollError(null);
+        }
+      } catch (err: any) {
+        if (!ativo) return;
+        setPollError(err?.message ?? "Erro no polling do estado da aula");
+      } finally {
+        if (ativo) {
+          pollingTimerRef.current = setTimeout(tick, 3000);
+        }
+      }
+    };
+
+    tick();
+
+    return () => {
+      ativo = false;
+      if (pollingTimerRef.current) clearTimeout(pollingTimerRef.current);
+      if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    };
+  }, [dataIso, aulaId, pollVersion]);
 
   // ---------------- ESTADOS BÁSICOS / GUARDAS ----------------
   if (!dataIso || !aulaId) {
@@ -198,20 +289,24 @@ export default function AulaPage() {
 
   // ---------------- PRESENÇA / FILTRO ----------------
   const handleFiltroChange = (e: ChangeEvent<HTMLInputElement>) => {
+    marcarInteracao();
     setFiltroNome(e.target.value);
   };
 
   const handleAlterarStatus = (jogadorId: number, novoStatus: StatusPresenca) => {
+    marcarInteracao();
     setJogadores((prev) =>
       prev.map((j) => (j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j)),
     );
   };
 
   const handleMarcarTodosSoTreino = () => {
+    marcarInteracao();
     setJogadores((prev) => prev.map((j) => ({ ...j, status: "so_treino" })));
   };
 
   const handleLimparStatus = () => {
+    marcarInteracao();
     // volta ao padrão: quem não está em time fica "so_treino"
     // (ou ajuste aqui se você quiser um status default diferente)
     setJogadores((prev) =>
@@ -224,6 +319,7 @@ export default function AulaPage() {
 
   // --------------- EQUIPES / DRAG & DROP -------------
   const handleAdicionarEquipe = async () => {
+    marcarInteracao();
     try {
       const idx = times.length + 1;
       const nome = `Time ${idx}`;
@@ -239,6 +335,7 @@ export default function AulaPage() {
   };
 
   const handleLimparEquipes = () => {
+    marcarInteracao();
     setTimes([]);
     setPartidas([]);
     setStats({});
@@ -246,6 +343,7 @@ export default function AulaPage() {
   };
 
   const moverJogadorParaTime = (jogadorId: number, timeId: string | null) => {
+    marcarInteracao();
     setTimes((prev) => {
       const semJogador = prev.map((t) => ({
         ...t,
@@ -295,6 +393,7 @@ export default function AulaPage() {
   const jogadoresPorTime = (timeId: string) => jogadores.filter((j) => j.timeId === timeId);
 
   const handleChangeCaracteristica = (timeId: string, e: ChangeEvent<HTMLInputElement>) => {
+    marcarInteracao();
     const value = e.target.value;
     setTimes((prev) => prev.map((t) => (t.id === timeId ? { ...t, caracteristica: value } : t)));
   };
@@ -305,6 +404,7 @@ export default function AulaPage() {
 
   // ---------------- PARTIDAS / SÚMULA ---------------
   const handleAdicionarPartida = () => {
+    marcarInteracao();
     if (times.length < 2) return;
     if (!novoTimeAId || !novoTimeBId) return;
     if (novoTimeAId === novoTimeBId) return;
@@ -327,6 +427,7 @@ export default function AulaPage() {
   };
 
   const handleRemoverPartida = (partidaId: string) => {
+    marcarInteracao();
     setPartidas((prev) => prev.filter((p) => p.id !== partidaId));
     setStats((prev) => {
       const clone = { ...prev };
@@ -341,6 +442,7 @@ export default function AulaPage() {
     campo: keyof StatsJogador,
     valor: number,
   ) => {
+    marcarInteracao();
     setStats((prev) => {
       const statsPartida = prev[partidaId] ?? {};
       const statsJogador: StatsJogador = statsPartida[jogadorId] ?? { ...DEFAULT_STATS };
@@ -367,14 +469,17 @@ export default function AulaPage() {
     campo: "golsTimeA" | "golsTimeB",
     valor: number,
   ) => {
+    marcarInteracao();
     setPartidas((prev) => prev.map((p) => (p.id === partidaId ? { ...p, [campo]: valor } : p)));
   };
 
   // ---------------- SALVAR ESTADO EQUIPES ---------------
   const handleSalvarEstadoEquipes = async () => {
+    marcarInteracao();
     try {
       await salvarEstadoEquipesAula(dia.dataIso, aula.id, jogadores, times);
       alert("Estado das equipes salvo com sucesso!");
+      setPollVersion((prev) => (prev === null ? prev : prev + 1));
     } catch (err) {
       console.error(err);
       alert("Erro ao salvar estado das equipes. Veja o console para detalhes.");
@@ -399,6 +504,12 @@ export default function AulaPage() {
       <p className="text-muted mb-4">
         {aula.horarioInicio} – {aula.horarioFim}
       </p>
+
+      {pollError && (
+        <div className="alert alert-warning py-2">
+          {pollError}
+        </div>
+      )}
 
       <div className="row">
         {/* COLUNA ESQUERDA */}
