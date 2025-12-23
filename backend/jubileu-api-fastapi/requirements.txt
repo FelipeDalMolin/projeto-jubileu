@@ -4,6 +4,8 @@ uvicorn[standard]==0.32.0
 SQLAlchemy==2.0.34
 alembic==1.13.3
 
+paho-mqtt==1.6.1
+
 psycopg[binary]==3.3.2  # driver PostgreSQL (psycopg3)
 python-dotenv==1.0.1    # ler .env
 

@@ -45,10 +45,8 @@ type StatsJogador = {
   faltas: number;
 };
 
-// partidaId -> (jogadorId -> stats)
 type StatsPartidas = Record<string, Record<number, StatsJogador>>;
 
-// Extensão local de TimeDia com campo de característica
 type TimeAula = TimeDia & {
   caracteristica?: string;
 };
@@ -60,6 +58,11 @@ const DEFAULT_STATS: StatsJogador = {
   chiliques: 0,
   faltas: 0,
 };
+
+function toAulaIdNumberOrNull(aulaId: string): number | null {
+  const n = Number(aulaId);
+  return Number.isFinite(n) ? n : null;
+}
 
 export default function AulaPage() {
   const { dataIso, aulaId } = useParams<{ dataIso: string; aulaId: string }>();
@@ -73,16 +76,26 @@ export default function AulaPage() {
   const [times, setTimes] = useState<TimeAula[]>([]);
   const [partidas, setPartidas] = useState<PartidaAula[]>([]);
   const [stats, setStats] = useState<StatsPartidas>({});
-  const [pollVersion, setPollVersion] = useState<number | null>(null);
-  const [pollError, setPollError] = useState<string | null>(null);
 
+  // version do estado agregado (server)
+  const [pollVersion, setPollVersion] = useState<number | null>(null);
+  const pollVersionRef = useRef<number | null>(null);
+
+  const [pollError, setPollError] = useState<string | null>(null);
   const [filtroNome, setFiltroNome] = useState<string>("");
 
-  // seleção para criar nova partida
   const [novoTimeAId, setNovoTimeAId] = useState<string>("");
   const [novoTimeBId, setNovoTimeBId] = useState<string>("");
 
-  // ✅ HOOKS DERIVADOS SEMPRE NO TOPO (Rules of Hooks)
+  // evita “piscar”: mantemos último estado válido
+  const lastGoodStateRef = useRef<{
+    jogadores: PresencaJogadorDia[];
+    times: TimeAula[];
+    partidas: PartidaAula[];
+    version: number | null;
+  } | null>(null);
+
+  // ✅ HOOKS DERIVADOS SEMPRE NO TOPO
   const dataObj = useMemo(() => {
     try {
       return dataIso ? parseISO(dataIso) : null;
@@ -107,25 +120,32 @@ export default function AulaPage() {
     return jogadoresSemTimeLista.filter((j) => j.nome.toLowerCase().includes(f));
   }, [filtroNome, jogadoresSemTimeLista]);
 
-  // ---------------- CARREGAMENTO ----------------
+  // ---------------- CARREGAMENTO INICIAL ----------------
   useEffect(() => {
     if (!dataIso || !aulaId) return;
 
+    let alive = true;
     setLoading(true);
+    setPollError(null);
 
     (async () => {
       try {
         const diaResp = await obterDiaPorData(dataIso);
+        if (!alive) return;
         setDia(diaResp);
 
-        const aulaEncontrada = diaResp.aulas.find((x) => x.id === aulaId) ?? null;
+        const aulaEncontrada = diaResp.aulas.find((x) => String(x.id) === String(aulaId)) ?? null;
         setAula(aulaEncontrada);
 
         if (!aulaEncontrada) {
+          // mantém estados coerentes
           setJogadores([]);
           setTimes([]);
           setPartidas([]);
           setStats({});
+          setPollVersion(null);
+          pollVersionRef.current = null;
+          lastGoodStateRef.current = null;
           return;
         }
 
@@ -155,13 +175,26 @@ export default function AulaPage() {
 
         setJogadores(jogadoresBase);
         setTimes(timesBase);
-        setPartidas([]);
+        setPartidas([]); // por enquanto local
         setStats({});
         setPollVersion(null);
+        pollVersionRef.current = null;
+
+        // salva como “último bom” (evita sumiço por polling)
+        lastGoodStateRef.current = {
+          jogadores: jogadoresBase,
+          times: timesBase,
+          partidas: [],
+          version: null,
+        };
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
     })();
+
+    return () => {
+      alive = false;
+    };
   }, [dataIso, aulaId]);
 
   // ---------------- POLLING DO ESTADO AGREGADO ----------------
@@ -174,22 +207,26 @@ export default function AulaPage() {
     if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
     interactTimerRef.current = setTimeout(() => {
       isInteractingRef.current = false;
-    }, 3000);
+    }, 2500);
   };
 
-  const aplicarEstadoAula = (data: any) => {
-    const jogadoresSrv: PresencaJogadorDia[] = (data.equipes?.jogadores ?? []).map(
-      (j: any) => ({
-        ...j,
-        timeId: j.timeId ?? j.time_id ?? undefined,
-      }),
-    );
-    const timesSrv: TimeAula[] = (data.equipes?.times ?? []).map((t: any) => ({
+  function normalizarJogadoresSrv(raw: any[]): PresencaJogadorDia[] {
+    return (raw ?? []).map((j: any) => ({
+      ...j,
+      timeId: j.timeId ?? j.time_id ?? undefined,
+    }));
+  }
+
+  function normalizarTimesSrv(raw: any[]): TimeAula[] {
+    return (raw ?? []).map((t: any) => ({
       ...t,
       id: String(t.id),
       caracteristica: t.caracteristica ?? "",
     }));
-    const partidasSrv: PartidaAula[] = (data.partidas ?? []).map((p: any) => ({
+  }
+
+  function normalizarPartidasSrv(raw: any[]): PartidaAula[] {
+    return (raw ?? []).map((p: any) => ({
       id: String(p.id),
       ordem: p.ordem ?? 0,
       timeAId: p.timeAId ?? p.time_a_id ?? "",
@@ -197,47 +234,79 @@ export default function AulaPage() {
       golsTimeA: p.golsTimeA ?? p.gols_time_a ?? 0,
       golsTimeB: p.golsTimeB ?? p.gols_time_b ?? 0,
     }));
+  }
+
+  const aplicarEstadoAulaSeValido = (data: any) => {
+    const jogadoresSrv = normalizarJogadoresSrv(data?.equipes?.jogadores ?? []);
+    const timesSrv = normalizarTimesSrv(data?.equipes?.times ?? []);
+    const partidasSrv = normalizarPartidasSrv(data?.partidas ?? []);
+
+    // ✅ Proteção: se vier payload “vazio” (ou incompleto), NÃO apaga estado atual
+    // (isso é o que causava “aparece e some”)
+    const temAlgo = jogadoresSrv.length > 0 || timesSrv.length > 0 || partidasSrv.length > 0;
+    if (!temAlgo) return;
 
     setJogadores(jogadoresSrv);
     setTimes(timesSrv);
     setPartidas(partidasSrv);
-    // stats detalhadas não vêm no agregado atual
+
+    lastGoodStateRef.current = {
+      jogadores: jogadoresSrv,
+      times: timesSrv,
+      partidas: partidasSrv,
+      version: data?.version ?? pollVersionRef.current ?? null,
+    };
   };
 
   useEffect(() => {
     if (!dataIso || !aulaId) return;
 
+    const aulaIdNum = toAulaIdNumberOrNull(aulaId);
+    // Se o backend do “estado” exige aulaId numérico e aqui não é número, não faz polling.
+    // (Evita loop de erro que pode derrubar UI)
+    if (aulaIdNum === null) return;
+
     let ativo = true;
 
     const tick = async () => {
       if (!ativo) return;
+
       if (isInteractingRef.current || document.hidden) {
-        pollingTimerRef.current = setTimeout(tick, 3000);
+        pollingTimerRef.current = setTimeout(tick, 2500);
         return;
       }
 
       try {
-        const resp = await obterEstadoAula(
-          dataIso,
-          Number(aulaId),
-          pollVersion ?? undefined,
-        );
+        const currentVersion = pollVersionRef.current ?? undefined;
+
+        const resp = await obterEstadoAula(dataIso, aulaIdNum, currentVersion);
         if (!ativo) return;
 
-        if (resp.status === 200 && resp.data) {
-          if (pollVersion === null || resp.data.version > pollVersion) {
-            aplicarEstadoAula(resp.data);
-            setPollVersion(resp.data.version);
+        if (resp?.status === 200 && resp.data) {
+          const nextVersion = typeof resp.data.version === "number" ? resp.data.version : null;
+
+          // Atualiza apenas se versão avançou (ou primeira vez)
+          if (pollVersionRef.current === null || (nextVersion !== null && nextVersion > (pollVersionRef.current ?? -1))) {
+            aplicarEstadoAulaSeValido(resp.data);
+            pollVersionRef.current = nextVersion;
+            setPollVersion(nextVersion);
           }
           setPollError(null);
         }
       } catch (err: any) {
         if (!ativo) return;
+
         setPollError(err?.message ?? "Erro no polling do estado da aula");
-      } finally {
-        if (ativo) {
-          pollingTimerRef.current = setTimeout(tick, 3000);
+
+        // ✅ Mantém último estado válido em tela
+        const last = lastGoodStateRef.current;
+        if (last) {
+          setJogadores(last.jogadores);
+          setTimes(last.times);
+          setPartidas(last.partidas);
         }
+      } finally {
+        if (ativo) pollingTimerRef.current = setTimeout(tick, 2500);
       }
     };
 
@@ -248,7 +317,7 @@ export default function AulaPage() {
       if (pollingTimerRef.current) clearTimeout(pollingTimerRef.current);
       if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
     };
-  }, [dataIso, aulaId, pollVersion]);
+  }, [dataIso, aulaId]);
 
   // ---------------- ESTADOS BÁSICOS / GUARDAS ----------------
   if (!dataIso || !aulaId) {
@@ -307,8 +376,6 @@ export default function AulaPage() {
 
   const handleLimparStatus = () => {
     marcarInteracao();
-    // volta ao padrão: quem não está em time fica "so_treino"
-    // (ou ajuste aqui se você quiser um status default diferente)
     setJogadores((prev) =>
       prev.map((j) => ({
         ...j,
@@ -328,6 +395,15 @@ export default function AulaPage() {
 
       const novo: TimeAula = { ...timeBackend, caracteristica: "" };
       setTimes((prev) => [...prev, novo]);
+
+      // mantém last good
+      const last = lastGoodStateRef.current;
+      lastGoodStateRef.current = {
+        jogadores: last?.jogadores ?? jogadores,
+        times: [...(last?.times ?? times), novo],
+        partidas: last?.partidas ?? partidas,
+        version: pollVersionRef.current,
+      };
     } catch (err) {
       console.error(err);
       alert("Erro ao criar equipe. Veja o console para detalhes.");
@@ -340,10 +416,19 @@ export default function AulaPage() {
     setPartidas([]);
     setStats({});
     setJogadores((prev) => prev.map((j) => ({ ...j, timeId: undefined })));
+
+    const last = lastGoodStateRef.current;
+    lastGoodStateRef.current = {
+      jogadores: (last?.jogadores ?? jogadores).map((j) => ({ ...j, timeId: undefined })),
+      times: [],
+      partidas: [],
+      version: pollVersionRef.current,
+    };
   };
 
   const moverJogadorParaTime = (jogadorId: number, timeId: string | null) => {
     marcarInteracao();
+
     setTimes((prev) => {
       const semJogador = prev.map((t) => ({
         ...t,
@@ -479,7 +564,10 @@ export default function AulaPage() {
     try {
       await salvarEstadoEquipesAula(dia.dataIso, aula.id, jogadores, times);
       alert("Estado das equipes salvo com sucesso!");
-      setPollVersion((prev) => (prev === null ? prev : prev + 1));
+
+      // Força o próximo tick a aceitar atualizações (sem recriar effect)
+      pollVersionRef.current = null;
+      setPollVersion(null);
     } catch (err) {
       console.error(err);
       alert("Erro ao salvar estado das equipes. Veja o console para detalhes.");
@@ -505,11 +593,7 @@ export default function AulaPage() {
         {aula.horarioInicio} – {aula.horarioFim}
       </p>
 
-      {pollError && (
-        <div className="alert alert-warning py-2">
-          {pollError}
-        </div>
-      )}
+      {pollError && <div className="alert alert-warning py-2">{pollError}</div>}
 
       <div className="row">
         {/* COLUNA ESQUERDA */}

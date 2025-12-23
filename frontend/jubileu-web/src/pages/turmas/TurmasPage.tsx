@@ -1,25 +1,117 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { listarTurmas, type Turma } from "../../services/turmasService";
+import { criarTurma, listarTurmas, type Turma } from "../../services/turmasService";
 
 export default function TurmasPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // UI state para criação
+  const [showCreate, setShowCreate] = useState(false);
+  const [nome, setNome] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  async function carregar() {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const data = await listarTurmas();
+      setTurmas(data);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Erro ao listar turmas");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
-    listarTurmas()
-      .then(setTurmas)
-      .finally(() => setLoading(false));
+    carregar();
   }, []);
+
+  async function handleCriarTurma(e: React.FormEvent) {
+    e.preventDefault();
+    setErrorMsg(null);
+
+    const nomeTrim = nome.trim();
+    if (!nomeTrim) {
+      setErrorMsg("Informe o nome da turma.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const nova = await criarTurma({ nome: nomeTrim });
+      // Atualiza lista imediatamente (sem depender de novo GET)
+      setTurmas((prev) => [nova, ...prev]);
+      setNome("");
+      setShowCreate(false);
+    } catch (e) {
+      setErrorMsg(e instanceof Error ? e.message : "Erro ao criar turma");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <main className="container py-3">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="h4 mb-0">Turmas</h1>
-        <Link className="btn btn-primary btn-sm" to="/turmas/nova">
+
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          onClick={() => {
+            setErrorMsg(null);
+            setShowCreate((v) => !v);
+          }}
+        >
           + Nova turma
-        </Link>
+        </button>
       </div>
+
+      {showCreate && (
+        <div className="card mb-3">
+          <div className="card-body">
+            <form onSubmit={handleCriarTurma} className="row g-2 align-items-end">
+              <div className="col-12 col-md-8">
+                <label htmlFor="turma-nome" className="form-label mb-1">
+                  Nome da turma
+                </label>
+                <input
+                  id="turma-nome"
+                  name="turma-nome"
+                  className="form-control"
+                  placeholder="Ex: Sub-11, Adulto, Feminino..."
+                  value={nome}
+                  onChange={(ev) => setNome(ev.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className="col-12 col-md-4 d-flex gap-2">
+                <button type="submit" className="btn btn-success w-100" disabled={saving}>
+                  {saving ? "Salvando..." : "Salvar"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary w-100"
+                  onClick={() => {
+                    setShowCreate(false);
+                    setNome("");
+                    setErrorMsg(null);
+                  }}
+                  disabled={saving}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+
+            {errorMsg && <div className="alert alert-danger mt-3 mb-0">{errorMsg}</div>}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <p>Carregando...</p>
@@ -46,6 +138,14 @@ export default function TurmasPage() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {!loading && !showCreate && (
+        <div className="mt-3">
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={carregar}>
+            Recarregar lista
+          </button>
+        </div>
       )}
     </main>
   );

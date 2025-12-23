@@ -284,7 +284,7 @@ export async function carregarEstadoEquipesAula(
 
 export async function salvarEstadoEquipesAula(
   dataIso: string,
-  aulaId: string,
+  aulaId: string | number,
   jogadores: PresencaJogadorDia[],
   times: TimeDia[],
 ): Promise<void> {
