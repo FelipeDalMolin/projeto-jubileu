@@ -38,7 +38,11 @@ from app.schemas.dia_aula import (
     PartidaEstadoOut,
     EstatisticaJogadorPartidaOut,
     EquipesEstadoOut,
+    MoverJogadorTimeIn,
+    AtualizarStatusJogadorIn,
+    CommandOkOut,
 )
+from app.services.estado_equipes import rebuild_estado_equipes
 
 router = APIRouter(
     prefix="/dias",
@@ -252,6 +256,11 @@ def criar_time_na_aula(
     db.commit()
     db.refresh(novo_time)
 
+    # Atualiza snapshot/version para refletir o novo time no polling de /estado
+    db.refresh(aula, attribute_names=["times", "jogadores"])
+    rebuild_estado_equipes(db, aula)
+    db.commit()
+
     return TimeAulaOut(
         id=str(novo_time.id),
         nome=novo_time.nome,
@@ -259,6 +268,147 @@ def criar_time_na_aula(
         caracteristica=novo_time.caracteristica,
         corCamisa=novo_time.cor_camisa,
     )
+
+
+# ---------------- COMANDOS DE EQUIPES / JOGADORES ----------------
+
+
+@router.put(
+    "/{data_iso}/aulas/{aula_id}/jogadores/{jogador_aula_id}/time",
+    response_model=CommandOkOut,
+)
+def mover_jogador_para_time(
+    data_iso: str,
+    aula_id: int,
+    jogador_aula_id: int,
+    payload: MoverJogadorTimeIn,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+
+    jogador = (
+        db.query(JogadorAulaModel)
+        .filter(JogadorAulaModel.id == jogador_aula_id, JogadorAulaModel.aula_id == aula.id)
+        .first()
+    )
+    if not jogador:
+        raise HTTPException(status_code=404, detail="Jogador nao encontrado na aula")
+
+    novo_time_id = payload.time_id
+    if novo_time_id is not None:
+        time = (
+            db.query(TimeAulaModel)
+            .filter(TimeAulaModel.id == novo_time_id, TimeAulaModel.aula_id == aula.id)
+            .first()
+        )
+        if not time:
+            raise HTTPException(status_code=400, detail="Time informado nao pertence a aula")
+
+    jogador.time_id = novo_time_id
+    db.commit()
+
+    db.refresh(aula, attribute_names=["times", "jogadores"])
+    estado_row = rebuild_estado_equipes(db, aula)
+    db.commit()
+    db.refresh(estado_row, attribute_names=["version"])
+
+    return CommandOkOut(status="ok", version=int(estado_row.version) if estado_row.version is not None else None)
+
+
+@router.put(
+    "/{data_iso}/aulas/{aula_id}/jogadores/{jogador_aula_id}/status",
+    response_model=CommandOkOut,
+)
+def atualizar_status_jogador(
+    data_iso: str,
+    aula_id: int,
+    jogador_aula_id: int,
+    payload: AtualizarStatusJogadorIn,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+
+    jogador = (
+        db.query(JogadorAulaModel)
+        .filter(JogadorAulaModel.id == jogador_aula_id, JogadorAulaModel.aula_id == aula.id)
+        .first()
+    )
+    if not jogador:
+        raise HTTPException(status_code=404, detail="Jogador nao encontrado na aula")
+
+    jogador.status = payload.status
+    db.commit()
+
+    db.refresh(aula, attribute_names=["times", "jogadores"])
+    estado_row = rebuild_estado_equipes(db, aula)
+    db.commit()
+    db.refresh(estado_row, attribute_names=["version"])
+
+    return CommandOkOut(status="ok", version=int(estado_row.version) if estado_row.version is not None else None)
+
+
+@router.delete(
+    "/{data_iso}/aulas/{aula_id}/times/{time_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def deletar_time(
+    data_iso: str,
+    aula_id: int,
+    time_id: int,
+    db: Session = Depends(get_db),
+) -> Response:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+
+    time = (
+        db.query(TimeAulaModel)
+        .filter(TimeAulaModel.id == time_id, TimeAulaModel.aula_id == aula.id)
+        .first()
+    )
+    if not time:
+        raise HTTPException(status_code=404, detail="Time nao encontrado")
+
+    db.query(JogadorAulaModel).filter(
+        JogadorAulaModel.aula_id == aula.id, JogadorAulaModel.time_id == time.id
+    ).update({JogadorAulaModel.time_id: None})
+
+    db.delete(time)
+    db.commit()
+
+    db.refresh(aula, attribute_names=["times", "jogadores"])
+    rebuild_estado_equipes(db, aula)
+    db.commit()
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 # ---------------- ESTADO DE EQUIPES (SNAPSHOT JSON) ----------------
@@ -290,6 +440,12 @@ def obter_estado_equipes_aula(
         .filter(AulaEquipesEstadoModel.aula_id == aula.id)
         .first()
     )
+
+    if not estado_row:
+        db.refresh(aula, attribute_names=["jogadores", "times"])
+        estado_row = rebuild_estado_equipes(db, aula)
+        db.commit()
+        db.refresh(estado_row)
 
     if not estado_row:
         return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=[], times=[])
@@ -390,6 +546,12 @@ def obter_estado_aula(
         .filter(AulaEquipesEstadoModel.aula_id == aula.id)
         .first()
     )
+
+    if not estado_row:
+        db.refresh(aula, attribute_names=["jogadores", "times"])
+        estado_row = rebuild_estado_equipes(db, aula)
+        db.commit()
+        db.refresh(estado_row)
 
     base_version = int(estado_row.version) if estado_row and estado_row.version is not None else 0
 

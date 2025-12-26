@@ -23,6 +23,9 @@ from app.schemas.dia_aula import (
     StatusPresencaEnum,
     EstadoEquipesAulaIn,
     EstadoEquipesAulaOut,
+    MoverJogadorTimeIn,
+    AtualizarStatusJogadorIn,
+    CommandOkOut,
 )
 
 __all__ = [
@@ -48,4 +51,7 @@ __all__ = [
     "StatusPresencaEnum",
     "EstadoEquipesAulaIn",
     "EstadoEquipesAulaOut",
+    "MoverJogadorTimeIn",
+    "AtualizarStatusJogadorIn",
+    "CommandOkOut",
 ]

@@ -262,6 +262,78 @@ export type EstadoEquipesSnapshot = {
   times: TimeDia[];
 };
 
+export async function moverJogadorNaAula(
+  dataIso: string,
+  aulaId: string | number,
+  jogadorAulaId: number,
+  novoTimeId: string | null,
+): Promise<{ version?: number }> {
+  const payload = {
+    time_id: novoTimeId != null ? Number(novoTimeId) : null,
+  };
+
+  const resp = await fetch(
+    url(`/dias/${dataIso}/aulas/${aulaId}/jogadores/${jogadorAulaId}/time`),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao mover jogador ${jogadorAulaId} na aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+
+  const data = await resp.json();
+  return { version: data?.version };
+}
+
+export async function atualizarStatusJogadorNaAula(
+  dataIso: string,
+  aulaId: string | number,
+  jogadorAulaId: number,
+  status: string,
+): Promise<{ version?: number }> {
+  const payload = { status };
+
+  const resp = await fetch(
+    url(`/dias/${dataIso}/aulas/${aulaId}/jogadores/${jogadorAulaId}/status`),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao atualizar status do jogador ${jogadorAulaId} na aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+
+  const data = await resp.json();
+  return { version: data?.version };
+}
+
+export async function deletarTimeNaAula(
+  dataIso: string,
+  aulaId: string | number,
+  timeId: string | number,
+): Promise<void> {
+  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/times/${timeId}`), {
+    method: "DELETE",
+  });
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao deletar time ${timeId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+}
+
 export async function carregarEstadoEquipesAula(
   dataIso: string,
   aulaId: string,
@@ -298,6 +370,7 @@ export async function salvarEstadoEquipesAula(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+  
 
   if (!resp.ok) {
     throw new Error(

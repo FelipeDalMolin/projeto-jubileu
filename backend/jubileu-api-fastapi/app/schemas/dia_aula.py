@@ -58,6 +58,19 @@ class TimeAulaCreate(BaseModel):
     cor_camisa: Optional[str] = None
 
 
+class MoverJogadorTimeIn(BaseModel):
+    time_id: Optional[int] = None
+
+
+class AtualizarStatusJogadorIn(BaseModel):
+    status: StatusPresencaEnum
+
+
+class CommandOkOut(BaseModel):
+    status: str = "ok"
+    version: Optional[int] = None
+
+
 # ---------------------------------------------------------
 # ESTADO DE EQUIPES / SNAPSHOT
 # ---------------------------------------------------------

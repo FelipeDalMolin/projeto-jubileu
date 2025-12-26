@@ -17,6 +17,9 @@ import {
   criarTimeNaAula,
   carregarEstadoEquipesAula,
   salvarEstadoEquipesAula,
+  moverJogadorNaAula,
+  atualizarStatusJogadorNaAula,
+  deletarTimeNaAula,
 } from "../../services/diasService";
 import { obterEstadoAula } from "../../services/aulaEstadoService";
 
@@ -258,6 +261,23 @@ export default function AulaPage() {
     };
   };
 
+  const refreshEstadoAulaHard = async () => {
+    if (!dia || !aula) return;
+    const aulaIdNum = toAulaIdNumberOrNull(String(aula.id));
+    if (aulaIdNum === null) return;
+    try {
+      const resp = await obterEstadoAula(dia.dataIso, aulaIdNum, undefined);
+      if (resp?.status === 200 && resp.data) {
+        aplicarEstadoAulaSeValido(resp.data);
+        const v = typeof resp.data.version === "number" ? resp.data.version : null;
+        pollVersionRef.current = v;
+        setPollVersion(v);
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar estado da aula", err);
+    }
+  };
+
   useEffect(() => {
     if (!dataIso || !aulaId) return;
 
@@ -362,11 +382,26 @@ export default function AulaPage() {
     setFiltroNome(e.target.value);
   };
 
+  const persistirStatusJogador = async (jogadorId: number, novoStatus: StatusPresenca) => {
+    if (!dia || !aula) return;
+    try {
+      await atualizarStatusJogadorNaAula(dia.dataIso, aula.id, jogadorId, novoStatus);
+      pollVersionRef.current = null;
+      setPollVersion(null);
+      await refreshEstadoAulaHard();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao atualizar status do jogador. Recarregando estado do servidor.");
+      await refreshEstadoAulaHard();
+    }
+  };
+
   const handleAlterarStatus = (jogadorId: number, novoStatus: StatusPresenca) => {
     marcarInteracao();
     setJogadores((prev) =>
       prev.map((j) => (j.jogadorId === jogadorId ? { ...j, status: novoStatus } : j)),
     );
+    void persistirStatusJogador(jogadorId, novoStatus);
   };
 
   const handleMarcarTodosSoTreino = () => {
@@ -458,6 +493,20 @@ export default function AulaPage() {
     );
   };
 
+  const persistirMoverJogador = async (jogadorId: number, destinoTimeId: string | null) => {
+    if (!dia || !aula) return;
+    try {
+      await moverJogadorNaAula(dia.dataIso, aula.id, jogadorId, destinoTimeId);
+      pollVersionRef.current = null;
+      setPollVersion(null);
+      await refreshEstadoAulaHard();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao mover jogador. Recarregando estado do servidor.");
+      await refreshEstadoAulaHard();
+    }
+  };
+
   const onJogadorDragStart = (e: DragEvent<HTMLSpanElement>, jogadorId: number) => {
     e.dataTransfer.setData("text/plain", String(jogadorId));
   };
@@ -468,6 +517,7 @@ export default function AulaPage() {
     const jogadorId = Number(data);
     if (!Number.isNaN(jogadorId)) {
       moverJogadorParaTime(jogadorId, destinoTimeId);
+      void persistirMoverJogador(jogadorId, destinoTimeId);
     }
   };
 
@@ -485,6 +535,30 @@ export default function AulaPage() {
 
   const handleRemoverDoTime = (jogadorId: number) => {
     moverJogadorParaTime(jogadorId, null);
+    void persistirMoverJogador(jogadorId, null);
+  };
+
+  const handleRemoverTime = async (timeId: string) => {
+    if (!dia || !aula) return;
+    const confirmado = window.confirm("Remover este time? Os jogadores voltarão para a lista.");
+    if (!confirmado) return;
+
+    marcarInteracao();
+
+    // feedback imediato local
+    setTimes((prev) => prev.filter((t) => t.id !== timeId));
+    setJogadores((prev) => prev.map((j) => (j.timeId === timeId ? { ...j, timeId: undefined } : j)));
+
+    try {
+      await deletarTimeNaAula(dia.dataIso, aula.id, timeId);
+      pollVersionRef.current = null;
+      setPollVersion(null);
+      await refreshEstadoAulaHard();
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao remover time. Recarregando estado do servidor.");
+      await refreshEstadoAulaHard();
+    }
   };
 
   // ---------------- PARTIDAS / SÚMULA ---------------
@@ -691,6 +765,7 @@ export default function AulaPage() {
                         }
                         onDrop={(e) => onAreaDrop(e, time.id)}
                         onDragOver={onAreaDragOver}
+                        onRemove={() => handleRemoverTime(time.id)}
                       >
                         <input
                           type="text"
@@ -903,15 +978,23 @@ type DropAreaProps = {
   descricao: string;
   onDrop: (e: DragEvent<HTMLDivElement>) => void;
   onDragOver: (e: DragEvent<HTMLDivElement>) => void;
+  onRemove?: () => void;
   children: ReactNode;
 };
 
-function DropArea({ titulo, descricao, onDrop, onDragOver, children }: DropAreaProps) {
+function DropArea({ titulo, descricao, onDrop, onDragOver, onRemove, children }: DropAreaProps) {
   return (
     <div className="border rounded p-2 h-100" onDrop={onDrop} onDragOver={onDragOver}>
-      <div className="d-flex flex-column mb-1">
-        <strong>{titulo}</strong>
-        <small className="text-muted">{descricao}</small>
+      <div className="d-flex justify-content-between align-items-start mb-1">
+        <div className="d-flex flex-column">
+          <strong>{titulo}</strong>
+          <small className="text-muted">{descricao}</small>
+        </div>
+        {onRemove && (
+          <button type="button" className="btn btn-link btn-sm text-danger p-0" onClick={onRemove}>
+            Remover
+          </button>
+        )}
       </div>
       {children}
     </div>
