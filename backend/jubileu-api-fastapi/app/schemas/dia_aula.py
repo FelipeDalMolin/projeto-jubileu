@@ -114,18 +114,22 @@ class EstatisticaJogadorPartidaOut(EstatisticaJogadorPartidaBase):
 
 class PartidaCreate(BaseModel):
     ordem: Optional[int] = None
-    time_a_id: int
-    time_b_id: int
+    time_a_id: int = Field(alias="timeAId")
+    time_b_id: int = Field(alias="timeBId")
     estatisticas: List[EstatisticaJogadorPartidaBase] = Field(
         default_factory=list
     )
 
+    model_config = ConfigDict(populate_by_name=True)
+
 
 class PartidaUpdate(BaseModel):
     ordem: Optional[int] = None
-    time_a_id: Optional[int] = None
-    time_b_id: Optional[int] = None
+    time_a_id: Optional[int] = Field(default=None, alias="timeAId")
+    time_b_id: Optional[int] = Field(default=None, alias="timeBId")
     estatisticas: Optional[List[EstatisticaJogadorPartidaBase]] = None
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class PartidaOut(BaseModel):
@@ -151,6 +155,14 @@ class PartidaEstadoOut(BaseModel):
     golsTimeA: int
     golsTimeB: int
     estatisticas: Optional[List[EstatisticaJogadorPartidaOut]] = None
+
+
+class StatsJogadorIn(BaseModel):
+    gols: int = Field(0, ge=0)
+    assistencias: int = Field(0, ge=0)
+    defesas: int = Field(0, ge=0)
+    chiliques: int = Field(0, ge=0)
+    faltas: int = Field(0, ge=0)
 
 
 class EquipesEstadoOut(BaseModel):

@@ -7,6 +7,7 @@ import type {
   StatusAula,
   TipoEventoAula,
 } from "../types/dia";
+import type { EstatisticaJogadorPartida } from "../types/dia";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -262,6 +263,16 @@ export type EstadoEquipesSnapshot = {
   times: TimeDia[];
 };
 
+export type PartidaPersistida = {
+  id: string;
+  ordem: number;
+  timeAId: string;
+  timeBId: string;
+  golsTimeA: number;
+  golsTimeB: number;
+  estatisticas?: EstatisticaJogadorPartida[];
+};
+
 export async function moverJogadorNaAula(
   dataIso: string,
   aulaId: string | number,
@@ -332,6 +343,94 @@ export async function deletarTimeNaAula(
       `Erro ao deletar time ${timeId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
+}
+
+export async function criarPartidaNaAula(
+  dataIso: string,
+  aulaId: string | number,
+  payload: { ordem?: number; timeAId: string | number; timeBId: string | number },
+): Promise<PartidaPersistida> {
+  const body = {
+    ordem: payload.ordem ?? null,
+    timeAId: Number(payload.timeAId),
+    timeBId: Number(payload.timeBId),
+  };
+
+  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao criar partida na aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+
+  const json = await resp.json();
+  return {
+    id: String(json.id),
+    ordem: json.ordem ?? 0,
+    timeAId: String(json.timeAId ?? json.time_a_id),
+    timeBId: String(json.timeBId ?? json.time_b_id),
+    golsTimeA: json.golsTimeA ?? json.gols_time_a ?? 0,
+    golsTimeB: json.golsTimeB ?? json.gols_time_b ?? 0,
+    estatisticas: (json.estatisticas ?? []).map((e: any) => ({
+      id: e.id,
+      jogadorAulaId: e.jogador_aula_id ?? e.jogadorAulaId,
+      gols: e.gols ?? 0,
+      assistencias: e.assistencias ?? 0,
+      defesas: e.defesas ?? 0,
+      chiliques: e.chiliques ?? 0,
+      faltas: e.faltas ?? 0,
+      nota: e.nota ?? undefined,
+    })),
+  };
+}
+
+export async function removerPartidaDaAula(
+  dataIso: string,
+  aulaId: string | number,
+  partidaId: string | number,
+): Promise<void> {
+  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}`), {
+    method: "DELETE",
+  });
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao remover partida ${partidaId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+}
+
+export async function atualizarStatsJogadorPartida(
+  dataIso: string,
+  aulaId: string | number,
+  partidaId: string | number,
+  jogadorAulaId: number,
+  stats: { gols: number; assistencias: number; defesas: number; chiliques: number; faltas: number },
+): Promise<{ version?: number }> {
+  const resp = await fetch(
+    url(
+      `/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}/jogadores/${jogadorAulaId}/stats`,
+    ),
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(stats),
+    },
+  );
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao atualizar stats do jogador ${jogadorAulaId} na partida ${partidaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+
+  const data = await resp.json();
+  return { version: data?.version };
 }
 
 export async function carregarEstadoEquipesAula(

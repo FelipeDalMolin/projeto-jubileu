@@ -26,6 +26,7 @@ from app.schemas.dia_aula import (
     MoverJogadorTimeIn,
     AtualizarStatusJogadorIn,
     CommandOkOut,
+    StatsJogadorIn,
 )
 
 __all__ = [
@@ -54,4 +55,5 @@ __all__ = [
     "MoverJogadorTimeIn",
     "AtualizarStatusJogadorIn",
     "CommandOkOut",
+    "StatsJogadorIn",
 ]

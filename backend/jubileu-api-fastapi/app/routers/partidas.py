@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import Iterable, List
+import json
+import zlib
+from typing import Iterable, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
 from app.models.dia_aula import (
+    AulaEquipesEstado as AulaEquipesEstadoModel,
     Aula as AulaModel,
     Dia as DiaModel,
     EstatisticaJogadorPartida as EstatisticaModel,
@@ -14,7 +17,13 @@ from app.models.dia_aula import (
     Partida as PartidaModel,
     TimeAula as TimeAulaModel,
 )
-from app.schemas.dia_aula import PartidaCreate, PartidaOut, PartidaUpdate
+from app.schemas.dia_aula import (
+    CommandOkOut,
+    PartidaCreate,
+    PartidaOut,
+    PartidaUpdate,
+    StatsJogadorIn,
+)
 
 router = APIRouter(
     prefix="/dias",
@@ -80,7 +89,7 @@ def _mapear_jogadores_da_aula(db: Session, aula_id: int, jogador_ids: List[int])
 
 
 def _calcular_placar(
-    estatisticas: Iterable,
+    estatisticas: Iterable[EstatisticaModel],
     jogadores_por_id: dict[int, JogadorAulaModel],
     time_a_id: int,
     time_b_id: int,
@@ -116,8 +125,63 @@ def _calcular_placar(
 
 
 def _to_partida_out(partida: PartidaModel) -> PartidaOut:
-    # ✅ Conversão explícita (Pydantic v2)
+    # Conversão explícita (Pydantic v2)
     return PartidaOut.model_validate(partida, from_attributes=True)
+
+
+def _calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
+    """
+    Replica a lógica de /estado para combinar base_version (snapshot equipes)
+    com CRC de partidas/estatisticas. Retorna int ou None se algo falhar.
+    """
+    estado_row = (
+        db.query(AulaEquipesEstadoModel)
+        .filter(AulaEquipesEstadoModel.aula_id == aula.id)
+        .first()
+    )
+    base_version = int(estado_row.version) if estado_row and estado_row.version is not None else 0
+
+    partidas_db = (
+        db.query(PartidaModel)
+        .options(selectinload(PartidaModel.estatisticas))
+        .filter(PartidaModel.aula_id == aula.id)
+        .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
+        .all()
+    )
+
+    partidas_version_payload: list = []
+    for partida in partidas_db:
+        partidas_version_payload.append(
+            [
+                partida.id,
+                partida.ordem,
+                partida.time_a_id,
+                partida.time_b_id,
+                [
+                    [
+                        estat.jogador_aula_id,
+                        estat.gols,
+                        estat.assistencias,
+                        estat.defesas,
+                        estat.chiliques,
+                        estat.faltas,
+                    ]
+                    for estat in sorted(
+                        partida.estatisticas,
+                        key=lambda e: (e.id or 0, e.jogador_aula_id),
+                    )
+                ],
+            ]
+        )
+
+    if partidas_version_payload:
+        partidas_crc32 = zlib.crc32(
+            json.dumps(partidas_version_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ) & 0xFFFFFFFF
+    else:
+        partidas_crc32 = 0
+
+    return (base_version << 32) | partidas_crc32
 
 
 @router.get(
@@ -263,6 +327,79 @@ def atualizar_partida(
     db.commit()
     db.refresh(partida, attribute_names=["estatisticas"])
     return _to_partida_out(partida)
+
+
+@router.put(
+    "/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/jogadores/{jogador_aula_id}/stats",
+    response_model=CommandOkOut,
+)
+def atualizar_stats_jogador_partida(
+    data_iso: str,
+    aula_id: int,
+    partida_id: int,
+    jogador_aula_id: int,
+    payload: StatsJogadorIn,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    aula = _obter_aula_ou_404(db, data_iso, aula_id)
+
+    partida = (
+        db.query(PartidaModel)
+        .options(selectinload(PartidaModel.estatisticas))
+        .filter(PartidaModel.id == partida_id, PartidaModel.aula_id == aula.id)
+        .first()
+    )
+    if not partida:
+        raise HTTPException(status_code=404, detail="Partida nao encontrada para esta aula")
+
+    jogador = (
+        db.query(JogadorAulaModel)
+        .filter(JogadorAulaModel.id == jogador_aula_id, JogadorAulaModel.aula_id == aula.id)
+        .first()
+    )
+    if not jogador:
+        raise HTTPException(status_code=404, detail="Jogador nao encontrado na aula")
+    if jogador.time_id not in {partida.time_a_id, partida.time_b_id}:
+        raise HTTPException(status_code=400, detail="Jogador nao pertence a nenhum time da partida")
+
+    estat = (
+        db.query(EstatisticaModel)
+        .filter(
+            EstatisticaModel.partida_id == partida.id,
+            EstatisticaModel.jogador_aula_id == jogador.id,
+        )
+        .first()
+    )
+
+    if estat is None:
+        estat = EstatisticaModel(
+            partida_id=partida.id,
+            jogador_aula_id=jogador.id,
+            gols=payload.gols,
+            assistencias=payload.assistencias,
+            defesas=payload.defesas,
+            chiliques=payload.chiliques,
+            faltas=payload.faltas,
+        )
+        partida.estatisticas.append(estat)
+    else:
+        estat.gols = payload.gols
+        estat.assistencias = payload.assistencias
+        estat.defesas = payload.defesas
+        estat.chiliques = payload.chiliques
+        estat.faltas = payload.faltas
+
+    db.flush()
+
+    ids_jogadores = [e.jogador_aula_id for e in partida.estatisticas] + [jogador.id]
+    jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+    gols_a, gols_b = _calcular_placar(partida.estatisticas, jogadores_por_id, partida.time_a_id, partida.time_b_id)
+    partida.gols_time_a = gols_a
+    partida.gols_time_b = gols_b
+
+    db.commit()
+    current_version = _calcular_version_atual(db, aula)
+    return CommandOkOut(status="ok", version=current_version)
 
 
 @router.delete(

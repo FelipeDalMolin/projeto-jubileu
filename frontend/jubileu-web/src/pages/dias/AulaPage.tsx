@@ -20,6 +20,9 @@ import {
   moverJogadorNaAula,
   atualizarStatusJogadorNaAula,
   deletarTimeNaAula,
+  criarPartidaNaAula,
+  removerPartidaDaAula,
+  atualizarStatsJogadorPartida,
 } from "../../services/diasService";
 import { obterEstadoAula } from "../../services/aulaEstadoService";
 
@@ -95,6 +98,7 @@ export default function AulaPage() {
     jogadores: PresencaJogadorDia[];
     times: TimeAula[];
     partidas: PartidaAula[];
+    stats?: StatsPartidas;
     version: number | null;
   } | null>(null);
 
@@ -178,7 +182,7 @@ export default function AulaPage() {
 
         setJogadores(jogadoresBase);
         setTimes(timesBase);
-        setPartidas([]); // por enquanto local
+        setPartidas([]);
         setStats({});
         setPollVersion(null);
         pollVersionRef.current = null;
@@ -188,6 +192,7 @@ export default function AulaPage() {
           jogadores: jogadoresBase,
           times: timesBase,
           partidas: [],
+          stats: {},
           version: null,
         };
       } finally {
@@ -239,24 +244,52 @@ export default function AulaPage() {
     }));
   }
 
+  function extrairStatsSrv(partidasRaw: any[]): StatsPartidas {
+    const stats: StatsPartidas = {};
+    (partidasRaw ?? []).forEach((p: any) => {
+      const pid = String(p.id);
+      const estatisticas = p.estatisticas ?? [];
+      estatisticas.forEach((e: any) => {
+        const jid = Number(e.jogador_aula_id ?? e.jogadorAulaId);
+        if (!Number.isFinite(jid)) return;
+        stats[pid] = stats[pid] ?? {};
+        stats[pid][jid] = {
+          gols: e.gols ?? 0,
+          assistencias: e.assistencias ?? 0,
+          defesas: e.defesas ?? 0,
+          chiliques: e.chiliques ?? 0,
+          faltas: e.faltas ?? 0,
+        };
+      });
+    });
+    return stats;
+  }
+
   const aplicarEstadoAulaSeValido = (data: any) => {
     const jogadoresSrv = normalizarJogadoresSrv(data?.equipes?.jogadores ?? []);
     const timesSrv = normalizarTimesSrv(data?.equipes?.times ?? []);
-    const partidasSrv = normalizarPartidasSrv(data?.partidas ?? []);
+    const partidasRaw = data?.partidas ?? [];
+    const partidasSrv = normalizarPartidasSrv(partidasRaw);
+    const statsSrv = extrairStatsSrv(partidasRaw);
 
-    // ✅ Proteção: se vier payload “vazio” (ou incompleto), NÃO apaga estado atual
-    // (isso é o que causava “aparece e some”)
-    const temAlgo = jogadoresSrv.length > 0 || timesSrv.length > 0 || partidasSrv.length > 0;
+    // Proteção: se vier payload “vazio” (ou incompleto), NÃO apaga estado atual
+    const temAlgo =
+      jogadoresSrv.length > 0 ||
+      timesSrv.length > 0 ||
+      partidasSrv.length > 0 ||
+      Object.keys(statsSrv).length > 0;
     if (!temAlgo) return;
 
     setJogadores(jogadoresSrv);
     setTimes(timesSrv);
     setPartidas(partidasSrv);
+    setStats(statsSrv);
 
     lastGoodStateRef.current = {
       jogadores: jogadoresSrv,
       times: timesSrv,
       partidas: partidasSrv,
+      stats: statsSrv,
       version: data?.version ?? pollVersionRef.current ?? null,
     };
   };
@@ -266,7 +299,7 @@ export default function AulaPage() {
     const aulaIdNum = toAulaIdNumberOrNull(String(aula.id));
     if (aulaIdNum === null) return;
     try {
-      const resp = await obterEstadoAula(dia.dataIso, aulaIdNum, undefined);
+      const resp = await obterEstadoAula(dia.dataIso, aulaIdNum, undefined, { includeStats: true });
       if (resp?.status === 200 && resp.data) {
         aplicarEstadoAulaSeValido(resp.data);
         const v = typeof resp.data.version === "number" ? resp.data.version : null;
@@ -299,7 +332,7 @@ export default function AulaPage() {
       try {
         const currentVersion = pollVersionRef.current ?? undefined;
 
-        const resp = await obterEstadoAula(dataIso, aulaIdNum, currentVersion);
+        const resp = await obterEstadoAula(dataIso, aulaIdNum, currentVersion, { includeStats: true });
         if (!ativo) return;
 
         if (resp?.status === 200 && resp.data) {
@@ -324,6 +357,7 @@ export default function AulaPage() {
           setJogadores(last.jogadores);
           setTimes(last.times);
           setPartidas(last.partidas);
+          if (last.stats) setStats(last.stats);
         }
       } finally {
         if (ativo) pollingTimerRef.current = setTimeout(tick, 2500);
@@ -568,31 +602,39 @@ export default function AulaPage() {
     if (!novoTimeAId || !novoTimeBId) return;
     if (novoTimeAId === novoTimeBId) return;
 
-    setPartidas((prev) => {
-      const ordem = prev.length + 1;
-      const nova: PartidaAula = {
-        id: `jogo-${ordem}`,
-        ordem,
-        timeAId: novoTimeAId,
-        timeBId: novoTimeBId,
-        golsTimeA: 0,
-        golsTimeB: 0,
-      };
-      return [...prev, nova];
-    });
+    const criar = async () => {
+      try {
+        await criarPartidaNaAula(dia.dataIso, aula.id, { timeAId: novoTimeAId, timeBId: novoTimeBId });
+        setNovoTimeAId("");
+        setNovoTimeBId("");
+        pollVersionRef.current = null;
+        setPollVersion(null);
+        await refreshEstadoAulaHard();
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao criar partida. Recarregando estado do servidor.");
+        await refreshEstadoAulaHard();
+      }
+    };
 
-    setNovoTimeAId("");
-    setNovoTimeBId("");
+    void criar();
   };
 
   const handleRemoverPartida = (partidaId: string) => {
     marcarInteracao();
-    setPartidas((prev) => prev.filter((p) => p.id !== partidaId));
-    setStats((prev) => {
-      const clone = { ...prev };
-      delete clone[partidaId];
-      return clone;
-    });
+    const remover = async () => {
+      try {
+        await removerPartidaDaAula(dia.dataIso, aula.id, partidaId);
+        pollVersionRef.current = null;
+        setPollVersion(null);
+        await refreshEstadoAulaHard();
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao remover partida. Recarregando estado do servidor.");
+        await refreshEstadoAulaHard();
+      }
+    };
+    void remover();
   };
 
   const handleAlterarStat = (
@@ -605,31 +647,50 @@ export default function AulaPage() {
     setStats((prev) => {
       const statsPartida = prev[partidaId] ?? {};
       const statsJogador: StatsJogador = statsPartida[jogadorId] ?? { ...DEFAULT_STATS };
+      const atualizado = { ...statsJogador, [campo]: valor };
 
       return {
         ...prev,
         [partidaId]: {
           ...statsPartida,
-          [jogadorId]: {
-            ...statsJogador,
-            [campo]: valor,
-          },
+          [jogadorId]: atualizado,
         },
       };
     });
+
+    const persistir = async () => {
+      if (!dia || !aula) return;
+      const current = stats[partidaId]?.[jogadorId] ?? { ...DEFAULT_STATS, [campo]: valor };
+      const payload = {
+        gols: campo === "gols" ? valor : current.gols ?? 0,
+        assistencias: campo === "assistencias" ? valor : current.assistencias ?? 0,
+        defesas: campo === "defesas" ? valor : current.defesas ?? 0,
+        chiliques: campo === "chiliques" ? valor : current.chiliques ?? 0,
+        faltas: campo === "faltas" ? valor : current.faltas ?? 0,
+      };
+      try {
+        await atualizarStatsJogadorPartida(
+          dia.dataIso,
+          aula.id,
+          partidaId,
+          jogadorId,
+          payload,
+        );
+        pollVersionRef.current = null;
+        setPollVersion(null);
+        await refreshEstadoAulaHard();
+      } catch (err) {
+        console.error(err);
+        alert("Erro ao atualizar estatísticas. Recarregando estado do servidor.");
+        await refreshEstadoAulaHard();
+      }
+    };
+
+    void persistir();
   };
 
   const getStat = (partidaId: string, jogadorId: number, campo: keyof StatsJogador): number => {
     return stats[partidaId]?.[jogadorId]?.[campo] ?? 0;
-  };
-
-  const handleAlterarPlacar = (
-    partidaId: string,
-    campo: "golsTimeA" | "golsTimeB",
-    valor: number,
-  ) => {
-    marcarInteracao();
-    setPartidas((prev) => prev.map((p) => (p.id === partidaId ? { ...p, [campo]: valor } : p)));
   };
 
   // ---------------- SALVAR ESTADO EQUIPES ---------------
@@ -869,27 +930,9 @@ export default function AulaPage() {
 
                           <div className="d-flex align-items-center gap-2 mb-2">
                             <span>{timeA?.nome ?? "Time A"}</span>
-                            <input
-                              type="number"
-                              min={0}
-                              className="form-control form-control-sm"
-                              style={{ width: 50 }}
-                              value={p.golsTimeA}
-                              onChange={(e) =>
-                                handleAlterarPlacar(p.id, "golsTimeA", Number(e.target.value) || 0)
-                              }
-                            />
+                            <span className="badge bg-secondary">{p.golsTimeA}</span>
                             <span>x</span>
-                            <input
-                              type="number"
-                              min={0}
-                              className="form-control form-control-sm"
-                              style={{ width: 50 }}
-                              value={p.golsTimeB}
-                              onChange={(e) =>
-                                handleAlterarPlacar(p.id, "golsTimeB", Number(e.target.value) || 0)
-                              }
-                            />
+                            <span className="badge bg-secondary">{p.golsTimeB}</span>
                             <span>{timeB?.nome ?? "Time B"}</span>
                           </div>
 
