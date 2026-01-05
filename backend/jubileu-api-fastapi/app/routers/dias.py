@@ -635,7 +635,6 @@ def obter_estado_aula(
                         estat.jogador_aula_id,
                         estat.gols,
                         estat.assistencias,
-                        estat.defesas,
                         estat.chiliques,
                         estat.faltas,
                     ]

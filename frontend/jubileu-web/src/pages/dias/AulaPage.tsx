@@ -46,7 +46,6 @@ type PartidaAula = {
 type StatsJogador = {
   gols: number;
   assistencias: number;
-  defesas: number;
   chiliques: number;
   faltas: number;
 };
@@ -60,7 +59,6 @@ type TimeAula = TimeDia & {
 const DEFAULT_STATS: StatsJogador = {
   gols: 0,
   assistencias: 0,
-  defesas: 0,
   chiliques: 0,
   faltas: 0,
 };
@@ -256,7 +254,6 @@ export default function AulaPage() {
         stats[pid][jid] = {
           gols: e.gols ?? 0,
           assistencias: e.assistencias ?? 0,
-          defesas: e.defesas ?? 0,
           chiliques: e.chiliques ?? 0,
           faltas: e.faltas ?? 0,
         };
@@ -664,7 +661,6 @@ export default function AulaPage() {
       const payload = {
         gols: campo === "gols" ? valor : current.gols ?? 0,
         assistencias: campo === "assistencias" ? valor : current.assistencias ?? 0,
-        defesas: campo === "defesas" ? valor : current.defesas ?? 0,
         chiliques: campo === "chiliques" ? valor : current.chiliques ?? 0,
         faltas: campo === "faltas" ? valor : current.faltas ?? 0,
       };
@@ -929,10 +925,10 @@ export default function AulaPage() {
                           </div>
 
                           <div className="d-flex align-items-center gap-2 mb-2">
-                            <span>{timeA?.nome ?? "Time A"}</span>
-                            <span className="badge bg-secondary">{p.golsTimeA}</span>
-                            <span>x</span>
-                            <span className="badge bg-secondary">{p.golsTimeB}</span>
+                            <span>{timeA?.nome ?? "Time A "}</span>
+                            <span className="badge bg-secondary">{p.golsTimeA} </span>
+                            <span> x </span>
+                            <span className="badge bg-secondary">{p.golsTimeB} </span>
                             <span>{timeB?.nome ?? "Time B"}</span>
                           </div>
 
@@ -1080,12 +1076,11 @@ type TabelaSumulaTimeProps = {
 };
 
 function TabelaSumulaTime({ titulo, partidaId, jogadores, getStat, onAlterarStat }: TabelaSumulaTimeProps) {
-  const campos: (keyof StatsJogador)[] = ["gols", "assistencias", "defesas", "chiliques", "faltas"];
+  const campos: (keyof StatsJogador)[] = ["gols", "assistencias", "chiliques", "faltas"];
 
   const labels: Record<keyof StatsJogador, string> = {
     gols: "G",
     assistencias: "A",
-    defesas: "D",
     chiliques: "Ch",
     faltas: "F",
   };

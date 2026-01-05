@@ -20,7 +20,7 @@ type Props = {
 
 type CampoStat = keyof Pick<
   EstatisticaJogadorPartida,
-  "gols" | "assistencias" | "defesas" | "chiliques" | "faltas"
+  "gols" | "assistencias" | "chiliques" | "faltas"
 >;
 
 const normalizeTimeId = (id: string) => (id.startsWith("time-") ? id : `time-${id}`);
@@ -193,7 +193,6 @@ export default function DiaPartidasTab({ dataIso, aula }: Props) {
               jogadorAulaId: jogadorId,
               gols: 0,
               assistencias: 0,
-              defesas: 0,
               chiliques: 0,
               faltas: 0,
               [campo]: novoValor,
@@ -321,7 +320,6 @@ function TabelaSumulaTime({
   const campos: CampoStat[] = [
     "gols",
     "assistencias",
-    "defesas",
     "chiliques",
     "faltas",
   ];
@@ -329,7 +327,6 @@ function TabelaSumulaTime({
   const labels: Record<CampoStat, string> = {
     gols: "G",
     assistencias: "A",
-    defesas: "D",
     chiliques: "Ch",
     faltas: "F",
   };

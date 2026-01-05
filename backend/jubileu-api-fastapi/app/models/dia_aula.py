@@ -212,7 +212,6 @@ class JogadorAula(Base):
     # atributos acumulados na aula
     gols: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     assistencias: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    defesas: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     chiliques: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     faltas: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
@@ -268,7 +267,6 @@ class EstatisticaJogadorPartida(Base):
 
     gols: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     assistencias: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    defesas: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     chiliques: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     faltas: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     nota: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

@@ -27,7 +27,6 @@ def rebuild_estado_equipes(db: Session, aula: AulaModel) -> AulaEquipesEstadoMod
                 "atributos": {
                     "gols": getattr(jog, "gols", 0),
                     "assistencias": getattr(jog, "assistencias", 0),
-                    "defesas": getattr(jog, "defesas", 0),
                     "chiliques": getattr(jog, "chiliques", 0),
                     "faltas": getattr(jog, "faltas", 0),
                 },

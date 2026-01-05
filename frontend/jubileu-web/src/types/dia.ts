@@ -29,7 +29,6 @@ export type EstatisticaJogadorPartida = {
   jogadorAulaId: number;
   gols: number;
   assistencias: number;
-  defesas: number;
   chiliques: number;
   faltas: number;
   nota?: number;
@@ -60,7 +59,6 @@ export type StatusAula =
 export type AtributosJogadorDia = {
   gols: number;
   assistencias: number;
-  defesas: number;
   chiliques: number;
   faltas: number;
 };

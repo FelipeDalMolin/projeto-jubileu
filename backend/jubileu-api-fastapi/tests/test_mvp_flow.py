@@ -92,7 +92,6 @@ def test_fluxo_mvp(client: TestClient):
                 "atributos": {
                     "gols": 0,
                     "assistencias": 0,
-                    "defesas": 0,
                     "chiliques": 0,
                     "faltas": 0,
                 },

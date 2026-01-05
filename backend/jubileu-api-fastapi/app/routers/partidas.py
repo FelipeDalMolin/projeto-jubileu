@@ -162,7 +162,6 @@ def _calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
                         estat.jogador_aula_id,
                         estat.gols,
                         estat.assistencias,
-                        estat.defesas,
                         estat.chiliques,
                         estat.faltas,
                     ]
@@ -253,7 +252,6 @@ def criar_partida(
                 jogador_aula_id=estat.jogador_aula_id,
                 gols=estat.gols,
                 assistencias=estat.assistencias,
-                defesas=estat.defesas,
                 chiliques=estat.chiliques,
                 faltas=estat.faltas,
                 nota=estat.nota,
@@ -308,7 +306,6 @@ def atualizar_partida(
                     jogador_aula_id=estat.jogador_aula_id,
                     gols=estat.gols,
                     assistencias=estat.assistencias,
-                    defesas=estat.defesas,
                     chiliques=estat.chiliques,
                     faltas=estat.faltas,
                     nota=estat.nota,
@@ -377,7 +374,6 @@ def atualizar_stats_jogador_partida(
             jogador_aula_id=jogador.id,
             gols=payload.gols,
             assistencias=payload.assistencias,
-            defesas=payload.defesas,
             chiliques=payload.chiliques,
             faltas=payload.faltas,
         )
@@ -385,7 +381,6 @@ def atualizar_stats_jogador_partida(
     else:
         estat.gols = payload.gols
         estat.assistencias = payload.assistencias
-        estat.defesas = payload.defesas
         estat.chiliques = payload.chiliques
         estat.faltas = payload.faltas
 

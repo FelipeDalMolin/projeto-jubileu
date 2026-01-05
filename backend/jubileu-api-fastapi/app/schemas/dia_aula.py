@@ -20,7 +20,6 @@ from app.models.dia_aula import (
 class AtributosJogadorDia(BaseModel):
     gols: int = 0
     assistencias: int = 0
-    defesas: int = 0
     chiliques: int = 0
     faltas: int = 0
 
@@ -100,7 +99,6 @@ class EstatisticaJogadorPartidaBase(BaseModel):
     jogador_aula_id: int
     gols: int = Field(0, ge=0)
     assistencias: int = Field(0, ge=0)
-    defesas: int = Field(0, ge=0)
     chiliques: int = Field(0, ge=0)
     faltas: int = Field(0, ge=0)
     nota: Optional[int] = None
@@ -160,7 +158,6 @@ class PartidaEstadoOut(BaseModel):
 class StatsJogadorIn(BaseModel):
     gols: int = Field(0, ge=0)
     assistencias: int = Field(0, ge=0)
-    defesas: int = Field(0, ge=0)
     chiliques: int = Field(0, ge=0)
     faltas: int = Field(0, ge=0)
 

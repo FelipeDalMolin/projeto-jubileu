@@ -105,7 +105,6 @@ function toBackendPresenca(j: PresencaJogadorDia): any {
     atributos: {
       gols: 0,
       assistencias: 0,
-      defesas: 0,
       chiliques: 0,
       faltas: 0,
     },
@@ -381,7 +380,6 @@ export async function criarPartidaNaAula(
       jogadorAulaId: e.jogador_aula_id ?? e.jogadorAulaId,
       gols: e.gols ?? 0,
       assistencias: e.assistencias ?? 0,
-      defesas: e.defesas ?? 0,
       chiliques: e.chiliques ?? 0,
       faltas: e.faltas ?? 0,
       nota: e.nota ?? undefined,
@@ -410,7 +408,7 @@ export async function atualizarStatsJogadorPartida(
   aulaId: string | number,
   partidaId: string | number,
   jogadorAulaId: number,
-  stats: { gols: number; assistencias: number; defesas: number; chiliques: number; faltas: number },
+  stats: { gols: number; assistencias: number; chiliques: number; faltas: number },
 ): Promise<{ version?: number }> {
   const resp = await fetch(
     url(
