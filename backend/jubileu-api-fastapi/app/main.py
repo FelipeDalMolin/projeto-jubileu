@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import jogadores, dias, turmas, partidas
+from app.api.dashboards import jogadores as dashboards_jogadores
+from app.api.dashboards import partidas as dashboards_partidas
+from app.api.dashboards import estatisticas as dashboards_estatisticas
 
 app = FastAPI(
     title="Jubileu API",
@@ -33,3 +36,6 @@ app.include_router(jogadores.router)
 app.include_router(dias.router)
 app.include_router(turmas.router)
 app.include_router(partidas.router)
+app.include_router(dashboards_jogadores.router)
+app.include_router(dashboards_partidas.router)
+app.include_router(dashboards_estatisticas.router)

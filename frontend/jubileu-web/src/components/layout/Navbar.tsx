@@ -56,13 +56,23 @@ export default function Navbar() {
           </Link>
 
           <Link
-            to="/dashboards"
+            to="/dashboard"
             style={{
-              textDecoration: isActive("/dashboards") ? "underline" : "none",
+              textDecoration: isActive("/dashboard") ? "underline" : "none",
               textUnderlineOffset: 6,
             }}
           >
             Dashboards
+          </Link>
+
+          <Link
+            to="/dashboard/trofeu"
+            style={{
+              textDecoration: isActive("/dashboard/trofeu") ? "underline" : "none",
+              textUnderlineOffset: 6,
+            }}
+          >
+            Troféu
           </Link>
         </nav>
       </div>
