@@ -21,6 +21,7 @@ from app.schemas.workspace import (
     WorkspaceAulaKpisOut,
     WorkspaceAulaMetaOut,
     WorkspaceAulaOut,
+    WorkspaceAulaWarningOut,
 )
 from app.services.estado_equipes import rebuild_estado_equipes
 
@@ -165,6 +166,57 @@ def _montar_kpis(
     )
 
 
+def _montar_warnings(
+    jogadores: List[PresencaJogadorDiaOut],
+    times: List[TimeAulaOut],
+    partidas: List[PartidaEstadoOut],
+) -> List[WorkspaceAulaWarningOut]:
+    warnings: List[WorkspaceAulaWarningOut] = []
+
+    presentes = [j for j in jogadores if j.status == StatusPresencaEnum.presente]
+
+    if any(j.timeId is None for j in presentes):
+        warnings.append(
+            WorkspaceAulaWarningOut(
+                code="PLAYER_WITHOUT_TEAM",
+                message="Ha jogadores presentes sem time.",
+                severity="warning",
+            )
+        )
+
+    if len(times) >= 2:
+        tamanhos = [len(t.jogadoresIds) for t in times]
+        if tamanhos:
+            if max(tamanhos) - min(tamanhos) > 1:
+                warnings.append(
+                    WorkspaceAulaWarningOut(
+                        code="UNBALANCED_TEAMS",
+                        message="Times desbalanceados.",
+                        severity="warning",
+                    )
+                )
+
+    if not presentes:
+        warnings.append(
+            WorkspaceAulaWarningOut(
+                code="NO_PLAYERS_PRESENT",
+                message="Nenhum jogador presente.",
+                severity="info",
+            )
+        )
+
+    if not partidas:
+        warnings.append(
+            WorkspaceAulaWarningOut(
+                code="NO_MATCHES",
+                message="Aula sem partidas.",
+                severity="info",
+            )
+        )
+
+    return warnings
+
+
 def build_workspace_aula(db: Session, aula: AulaModel) -> WorkspaceAulaOut:
     dia = (
         db.query(DiaModel)
@@ -196,5 +248,5 @@ def build_workspace_aula(db: Session, aula: AulaModel) -> WorkspaceAulaOut:
         ),
         partidas=partidas_out,
         eventos=[],
-        warnings=[],
+        warnings=_montar_warnings(jogadores, times, partidas_out),
     )

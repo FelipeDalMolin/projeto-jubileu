@@ -33,6 +33,7 @@ from app.schemas.workspace import (
     WorkspaceAulaHeaderOut,
     WorkspaceAulaKpisOut,
     WorkspaceAulaEquipesOut,
+    WorkspaceAulaWarningOut,
     WorkspaceAulaOut,
 )
 
@@ -67,5 +68,6 @@ __all__ = [
     "WorkspaceAulaHeaderOut",
     "WorkspaceAulaKpisOut",
     "WorkspaceAulaEquipesOut",
+    "WorkspaceAulaWarningOut",
     "WorkspaceAulaOut",
 ]

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Literal
 
 from pydantic import BaseModel, Field
 
@@ -34,6 +34,12 @@ class WorkspaceAulaEquipesOut(BaseModel):
     times: List[TimeAulaOut] = Field(default_factory=list)
 
 
+class WorkspaceAulaWarningOut(BaseModel):
+    code: str
+    message: str
+    severity: Literal["info", "warning", "error"]
+
+
 class WorkspaceAulaOut(BaseModel):
     meta: WorkspaceAulaMetaOut
     header: WorkspaceAulaHeaderOut
@@ -41,4 +47,4 @@ class WorkspaceAulaOut(BaseModel):
     equipes: WorkspaceAulaEquipesOut
     partidas: List[PartidaEstadoOut] = Field(default_factory=list)
     eventos: List[str] = Field(default_factory=list)
-    warnings: List[str] = Field(default_factory=list)
+    warnings: List[WorkspaceAulaWarningOut] = Field(default_factory=list)
