@@ -3,7 +3,9 @@ from fastapi.testclient import TestClient
 from app.models.dia_aula import (
     Aula as AulaModel,
     Dia as DiaModel,
+    EstatisticaJogadorPartida as EstatisticaJogadorPartidaModel,
     JogadorAula as JogadorAulaModel,
+    Partida as PartidaModel,
     StatusAulaEnum,
     StatusPresencaEnum,
     TipoEventoAulaEnum,
@@ -70,6 +72,38 @@ def _criar_aula_com_jogadores(
     return aula
 
 
+def _criar_partida_com_gols(
+    db_session,
+    *,
+    aula_id: int,
+    time_a_id: int,
+    time_b_id: int,
+    gols_por_jogador: dict[int, int],
+) -> None:
+    partida = PartidaModel(
+        aula_id=aula_id,
+        ordem=1,
+        time_a_id=time_a_id,
+        time_b_id=time_b_id,
+    )
+    db_session.add(partida)
+    db_session.flush()
+
+    for jogador_id, gols in gols_por_jogador.items():
+        estat = EstatisticaJogadorPartidaModel(
+            partida_id=partida.id,
+            jogador_aula_id=jogador_id,
+            gols=gols,
+            assistencias=0,
+            chiliques=0,
+            faltas=0,
+            nota=None,
+        )
+        db_session.add(estat)
+
+    db_session.commit()
+
+
 def test_workspace_returns_structure(client: TestClient, db_session):
     data_iso = "2026-01-20"
     aula = _criar_aula_com_jogadores(
@@ -132,3 +166,51 @@ def test_workspace_warning_unbalanced_teams(client: TestClient, db_session):
 
     codes = {w["code"] for w in resp.json().get("warnings", [])}
     assert "UNBALANCED_TEAMS" in codes
+
+
+def test_workspace_kpis(client: TestClient, db_session):
+    data_iso = "2026-01-24"
+    aula = _criar_aula_com_jogadores(
+        db_session,
+        data_iso=data_iso,
+        jogadores_por_time=[2, 1],
+    )
+
+    jogadores = (
+        db_session.query(JogadorAulaModel)
+        .filter(JogadorAulaModel.aula_id == aula.id)
+        .order_by(JogadorAulaModel.id.asc())
+        .all()
+    )
+    assert len(jogadores) == 3
+
+    jogadores[1].status = StatusPresencaEnum.faltou
+    db_session.commit()
+
+    times = (
+        db_session.query(TimeAulaModel)
+        .filter(TimeAulaModel.aula_id == aula.id)
+        .order_by(TimeAulaModel.id.asc())
+        .all()
+    )
+    assert len(times) == 2
+
+    gols_por_jogador = {
+        jogadores[0].id: 2,
+        jogadores[2].id: 1,
+    }
+    _criar_partida_com_gols(
+        db_session,
+        aula_id=aula.id,
+        time_a_id=times[0].id,
+        time_b_id=times[1].id,
+        gols_por_jogador=gols_por_jogador,
+    )
+
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace")
+    assert resp.status_code == 200, resp.text
+
+    kpis = resp.json().get("kpis", {})
+    assert kpis["total_jogadores"] == 3
+    assert kpis["presentes"] == 2
+    assert kpis["gols_total"] == 3
