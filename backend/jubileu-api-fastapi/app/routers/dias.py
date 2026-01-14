@@ -42,7 +42,9 @@ from app.schemas.dia_aula import (
     AtualizarStatusJogadorIn,
     CommandOkOut,
 )
+from app.schemas.workspace import WorkspaceAulaOut
 from app.services.estado_equipes import rebuild_estado_equipes
+from app.services.workspace_aula import build_workspace_aula
 
 router = APIRouter(
     prefix="/dias",
@@ -667,3 +669,31 @@ def obter_estado_aula(
         equipes=EquipesEstadoOut(jogadores=jogadores, times=times),
         partidas=partidas_out,
     )
+
+
+@router.get(
+    "/{data_iso}/aulas/{aula_id}/workspace",
+    response_model=WorkspaceAulaOut,
+)
+def obter_workspace_aula(
+    data_iso: str,
+    aula_id: int,
+    since_version: int | None = None,
+    db: Session = Depends(get_db),
+) -> WorkspaceAulaOut | Response:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+
+    workspace = build_workspace_aula(db, aula)
+    if since_version is not None and since_version == workspace.meta.version:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    return workspace

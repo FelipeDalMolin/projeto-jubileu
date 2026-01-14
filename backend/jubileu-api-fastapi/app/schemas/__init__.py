@@ -28,6 +28,13 @@ from app.schemas.dia_aula import (
     CommandOkOut,
     StatsJogadorIn,
 )
+from app.schemas.workspace import (
+    WorkspaceAulaMetaOut,
+    WorkspaceAulaHeaderOut,
+    WorkspaceAulaKpisOut,
+    WorkspaceAulaEquipesOut,
+    WorkspaceAulaOut,
+)
 
 __all__ = [
     "JogadorBase",
@@ -56,4 +63,9 @@ __all__ = [
     "AtualizarStatusJogadorIn",
     "CommandOkOut",
     "StatsJogadorIn",
+    "WorkspaceAulaMetaOut",
+    "WorkspaceAulaHeaderOut",
+    "WorkspaceAulaKpisOut",
+    "WorkspaceAulaEquipesOut",
+    "WorkspaceAulaOut",
 ]
