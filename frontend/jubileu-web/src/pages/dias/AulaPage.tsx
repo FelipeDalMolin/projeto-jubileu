@@ -24,7 +24,7 @@ import {
   removerPartidaDaAula,
   atualizarStatsJogadorPartida,
 } from "../../services/diasService";
-import { obterEstadoAula } from "../../services/aulaEstadoService";
+import { obterWorkspaceAula } from "../../services/workspaceAulaService";
 
 import type {
   AulaDia,
@@ -33,6 +33,12 @@ import type {
   TimeDia,
   StatusPresenca,
 } from "../../types/dia";
+import type {
+  WorkspaceAula,
+  WorkspaceAulaHeader,
+  WorkspaceAulaKpis,
+  WorkspaceAulaWarning,
+} from "../../types/workspaceAula";
 
 type PartidaAula = {
   id: string;
@@ -80,6 +86,10 @@ export default function AulaPage() {
   const [times, setTimes] = useState<TimeAula[]>([]);
   const [partidas, setPartidas] = useState<PartidaAula[]>([]);
   const [stats, setStats] = useState<StatsPartidas>({});
+  const [workspaceHeader, setWorkspaceHeader] =
+    useState<WorkspaceAulaHeader | null>(null);
+  const [workspaceKpis, setWorkspaceKpis] = useState<WorkspaceAulaKpis | null>(null);
+  const [workspaceWarnings, setWorkspaceWarnings] = useState<WorkspaceAulaWarning[]>([]);
 
   // version do estado agregado (server)
   const [pollVersion, setPollVersion] = useState<number | null>(null);
@@ -148,6 +158,9 @@ export default function AulaPage() {
           setTimes([]);
           setPartidas([]);
           setStats({});
+          setWorkspaceHeader(null);
+          setWorkspaceKpis(null);
+          setWorkspaceWarnings([]);
           setPollVersion(null);
           pollVersionRef.current = null;
           lastGoodStateRef.current = null;
@@ -182,6 +195,9 @@ export default function AulaPage() {
         setTimes(timesBase);
         setPartidas([]);
         setStats({});
+        setWorkspaceHeader(null);
+        setWorkspaceKpis(null);
+        setWorkspaceWarnings([]);
         setPollVersion(null);
         pollVersionRef.current = null;
 
@@ -193,6 +209,21 @@ export default function AulaPage() {
           stats: {},
           version: null,
         };
+
+        try {
+          const resp = await obterWorkspaceAula(diaResp.dataIso, aulaEncontrada.id);
+          if (resp?.status === 200 && resp.data) {
+            aplicarWorkspaceSeValido(resp.data);
+            const v =
+              typeof resp.data.meta?.version === "number"
+                ? resp.data.meta.version
+                : null;
+            pollVersionRef.current = v;
+            setPollVersion(v);
+          }
+        } catch (err) {
+          console.warn("Erro ao carregar workspace (ignorado):", err);
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -262,32 +293,37 @@ export default function AulaPage() {
     return stats;
   }
 
-  const aplicarEstadoAulaSeValido = (data: any) => {
-    const jogadoresSrv = normalizarJogadoresSrv(data?.equipes?.jogadores ?? []);
-    const timesSrv = normalizarTimesSrv(data?.equipes?.times ?? []);
-    const partidasRaw = data?.partidas ?? [];
+  const aplicarWorkspaceSeValido = (workspace: WorkspaceAula) => {
+    const jogadoresSrv = normalizarJogadoresSrv(
+      workspace?.equipes?.jogadores ?? [],
+    );
+    const timesSrv = normalizarTimesSrv(workspace?.equipes?.times ?? []);
+    const partidasRaw = workspace?.partidas ?? [];
     const partidasSrv = normalizarPartidasSrv(partidasRaw);
     const statsSrv = extrairStatsSrv(partidasRaw);
+    const hasStats = Object.keys(statsSrv).length > 0;
 
     // Proteção: se vier payload “vazio” (ou incompleto), NÃO apaga estado atual
     const temAlgo =
-      jogadoresSrv.length > 0 ||
-      timesSrv.length > 0 ||
-      partidasSrv.length > 0 ||
-      Object.keys(statsSrv).length > 0;
+      jogadoresSrv.length > 0 || timesSrv.length > 0 || partidasSrv.length > 0;
     if (!temAlgo) return;
 
     setJogadores(jogadoresSrv);
     setTimes(timesSrv);
     setPartidas(partidasSrv);
-    setStats(statsSrv);
+    if (hasStats) {
+      setStats(statsSrv);
+    }
+    setWorkspaceHeader(workspace.header ?? null);
+    setWorkspaceKpis(workspace.kpis ?? null);
+    setWorkspaceWarnings(workspace.warnings ?? []);
 
     lastGoodStateRef.current = {
       jogadores: jogadoresSrv,
       times: timesSrv,
       partidas: partidasSrv,
-      stats: statsSrv,
-      version: data?.version ?? pollVersionRef.current ?? null,
+      stats: hasStats ? statsSrv : lastGoodStateRef.current?.stats ?? stats,
+      version: workspace?.meta?.version ?? pollVersionRef.current ?? null,
     };
   };
 
@@ -296,15 +332,18 @@ export default function AulaPage() {
     const aulaIdNum = toAulaIdNumberOrNull(String(aula.id));
     if (aulaIdNum === null) return;
     try {
-      const resp = await obterEstadoAula(dia.dataIso, aulaIdNum, undefined, { includeStats: true });
+      const resp = await obterWorkspaceAula(dia.dataIso, aulaIdNum);
       if (resp?.status === 200 && resp.data) {
-        aplicarEstadoAulaSeValido(resp.data);
-        const v = typeof resp.data.version === "number" ? resp.data.version : null;
+        aplicarWorkspaceSeValido(resp.data);
+        const v =
+          typeof resp.data.meta?.version === "number"
+            ? resp.data.meta.version
+            : null;
         pollVersionRef.current = v;
         setPollVersion(v);
       }
     } catch (err) {
-      console.error("Erro ao atualizar estado da aula", err);
+      console.error("Erro ao atualizar workspace da aula", err);
     }
   };
 
@@ -312,7 +351,7 @@ export default function AulaPage() {
     if (!dataIso || !aulaId) return;
 
     const aulaIdNum = toAulaIdNumberOrNull(aulaId);
-    // Se o backend do “estado” exige aulaId numérico e aqui não é número, não faz polling.
+    // Se o backend do “workspace” exige aulaId numérico e aqui não é número, não faz polling.
     // (Evita loop de erro que pode derrubar UI)
     if (aulaIdNum === null) return;
 
@@ -329,15 +368,22 @@ export default function AulaPage() {
       try {
         const currentVersion = pollVersionRef.current ?? undefined;
 
-        const resp = await obterEstadoAula(dataIso, aulaIdNum, currentVersion, { includeStats: true });
+        const resp = await obterWorkspaceAula(
+          dataIso,
+          aulaIdNum,
+          currentVersion,
+        );
         if (!ativo) return;
 
         if (resp?.status === 200 && resp.data) {
-          const nextVersion = typeof resp.data.version === "number" ? resp.data.version : null;
+          const nextVersion =
+            typeof resp.data.meta?.version === "number"
+              ? resp.data.meta.version
+              : null;
 
           // Atualiza apenas se versão avançou (ou primeira vez)
           if (pollVersionRef.current === null || (nextVersion !== null && nextVersion > (pollVersionRef.current ?? -1))) {
-            aplicarEstadoAulaSeValido(resp.data);
+            aplicarWorkspaceSeValido(resp.data);
             pollVersionRef.current = nextVersion;
             setPollVersion(nextVersion);
           }
@@ -346,7 +392,7 @@ export default function AulaPage() {
       } catch (err: any) {
         if (!ativo) return;
 
-        setPollError(err?.message ?? "Erro no polling do estado da aula");
+        setPollError(err?.message ?? "Erro no polling do workspace da aula");
 
         // ✅ Mantém último estado válido em tela
         const last = lastGoodStateRef.current;
@@ -718,13 +764,39 @@ export default function AulaPage() {
         Dia {tituloData} • {aula.turmaNome}
       </h2>
       <h1 className="h4 mb-1">
-        Aula #{aula.numeroAulaNaTurma} – {aula.turmaNome}
+        {workspaceHeader?.titulo ??
+          `Aula #${aula.numeroAulaNaTurma} - ${aula.turmaNome}`}
       </h1>
-      <p className="text-muted mb-4">
-        {aula.horarioInicio} – {aula.horarioFim}
+      <p className="text-muted mb-2">
+        {(workspaceHeader?.horario_inicio ?? aula.horarioInicio)} -{" "}
+        {(workspaceHeader?.horario_fim ?? aula.horarioFim)}
       </p>
+      {workspaceKpis && (
+        <p className="text-muted mb-3" style={{ fontSize: 12 }}>
+          Presentes: {workspaceKpis.presentes}/{workspaceKpis.total_jogadores} -
+          Gols: {workspaceKpis.gols_total}
+        </p>
+      )}
 
       {pollError && <div className="alert alert-warning py-2">{pollError}</div>}
+      {workspaceWarnings.length > 0 && (
+        <div className="mb-3">
+          {workspaceWarnings.map((w) => (
+            <div
+              key={`${w.code}-${w.message}`}
+              className={`alert py-2 mb-2 ${
+                w.severity === "error"
+                  ? "alert-danger"
+                  : w.severity === "warning"
+                    ? "alert-warning"
+                    : "alert-info"
+              }`}
+            >
+              {w.message}
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="row">
         {/* COLUNA ESQUERDA */}
