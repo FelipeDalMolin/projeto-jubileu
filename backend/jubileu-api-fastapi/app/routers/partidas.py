@@ -15,6 +15,7 @@ from app.models.dia_aula import (
     EstatisticaJogadorPartida as EstatisticaModel,
     JogadorAula as JogadorAulaModel,
     Partida as PartidaModel,
+    StatusAulaEnum,
     TimeAula as TimeAulaModel,
 )
 from app.schemas.dia_aula import (
@@ -44,6 +45,14 @@ def _obter_aula_ou_404(db: Session, data_iso: str, aula_id: int) -> AulaModel:
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
     return aula
+
+
+def _assert_aula_editavel(aula: AulaModel) -> None:
+    if aula.status == StatusAulaEnum.CONCLUIDA:
+        raise HTTPException(
+            status_code=409,
+            detail="Aula concluida: alteracoes nao permitidas",
+        )
 
 
 def _validar_times_na_aula(db: Session, aula_id: int, time_a_id: int, time_b_id: int) -> None:
@@ -226,6 +235,7 @@ def criar_partida(
     db: Session = Depends(get_db),
 ) -> PartidaOut:
     aula = _obter_aula_ou_404(db, data_iso, aula_id)
+    _assert_aula_editavel(aula)
     _validar_times_na_aula(db, aula_id=aula.id, time_a_id=payload.time_a_id, time_b_id=payload.time_b_id)
 
     ordem = payload.ordem
@@ -276,6 +286,7 @@ def atualizar_partida(
     db: Session = Depends(get_db),
 ) -> PartidaOut:
     aula = _obter_aula_ou_404(db, data_iso, aula_id)
+    _assert_aula_editavel(aula)
 
     partida = (
         db.query(PartidaModel)
@@ -339,6 +350,7 @@ def atualizar_stats_jogador_partida(
     db: Session = Depends(get_db),
 ) -> CommandOkOut:
     aula = _obter_aula_ou_404(db, data_iso, aula_id)
+    _assert_aula_editavel(aula)
 
     partida = (
         db.query(PartidaModel)
@@ -407,7 +419,8 @@ def deletar_partida(
     partida_id: int,
     db: Session = Depends(get_db),
 ) -> Response:
-    _obter_aula_ou_404(db, data_iso, aula_id)
+    aula = _obter_aula_ou_404(db, data_iso, aula_id)
+    _assert_aula_editavel(aula)
 
     partida = (
         db.query(PartidaModel)

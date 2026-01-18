@@ -23,6 +23,7 @@ from app.models.dia_aula import (
     AulaEquipesEstado as AulaEquipesEstadoModel,
     JogadorAula as JogadorAulaModel,
     Partida as PartidaModel,
+    StatusAulaEnum,
     StatusPresencaEnum,
 )
 from app.schemas.dia_aula import (
@@ -50,6 +51,14 @@ router = APIRouter(
     prefix="/dias",
     tags=["Dias"],
 )
+
+
+def _assert_aula_editavel(aula: AulaModel) -> None:
+    if aula.status == StatusAulaEnum.CONCLUIDA:
+        raise HTTPException(
+            status_code=409,
+            detail="Aula concluida: alteracoes nao permitidas",
+        )
 
 # ---------------- DIA ----------------
 
@@ -193,6 +202,76 @@ def obter_aula_no_dia(
     return aula
 
 
+@router.put(
+    "/{data_iso}/aulas/{aula_id}/start",
+    response_model=AulaOut,
+)
+def iniciar_aula(
+    data_iso: str,
+    aula_id: int,
+    db: Session = Depends(get_db),
+) -> AulaOut:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .options(selectinload(AulaModel.jogadores))
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+
+    if aula.status != StatusAulaEnum.PLANEJADA:
+        raise HTTPException(
+            status_code=400,
+            detail="Aula nao pode ser iniciada: status atual diferente de PLANEJADA",
+        )
+
+    aula.status = StatusAulaEnum.EM_ANDAMENTO
+    db.add(aula)
+    db.commit()
+    db.refresh(aula, attribute_names=["jogadores"])
+    return aula
+
+
+@router.put(
+    "/{data_iso}/aulas/{aula_id}/finish",
+    response_model=AulaOut,
+)
+def finalizar_aula(
+    data_iso: str,
+    aula_id: int,
+    db: Session = Depends(get_db),
+) -> AulaOut:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .options(selectinload(AulaModel.jogadores))
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+
+    if aula.status != StatusAulaEnum.EM_ANDAMENTO:
+        raise HTTPException(
+            status_code=400,
+            detail="Aula nao pode ser finalizada: status atual diferente de EM_ANDAMENTO",
+        )
+
+    aula.status = StatusAulaEnum.CONCLUIDA
+    db.add(aula)
+    db.commit()
+    db.refresh(aula, attribute_names=["jogadores"])
+    return aula
+
+
 @router.delete(
     "/{data_iso}/aulas/{aula_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -247,6 +326,7 @@ def criar_time_na_aula(
     )
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+    _assert_aula_editavel(aula)
 
     novo_time = TimeAulaModel(
         aula_id=aula.id,
@@ -297,6 +377,7 @@ def mover_jogador_para_time(
     )
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+    _assert_aula_editavel(aula)
 
     jogador = (
         db.query(JogadorAulaModel)
@@ -349,6 +430,7 @@ def atualizar_status_jogador(
     )
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+    _assert_aula_editavel(aula)
 
     jogador = (
         db.query(JogadorAulaModel)
@@ -390,6 +472,7 @@ def deletar_time(
     )
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+    _assert_aula_editavel(aula)
 
     time = (
         db.query(TimeAulaModel)
@@ -483,6 +566,7 @@ def salvar_estado_equipes_aula(
     )
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+    _assert_aula_editavel(aula)
 
     estado_dict: dict[str, Any] = {
         "jogadores": [j.model_dump() for j in payload.jogadores],
