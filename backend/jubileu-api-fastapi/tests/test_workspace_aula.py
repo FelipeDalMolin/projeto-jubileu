@@ -104,6 +104,27 @@ def _criar_partida_com_gols(
     db_session.commit()
 
 
+def _criar_partida_com_placar(
+    db_session,
+    *,
+    aula_id: int,
+    time_a_id: int,
+    time_b_id: int,
+    gols_time_a: int,
+    gols_time_b: int,
+) -> None:
+    partida = PartidaModel(
+        aula_id=aula_id,
+        ordem=1,
+        time_a_id=time_a_id,
+        time_b_id=time_b_id,
+        gols_time_a=gols_time_a,
+        gols_time_b=gols_time_b,
+    )
+    db_session.add(partida)
+    db_session.commit()
+
+
 def test_workspace_returns_structure(client: TestClient, db_session):
     data_iso = "2026-01-20"
     aula = _criar_aula_com_jogadores(
@@ -168,7 +189,7 @@ def test_workspace_warning_unbalanced_teams(client: TestClient, db_session):
     assert "UNBALANCED_TEAMS" in codes
 
 
-def test_workspace_kpis(client: TestClient, db_session):
+def test_workspace_kpis_counts_players(client: TestClient, db_session):
     data_iso = "2026-01-24"
     aula = _criar_aula_com_jogadores(
         db_session,
@@ -187,6 +208,22 @@ def test_workspace_kpis(client: TestClient, db_session):
     jogadores[1].status = StatusPresencaEnum.faltou
     db_session.commit()
 
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace")
+    assert resp.status_code == 200, resp.text
+
+    kpis = resp.json().get("kpis", {})
+    assert kpis["total_jogadores"] == 3
+    assert kpis["presentes"] == 2
+
+
+def test_workspace_kpis_goals_total(client: TestClient, db_session):
+    data_iso = "2026-01-25"
+    aula = _criar_aula_com_jogadores(
+        db_session,
+        data_iso=data_iso,
+        jogadores_por_time=[1, 1],
+    )
+
     times = (
         db_session.query(TimeAulaModel)
         .filter(TimeAulaModel.aula_id == aula.id)
@@ -195,22 +232,17 @@ def test_workspace_kpis(client: TestClient, db_session):
     )
     assert len(times) == 2
 
-    gols_por_jogador = {
-        jogadores[0].id: 2,
-        jogadores[2].id: 1,
-    }
-    _criar_partida_com_gols(
+    _criar_partida_com_placar(
         db_session,
         aula_id=aula.id,
         time_a_id=times[0].id,
         time_b_id=times[1].id,
-        gols_por_jogador=gols_por_jogador,
+        gols_time_a=2,
+        gols_time_b=1,
     )
 
     resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace")
     assert resp.status_code == 200, resp.text
 
     kpis = resp.json().get("kpis", {})
-    assert kpis["total_jogadores"] == 3
-    assert kpis["presentes"] == 2
     assert kpis["gols_total"] == 3
