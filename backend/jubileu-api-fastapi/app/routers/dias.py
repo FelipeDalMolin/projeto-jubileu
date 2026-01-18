@@ -42,6 +42,7 @@ from app.schemas.dia_aula import (
     MoverJogadorTimeIn,
     AtualizarStatusJogadorIn,
     CommandOkOut,
+    ConfirmarPresencasIn,
 )
 from app.schemas.workspace import WorkspaceAulaOut
 from app.services.estado_equipes import rebuild_estado_equipes
@@ -164,7 +165,7 @@ def criar_aula_no_dia(
             aula_id=aula.id,
             jogador_id=jogador_id,
             nome=jogador_nome or f"Jogador {jogador_id}",
-            status=StatusPresencaEnum.so_treino,
+            status=StatusPresencaEnum.faltou,
         )
         db.add(novo_jogador_aula)
 
@@ -230,8 +231,28 @@ def iniciar_aula(
             detail="Aula nao pode ser iniciada: status atual diferente de PLANEJADA",
         )
 
+    presentes_count = (
+        db.query(JogadorAulaModel)
+        .filter(JogadorAulaModel.aula_id == aula.id)
+        .filter(JogadorAulaModel.status == StatusPresencaEnum.presente)
+        .count()
+    )
+    if presentes_count == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Aula nao pode ser iniciada sem jogadores presentes",
+        )
+
+    db.query(JogadorAulaModel).filter(
+        JogadorAulaModel.aula_id == aula.id,
+        JogadorAulaModel.status != StatusPresencaEnum.presente,
+    ).update({JogadorAulaModel.status: StatusPresencaEnum.faltou})
+
     aula.status = StatusAulaEnum.EM_ANDAMENTO
     db.add(aula)
+    db.flush()
+    db.refresh(aula, attribute_names=["times", "jogadores"])
+    rebuild_estado_equipes(db, aula)
     db.commit()
     db.refresh(aula, attribute_names=["jogadores"])
     return aula
@@ -270,6 +291,56 @@ def finalizar_aula(
     db.commit()
     db.refresh(aula, attribute_names=["jogadores"])
     return aula
+
+
+@router.put(
+    "/{data_iso}/aulas/{aula_id}/confirmar-presencas",
+    response_model=CommandOkOut,
+)
+def confirmar_presencas(
+    data_iso: str,
+    aula_id: int,
+    payload: ConfirmarPresencasIn,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
+    if not dia:
+        raise HTTPException(status_code=404, detail="Dia nao encontrado")
+
+    aula = (
+        db.query(AulaModel)
+        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
+        .first()
+    )
+    if not aula:
+        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
+    _assert_aula_editavel(aula)
+    if aula.status != StatusAulaEnum.PLANEJADA:
+        raise HTTPException(
+            status_code=400,
+            detail="Presencas so podem ser confirmadas com aula planejada",
+        )
+
+    presentes_ids = set(payload.presentes_ids or [])
+    jogadores = (
+        db.query(JogadorAulaModel)
+        .filter(JogadorAulaModel.aula_id == aula.id)
+        .all()
+    )
+
+    for jogador in jogadores:
+        jogador.status = (
+            StatusPresencaEnum.presente
+            if jogador.id in presentes_ids
+            else StatusPresencaEnum.faltou
+        )
+
+    db.refresh(aula, attribute_names=["times", "jogadores"])
+    estado_row = rebuild_estado_equipes(db, aula)
+    db.commit()
+
+    version = int(estado_row.version) if estado_row.version is not None else None
+    return CommandOkOut(status="ok", version=version)
 
 
 @router.delete(

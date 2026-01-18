@@ -25,6 +25,7 @@ import {
   atualizarStatsJogadorPartida,
 } from "../../services/diasService";
 import { obterWorkspaceAula } from "../../services/workspaceAulaService";
+import { confirmarPresencasAula } from "../../services/workspacePresencasService";
 
 import type {
   AulaDia,
@@ -37,6 +38,7 @@ import type {
   WorkspaceAula,
   WorkspaceAulaHeader,
   WorkspaceAulaKpis,
+  WorkspaceAulaMeta,
   WorkspaceAulaWarning,
 } from "../../types/workspaceAula";
 
@@ -89,7 +91,15 @@ export default function AulaPage() {
   const [workspaceHeader, setWorkspaceHeader] =
     useState<WorkspaceAulaHeader | null>(null);
   const [workspaceKpis, setWorkspaceKpis] = useState<WorkspaceAulaKpis | null>(null);
+  const [workspaceMeta, setWorkspaceMeta] = useState<WorkspaceAulaMeta | null>(null);
   const [workspaceWarnings, setWorkspaceWarnings] = useState<WorkspaceAulaWarning[]>([]);
+  const [presencasSelecionadas, setPresencasSelecionadas] = useState<Set<number>>(
+    new Set(),
+  );
+  const [confirmingPresencas, setConfirmingPresencas] = useState(false);
+  const [confirmPresencasError, setConfirmPresencasError] = useState<string | null>(
+    null,
+  );
 
   // version do estado agregado (server)
   const [pollVersion, setPollVersion] = useState<number | null>(null);
@@ -160,7 +170,10 @@ export default function AulaPage() {
           setStats({});
           setWorkspaceHeader(null);
           setWorkspaceKpis(null);
+          setWorkspaceMeta(null);
           setWorkspaceWarnings([]);
+          setPresencasSelecionadas(new Set());
+          setConfirmPresencasError(null);
           setPollVersion(null);
           pollVersionRef.current = null;
           lastGoodStateRef.current = null;
@@ -197,7 +210,10 @@ export default function AulaPage() {
         setStats({});
         setWorkspaceHeader(null);
         setWorkspaceKpis(null);
+        setWorkspaceMeta(null);
         setWorkspaceWarnings([]);
+        setPresencasSelecionadas(new Set());
+        setConfirmPresencasError(null);
         setPollVersion(null);
         pollVersionRef.current = null;
 
@@ -316,7 +332,9 @@ export default function AulaPage() {
     }
     setWorkspaceHeader(workspace.header ?? null);
     setWorkspaceKpis(workspace.kpis ?? null);
+    setWorkspaceMeta(workspace.meta ?? null);
     setWorkspaceWarnings(workspace.warnings ?? []);
+    setConfirmPresencasError(null);
 
     lastGoodStateRef.current = {
       jogadores: jogadoresSrv,
@@ -325,6 +343,49 @@ export default function AulaPage() {
       stats: hasStats ? statsSrv : lastGoodStateRef.current?.stats ?? stats,
       version: workspace?.meta?.version ?? pollVersionRef.current ?? null,
     };
+  };
+
+  useEffect(() => {
+    if (workspaceMeta?.status !== "PLANEJADA") {
+      setPresencasSelecionadas(new Set());
+      return;
+    }
+
+    const presentesIds = jogadores
+      .filter((j) => j.status === "presente")
+      .map((j) => j.jogadorId);
+    setPresencasSelecionadas(new Set(presentesIds));
+  }, [workspaceMeta?.status, jogadores]);
+
+  const togglePresencaSelecionada = (jogadorId: number) => {
+    setPresencasSelecionadas((prev) => {
+      const next = new Set(prev);
+      if (next.has(jogadorId)) {
+        next.delete(jogadorId);
+      } else {
+        next.add(jogadorId);
+      }
+      return next;
+    });
+  };
+
+  const handleConfirmarPresencas = async () => {
+    if (!dia || !aula) return;
+    const presentesIds = Array.from(presencasSelecionadas);
+    setConfirmingPresencas(true);
+    setConfirmPresencasError(null);
+    try {
+      await confirmarPresencasAula(dia.dataIso, aula.id, presentesIds);
+      pollVersionRef.current = null;
+      setPollVersion(null);
+      await refreshEstadoAulaHard();
+    } catch (err: any) {
+      setConfirmPresencasError(
+        err?.message ?? "Erro ao confirmar presencas da aula",
+      );
+    } finally {
+      setConfirmingPresencas(false);
+    }
   };
 
   const refreshEstadoAulaHard = async () => {
@@ -776,6 +837,46 @@ export default function AulaPage() {
           Presentes: {workspaceKpis.presentes}/{workspaceKpis.total_jogadores} -
           Gols: {workspaceKpis.gols_total}
         </p>
+      )}
+
+      {workspaceMeta?.status === "PLANEJADA" && (
+        <section className="mb-3">
+          <h3 className="h6 mb-2">Confirmar presencas</h3>
+          {confirmPresencasError && (
+            <div className="alert alert-warning py-2">
+              {confirmPresencasError}
+            </div>
+          )}
+          <div className="border rounded p-2" style={{ maxHeight: 200, overflowY: "auto" }}>
+            {jogadores.length === 0 ? (
+              <p className="text-muted mb-0">Nenhum jogador cadastrado nesta aula.</p>
+            ) : (
+              jogadores.map((j) => (
+                <label
+                  key={j.jogadorId}
+                  className="d-flex align-items-center gap-2 py-1 border-bottom"
+                >
+                  <input
+                    type="checkbox"
+                    checked={presencasSelecionadas.has(j.jogadorId)}
+                    onChange={() => togglePresencaSelecionada(j.jogadorId)}
+                  />
+                  <span>{j.nome}</span>
+                </label>
+              ))
+            )}
+          </div>
+          <div className="mt-2">
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={handleConfirmarPresencas}
+              disabled={confirmingPresencas || presencasSelecionadas.size === 0}
+            >
+              {confirmingPresencas ? "Confirmando..." : "Confirmar presencas"}
+            </button>
+          </div>
+        </section>
       )}
 
       {pollError && <div className="alert alert-warning py-2">{pollError}</div>}

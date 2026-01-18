@@ -70,6 +70,10 @@ class CommandOkOut(BaseModel):
     version: Optional[int] = None
 
 
+class ConfirmarPresencasIn(BaseModel):
+    presentes_ids: List[int] = Field(default_factory=list)
+
+
 # ---------------------------------------------------------
 # ESTADO DE EQUIPES / SNAPSHOT
 # ---------------------------------------------------------
