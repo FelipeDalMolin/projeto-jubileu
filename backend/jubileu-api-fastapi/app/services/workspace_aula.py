@@ -4,6 +4,7 @@ import json
 import zlib
 from typing import Any, List, Optional, Tuple
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.dia_aula import (
@@ -153,16 +154,30 @@ def _montar_header(aula: AulaModel) -> WorkspaceAulaHeaderOut:
     )
 
 
-def _montar_kpis(
-    jogadores: List[PresencaJogadorDiaOut],
-    partidas: List[PartidaEstadoOut],
-) -> WorkspaceAulaKpisOut:
-    presentes = sum(1 for j in jogadores if j.status == StatusPresencaEnum.presente)
-    gols_total = sum(p.golsTimeA + p.golsTimeB for p in partidas)
+def _calcular_kpis(db: Session, aula: AulaModel) -> WorkspaceAulaKpisOut:
+    total_jogadores = (
+        db.query(func.count(JogadorAulaModel.id))
+        .filter(JogadorAulaModel.aula_id == aula.id)
+        .scalar()
+    )
+
+    presentes = (
+        db.query(func.count(JogadorAulaModel.id))
+        .filter(JogadorAulaModel.aula_id == aula.id)
+        .filter(JogadorAulaModel.status == StatusPresencaEnum.presente)
+        .scalar()
+    )
+
+    gols_total = (
+        db.query(func.coalesce(func.sum(PartidaModel.gols_time_a + PartidaModel.gols_time_b), 0))
+        .filter(PartidaModel.aula_id == aula.id)
+        .scalar()
+    )
+
     return WorkspaceAulaKpisOut(
-        presentes=presentes,
-        total_jogadores=len(jogadores),
-        gols_total=gols_total,
+        presentes=int(presentes or 0),
+        total_jogadores=int(total_jogadores or 0),
+        gols_total=int(gols_total or 0),
     )
 
 
@@ -241,7 +256,7 @@ def build_workspace_aula(db: Session, aula: AulaModel) -> WorkspaceAulaOut:
     return WorkspaceAulaOut(
         meta=meta,
         header=_montar_header(aula),
-        kpis=_montar_kpis(jogadores, partidas_out),
+        kpis=_calcular_kpis(db, aula),
         equipes=WorkspaceAulaEquipesOut(
             jogadores=jogadores,
             times=times,
