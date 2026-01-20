@@ -7,6 +7,7 @@ from app.schemas.jogador import (
 )
 from app.schemas.dia_aula import (
     DiaOut,
+    DiaListOut,
     AulaOut,
     AulaCreate,
     TimeAulaOut,
@@ -45,6 +46,7 @@ __all__ = [
     "JogadorOut",
     "StatusJogadorEnum",
     "DiaOut",
+    "DiaListOut",
     "AulaOut",
     "AulaCreate",
     "TimeAulaOut",

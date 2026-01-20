@@ -1,4 +1,4 @@
-"""Garante status/tipo na tabela aulas com defaults seguros."""
+"""Cria TeamConfig e migra snapshots atuais de equipes."""
 
 from alembic import op
 import sqlalchemy as sa
@@ -18,76 +18,41 @@ def upgrade() -> None:
     if "aulas" not in inspector.get_table_names():
         return
 
+    op.create_table(
+        "team_configs",
+        sa.Column("id", sa.Integer(), primary_key=True),
+        sa.Column("aula_id", sa.Integer(), sa.ForeignKey("aulas.id"), nullable=False),
+        sa.Column("estado", sa.JSON(), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False, server_default="1"),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
+    )
+    op.create_index("ix_team_configs_aula_id", "team_configs", ["aula_id"])
     op.execute(
-        """
-        DO $$
-        BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'statusaulaenum') THEN
-                CREATE TYPE statusaulaenum AS ENUM ('PLANEJADA','EM_ANDAMENTO','CONCLUIDA','CANCELADA');
-            END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'tipoeventoaulaenum') THEN
-                CREATE TYPE tipoeventoaulaenum AS ENUM ('AULA','JOGO','OUTRO');
-            END IF;
-        END$$;
-        """
+        "CREATE UNIQUE INDEX IF NOT EXISTS uq_team_configs_active "
+        "ON team_configs (aula_id) WHERE is_active"
     )
 
-    op.execute("ALTER TABLE aulas ADD COLUMN IF NOT EXISTS status statusaulaenum")
-    op.execute("ALTER TABLE aulas ADD COLUMN IF NOT EXISTS tipo tipoeventoaulaenum")
-
-    op.execute("UPDATE aulas SET status = COALESCE(status, 'PLANEJADA')")
-    op.execute("UPDATE aulas SET tipo = COALESCE(tipo, 'AULA')")
-
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF EXISTS (
+    if "aula_equipes_estado" in inspector.get_table_names():
+        op.execute(
+            """
+            INSERT INTO team_configs (aula_id, estado, version, created_at, is_active)
+            SELECT aes.aula_id,
+                   aes.estado,
+                   1,
+                   COALESCE(aes.updated_at, now()),
+                   true
+            FROM aula_equipes_estado aes
+            WHERE NOT EXISTS (
                 SELECT 1
-                FROM information_schema.columns
-                WHERE table_schema = 'public'
-                  AND table_name = 'aulas'
-                  AND column_name = 'status'
-                  AND udt_name <> 'statusaulaenum'
-            ) THEN
-                ALTER TABLE aulas ALTER COLUMN status DROP DEFAULT,
-                    ALTER COLUMN status TYPE statusaulaenum
-                        USING UPPER(COALESCE(status, 'PLANEJADA'))::statusaulaenum,
-                    ALTER COLUMN status SET DEFAULT 'PLANEJADA',
-                    ALTER COLUMN status SET NOT NULL;
-            ELSE
-                ALTER TABLE aulas ALTER COLUMN status SET DEFAULT 'PLANEJADA';
-                ALTER TABLE aulas ALTER COLUMN status SET NOT NULL;
-            END IF;
-        END$$;
-        """
-    )
-
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF EXISTS (
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_schema = 'public'
-                  AND table_name = 'aulas'
-                  AND column_name = 'tipo'
-                  AND udt_name <> 'tipoeventoaulaenum'
-            ) THEN
-                ALTER TABLE aulas ALTER COLUMN tipo DROP DEFAULT,
-                    ALTER COLUMN tipo TYPE tipoeventoaulaenum
-                        USING UPPER(COALESCE(tipo, 'AULA'))::tipoeventoaulaenum,
-                    ALTER COLUMN tipo SET DEFAULT 'AULA',
-                    ALTER COLUMN tipo SET NOT NULL;
-            ELSE
-                ALTER TABLE aulas ALTER COLUMN tipo SET DEFAULT 'AULA';
-                ALTER TABLE aulas ALTER COLUMN tipo SET NOT NULL;
-            END IF;
-        END$$;
-        """
-    )
+                FROM team_configs tc
+                WHERE tc.aula_id = aes.aula_id
+            );
+            """
+        )
 
 
 def downgrade() -> None:
-    pass
+    op.execute("DROP INDEX IF EXISTS uq_team_configs_active")
+    op.drop_index("ix_team_configs_aula_id", table_name="team_configs")
+    op.drop_table("team_configs")

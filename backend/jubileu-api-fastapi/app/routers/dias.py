@@ -20,14 +20,15 @@ from app.models.dia_aula import (
     Dia as DiaModel,
     Aula as AulaModel,
     TimeAula as TimeAulaModel,
-    AulaEquipesEstado as AulaEquipesEstadoModel,
     JogadorAula as JogadorAulaModel,
     Partida as PartidaModel,
     StatusAulaEnum,
     StatusPresencaEnum,
+    TeamConfig as TeamConfigModel,
 )
 from app.schemas.dia_aula import (
     DiaOut,
+    DiaListOut,
     AulaOut,
     AulaCreate,
     TimeAulaOut,
@@ -45,7 +46,7 @@ from app.schemas.dia_aula import (
     ConfirmarPresencasIn,
 )
 from app.schemas.workspace import WorkspaceAulaOut
-from app.services.estado_equipes import rebuild_estado_equipes
+from app.services.estado_equipes import create_team_config, rebuild_estado_equipes
 from app.services.workspace_aula import build_workspace_aula
 
 router = APIRouter(
@@ -64,16 +65,15 @@ def _assert_aula_editavel(aula: AulaModel) -> None:
 # ---------------- DIA ----------------
 
 
-@router.get("/", response_model=List[DiaOut])
-def listar_dias(db: Session = Depends(get_db)) -> List[DiaOut]:
+@router.get("/", response_model=List[DiaListOut])
+def listar_dias(db: Session = Depends(get_db)) -> List[DiaListOut]:
     """Lista todos os dias cadastrados (ordenados por data_iso)."""
     dias = (
         db.query(DiaModel)
-        .options(selectinload(DiaModel.aulas).selectinload(AulaModel.jogadores))
         .order_by(DiaModel.data_iso.asc())
         .all()
     )
-    return [DiaOut.model_validate(d, from_attributes=True) for d in dias]
+    return [DiaListOut.model_validate(d, from_attributes=True) for d in dias]
 
 @router.get("/{data_iso}", response_model=DiaOut)
 def obter_dia_por_data(data_iso: str, db: Session = Depends(get_db)) -> DiaOut:
@@ -251,7 +251,6 @@ def iniciar_aula(
     aula.status = StatusAulaEnum.EM_ANDAMENTO
     db.add(aula)
     db.flush()
-    db.refresh(aula, attribute_names=["times", "jogadores"])
     rebuild_estado_equipes(db, aula)
     db.commit()
     db.refresh(aula, attribute_names=["jogadores"])
@@ -335,11 +334,11 @@ def confirmar_presencas(
             else StatusPresencaEnum.faltou
         )
 
-    db.refresh(aula, attribute_names=["times", "jogadores"])
-    estado_row = rebuild_estado_equipes(db, aula)
+    db.flush()
+    team_config = rebuild_estado_equipes(db, aula)
     db.commit()
 
-    version = int(estado_row.version) if estado_row.version is not None else None
+    version = int(team_config.version) if team_config.version is not None else None
     return CommandOkOut(status="ok", version=version)
 
 
@@ -472,11 +471,11 @@ def mover_jogador_para_time(
     db.commit()
 
     db.refresh(aula, attribute_names=["times", "jogadores"])
-    estado_row = rebuild_estado_equipes(db, aula)
+    team_config = rebuild_estado_equipes(db, aula)
     db.commit()
-    db.refresh(estado_row, attribute_names=["version"])
+    db.refresh(team_config, attribute_names=["version"])
 
-    return CommandOkOut(status="ok", version=int(estado_row.version) if estado_row.version is not None else None)
+    return CommandOkOut(status="ok", version=int(team_config.version) if team_config.version is not None else None)
 
 
 @router.put(
@@ -515,11 +514,11 @@ def atualizar_status_jogador(
     db.commit()
 
     db.refresh(aula, attribute_names=["times", "jogadores"])
-    estado_row = rebuild_estado_equipes(db, aula)
+    team_config = rebuild_estado_equipes(db, aula)
     db.commit()
-    db.refresh(estado_row, attribute_names=["version"])
+    db.refresh(team_config, attribute_names=["version"])
 
-    return CommandOkOut(status="ok", version=int(estado_row.version) if estado_row.version is not None else None)
+    return CommandOkOut(status="ok", version=int(team_config.version) if team_config.version is not None else None)
 
 
 @router.delete(
@@ -591,22 +590,23 @@ def obter_estado_equipes_aula(
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
 
-    estado_row = (
-        db.query(AulaEquipesEstadoModel)
-        .filter(AulaEquipesEstadoModel.aula_id == aula.id)
+    team_config = (
+        db.query(TeamConfigModel)
+        .filter(TeamConfigModel.aula_id == aula.id, TeamConfigModel.is_active.is_(True))
+        .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
         .first()
     )
 
-    if not estado_row:
+    if not team_config:
         db.refresh(aula, attribute_names=["jogadores", "times"])
-        estado_row = rebuild_estado_equipes(db, aula)
+        team_config = rebuild_estado_equipes(db, aula)
         db.commit()
-        db.refresh(estado_row)
+        db.refresh(team_config)
 
-    if not estado_row:
+    if not team_config:
         return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=[], times=[])
 
-    estado_dict: dict[str, Any] = estado_row.estado or {}
+    estado_dict: dict[str, Any] = team_config.estado or {}
     jogadores_raw = estado_dict.get("jogadores", []) or []
     times_raw = estado_dict.get("times", []) or []
 
@@ -644,27 +644,9 @@ def salvar_estado_equipes_aula(
         "times": [t.model_dump() for t in payload.times],
     }
 
-    estado_row = (
-        db.query(AulaEquipesEstadoModel)
-        .filter(AulaEquipesEstadoModel.aula_id == aula.id)
-        .first()
-    )
-
-    if estado_row:
-        estado_row.estado = estado_dict
-        estado_row.version = (estado_row.version or 1) + 1
-        estado_row.updated_at = datetime.now(timezone.utc)
-    else:
-        estado_row = AulaEquipesEstadoModel(
-            aula_id=aula.id,
-            estado=estado_dict,
-            version=1,
-            updated_at=datetime.now(timezone.utc),
-        )
-        db.add(estado_row)
-
+    team_config = create_team_config(db, aula, estado_dict)
     db.commit()
-    db.refresh(estado_row)
+    db.refresh(team_config)
 
     jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in estado_dict["jogadores"]]
     times = [TimeAulaOut.model_validate(t) for t in estado_dict["times"]]
@@ -698,27 +680,28 @@ def obter_estado_aula(
     if not aula:
         raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
 
-    estado_row = (
-        db.query(AulaEquipesEstadoModel)
-        .filter(AulaEquipesEstadoModel.aula_id == aula.id)
+    team_config = (
+        db.query(TeamConfigModel)
+        .filter(TeamConfigModel.aula_id == aula.id, TeamConfigModel.is_active.is_(True))
+        .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
         .first()
     )
 
-    if not estado_row:
+    if not team_config:
         db.refresh(aula, attribute_names=["jogadores", "times"])
-        estado_row = rebuild_estado_equipes(db, aula)
+        team_config = rebuild_estado_equipes(db, aula)
         db.commit()
-        db.refresh(estado_row)
+        db.refresh(team_config)
 
-    base_version = int(estado_row.version) if estado_row and estado_row.version is not None else 0
+    base_version = int(team_config.version) if team_config and team_config.version is not None else 0
 
-    if estado_row:
-        estado_dict: dict[str, Any] = estado_row.estado or {}
+    if team_config:
+        estado_dict: dict[str, Any] = team_config.estado or {}
         jogadores_raw = estado_dict.get("jogadores", []) or []
         times_raw = estado_dict.get("times", []) or []
         jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]
         times = [TimeAulaOut.model_validate(t) for t in times_raw]
-        updated_at = estado_row.updated_at or datetime.fromtimestamp(0, timezone.utc)
+        updated_at = team_config.created_at or datetime.fromtimestamp(0, timezone.utc)
     else:
         jogadores = []
         times = []

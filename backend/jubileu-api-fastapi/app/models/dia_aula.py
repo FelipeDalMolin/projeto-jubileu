@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
     JSON,
     DateTime,
+    Boolean,
     func,
     text,
 )
@@ -65,7 +66,7 @@ class Dia(Base):
         "Aula",
         back_populates="dia",
         cascade="all, delete-orphan",
-        lazy="joined",
+        lazy="selectin",
     )
 
 
@@ -110,6 +111,13 @@ class Aula(Base):
         "AulaEquipesEstado",
         back_populates="aula",
         uselist=False,
+    )
+
+    team_configs: Mapped[List["TeamConfig"]] = relationship(
+        "TeamConfig",
+        back_populates="aula",
+        cascade="all, delete-orphan",
+        lazy="selectin",
     )
 
     times: Mapped[List["TimeAula"]] = relationship(
@@ -160,6 +168,38 @@ class AulaEquipesEstado(Base):
     aula: Mapped["Aula"] = relationship(
         "Aula",
         back_populates="estado_equipes",
+    )
+
+
+class TeamConfig(Base):
+    __tablename__ = "team_configs"
+
+    id: Mapped[int] = mapped_column(primary_key=True, index=True)
+    aula_id: Mapped[int] = mapped_column(
+        ForeignKey("aulas.id"), nullable=False, index=True
+    )
+    estado: Mapped[dict] = mapped_column(JSON, nullable=False)
+    version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=1,
+        server_default=text("1"),
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default=text("true"),
+    )
+
+    aula: Mapped["Aula"] = relationship(
+        "Aula",
+        back_populates="team_configs",
     )
 
 

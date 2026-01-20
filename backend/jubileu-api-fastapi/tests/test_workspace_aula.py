@@ -8,6 +8,7 @@ from app.models.dia_aula import (
     Partida as PartidaModel,
     StatusAulaEnum,
     StatusPresencaEnum,
+    TeamConfig as TeamConfigModel,
     TipoEventoAulaEnum,
     TimeAula as TimeAulaModel,
 )
@@ -246,3 +247,52 @@ def test_workspace_kpis_goals_total(client: TestClient, db_session):
 
     kpis = resp.json().get("kpis", {})
     assert kpis["gols_total"] == 3
+
+
+def test_team_config_version_increments_on_move(client: TestClient, db_session):
+    data_iso = "2026-01-26"
+    aula = _criar_aula_com_jogadores(
+        db_session,
+        data_iso=data_iso,
+        jogadores_por_time=[1, 1],
+    )
+
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace")
+    assert resp.status_code == 200, resp.text
+    first_version = resp.json()["meta"]["version"]
+
+    times = (
+        db_session.query(TimeAulaModel)
+        .filter(TimeAulaModel.aula_id == aula.id)
+        .order_by(TimeAulaModel.id.asc())
+        .all()
+    )
+    jogadores = (
+        db_session.query(JogadorAulaModel)
+        .filter(JogadorAulaModel.aula_id == aula.id)
+        .order_by(JogadorAulaModel.id.asc())
+        .all()
+    )
+    assert len(times) == 2
+    assert len(jogadores) == 2
+
+    resp = client.put(
+        f"/dias/{data_iso}/aulas/{aula.id}/jogadores/{jogadores[0].id}/time",
+        json={"time_id": times[1].id},
+    )
+    assert resp.status_code == 200, resp.text
+
+    configs = (
+        db_session.query(TeamConfigModel)
+        .filter(TeamConfigModel.aula_id == aula.id)
+        .order_by(TeamConfigModel.version.asc())
+        .all()
+    )
+    assert len(configs) >= 2
+    assert configs[-1].version == configs[-2].version + 1
+    assert sum(1 for c in configs if c.is_active) == 1
+
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace")
+    assert resp.status_code == 200, resp.text
+    second_version = resp.json()["meta"]["version"]
+    assert second_version != first_version
