@@ -9,11 +9,11 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.dia_aula import (
     Aula as AulaModel,
-    AulaEquipesEstado as AulaEquipesEstadoModel,
     Dia as DiaModel,
     JogadorAula as JogadorAulaModel,
     Partida as PartidaModel,
     StatusPresencaEnum,
+    TeamConfig as TeamConfigModel,
 )
 from app.schemas.dia_aula import PartidaEstadoOut, PresencaJogadorDiaOut, TimeAulaOut
 from app.schemas.workspace import (
@@ -31,22 +31,22 @@ def _carregar_snapshot_equipes(
     db: Session,
     aula: AulaModel,
 ) -> tuple[List[PresencaJogadorDiaOut], List[TimeAulaOut], int]:
-    estado_row = (
-        db.query(AulaEquipesEstadoModel)
-        .filter(AulaEquipesEstadoModel.aula_id == aula.id)
+    team_config = (
+        db.query(TeamConfigModel)
+        .filter(TeamConfigModel.aula_id == aula.id, TeamConfigModel.is_active.is_(True))
+        .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
         .first()
     )
 
-    if not estado_row:
+    if not team_config:
         db.refresh(aula, attribute_names=["jogadores", "times"])
-        estado_row = rebuild_estado_equipes(db, aula)
-        db.commit()
-        db.refresh(estado_row)
+        team_config = rebuild_estado_equipes(db, aula)
+        db.flush()
 
-    base_version = int(estado_row.version) if estado_row and estado_row.version is not None else 0
+    base_version = int(team_config.version) if team_config and team_config.version is not None else 0
 
-    if estado_row:
-        estado_dict: dict[str, Any] = estado_row.estado or {}
+    if team_config:
+        estado_dict: dict[str, Any] = team_config.estado or {}
         jogadores_raw = estado_dict.get("jogadores", []) or []
         times_raw = estado_dict.get("times", []) or []
         jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]

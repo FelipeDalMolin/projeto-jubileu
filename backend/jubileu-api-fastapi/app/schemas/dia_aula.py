@@ -242,3 +242,14 @@ class DiaOut(BaseModel):
     aulas: List[AulaOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DiaListOut(BaseModel):
+    """Representacao leve de um dia (sem aulas)."""
+
+    id: int
+    data_iso: str
+    feriado_nome: Optional[str] = None
+    feriado_tipo: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)

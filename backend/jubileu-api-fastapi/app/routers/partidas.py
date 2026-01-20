@@ -9,13 +9,13 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
 from app.models.dia_aula import (
-    AulaEquipesEstado as AulaEquipesEstadoModel,
     Aula as AulaModel,
     Dia as DiaModel,
     EstatisticaJogadorPartida as EstatisticaModel,
     JogadorAula as JogadorAulaModel,
     Partida as PartidaModel,
     StatusAulaEnum,
+    TeamConfig as TeamConfigModel,
     TimeAula as TimeAulaModel,
 )
 from app.schemas.dia_aula import (
@@ -143,12 +143,13 @@ def _calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
     Replica a lógica de /estado para combinar base_version (snapshot equipes)
     com CRC de partidas/estatisticas. Retorna int ou None se algo falhar.
     """
-    estado_row = (
-        db.query(AulaEquipesEstadoModel)
-        .filter(AulaEquipesEstadoModel.aula_id == aula.id)
+    team_config = (
+        db.query(TeamConfigModel)
+        .filter(TeamConfigModel.aula_id == aula.id, TeamConfigModel.is_active.is_(True))
+        .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
         .first()
     )
-    base_version = int(estado_row.version) if estado_row and estado_row.version is not None else 0
+    base_version = int(team_config.version) if team_config and team_config.version is not None else 0
 
     partidas_db = (
         db.query(PartidaModel)
