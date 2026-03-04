@@ -6,9 +6,13 @@ from app.models.dia_aula import (
     JogadorAula,
     Partida,
     EstatisticaJogadorPartida,
+    EventoParticipante,
+    Lance,
     StatusAulaEnum,
     TipoEventoAulaEnum,
     StatusPresencaEnum,
+    EventoParticipanteStatusEnum,
+    PartidaStatusEnum,
 )
 
 __all__ = [
@@ -19,7 +23,11 @@ __all__ = [
     "JogadorAula",
     "Partida",
     "EstatisticaJogadorPartida",
+    "EventoParticipante",
+    "Lance",
     "StatusAulaEnum",
     "TipoEventoAulaEnum",
     "StatusPresencaEnum",
+    "EventoParticipanteStatusEnum",
+    "PartidaStatusEnum",
 ]

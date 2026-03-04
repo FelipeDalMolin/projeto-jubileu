@@ -257,6 +257,18 @@ def iniciar_aula(
     return aula
 
 
+@router.post(
+    "/{data_iso}/aulas/{aula_id}/start",
+    response_model=AulaOut,
+)
+def iniciar_aula_post(
+    data_iso: str,
+    aula_id: int,
+    db: Session = Depends(get_db),
+) -> AulaOut:
+    return iniciar_aula(data_iso=data_iso, aula_id=aula_id, db=db)
+
+
 @router.put(
     "/{data_iso}/aulas/{aula_id}/finish",
     response_model=AulaOut,
@@ -290,6 +302,18 @@ def finalizar_aula(
     db.commit()
     db.refresh(aula, attribute_names=["jogadores"])
     return aula
+
+
+@router.post(
+    "/{data_iso}/aulas/{aula_id}/finish",
+    response_model=AulaOut,
+)
+def finalizar_aula_post(
+    data_iso: str,
+    aula_id: int,
+    db: Session = Depends(get_db),
+) -> AulaOut:
+    return finalizar_aula(data_iso=data_iso, aula_id=aula_id, db=db)
 
 
 @router.put(

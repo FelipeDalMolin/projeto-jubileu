@@ -9,6 +9,7 @@ from app.models.dia_aula import (
     StatusAulaEnum,
     TipoEventoAulaEnum,
     StatusPresencaEnum,
+    PartidaStatusEnum,
 )
 
 
@@ -137,6 +138,7 @@ class PartidaUpdate(BaseModel):
 class PartidaOut(BaseModel):
     id: int
     aula_id: int
+    status: PartidaStatusEnum = PartidaStatusEnum.PLANEJADA
     ordem: int
     time_a_id: int
     time_b_id: int
@@ -152,6 +154,7 @@ class PartidaOut(BaseModel):
 class PartidaEstadoOut(BaseModel):
     id: int
     ordem: int
+    status: PartidaStatusEnum = PartidaStatusEnum.PLANEJADA
     timeAId: str
     timeBId: str
     golsTimeA: int

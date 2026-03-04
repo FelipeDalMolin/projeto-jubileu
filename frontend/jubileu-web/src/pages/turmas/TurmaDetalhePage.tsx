@@ -8,11 +8,14 @@ import {
   adicionarJogadorNaTurma,
   removerJogadorDaTurma,
   type Turma,
-  type TurmaJogador,
 } from "../../services/turmasService";
 import { listarJogadores, type JogadorDTO } from "../../services/jogadoresService";
 
 type RouteParams = { turmaId: string };
+type TurmaJogador = {
+  id: number;
+  nome: string;
+};
 
 export default function TurmaDetalhePage() {
   const { turmaId } = useParams<RouteParams>();

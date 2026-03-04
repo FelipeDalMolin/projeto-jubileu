@@ -23,7 +23,7 @@ async function executarAcao(
   const resp = await fetch(
     buildUrl(`/dias/${dataIso}/aulas/${aulaId}/${action}`),
     {
-      method: "PUT",
+      method: "POST",
     },
   );
 

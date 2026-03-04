@@ -38,6 +38,16 @@ from app.schemas.workspace import (
     WorkspaceAulaWarningOut,
     WorkspaceAulaOut,
 )
+from app.schemas.eventos import (
+    EventoOut,
+    EventoParticipanteOut,
+    EventoParticipantesListOut,
+    EventoActionOut,
+    SeedPartidaIn,
+    SeedPartidaOut,
+    LanceCreateIn,
+    LanceCreateOut,
+)
 
 __all__ = [
     "JogadorBase",
@@ -74,4 +84,12 @@ __all__ = [
     "WorkspaceAulaEquipesOut",
     "WorkspaceAulaWarningOut",
     "WorkspaceAulaOut",
+    "EventoOut",
+    "EventoParticipanteOut",
+    "EventoParticipantesListOut",
+    "EventoActionOut",
+    "SeedPartidaIn",
+    "SeedPartidaOut",
+    "LanceCreateIn",
+    "LanceCreateOut",
 ]
