@@ -118,14 +118,6 @@ __pycache__/
 .mypy_cache/
 
 ############################
-# Mosquitto / Infra runtime
-############################
-infra/mosquitto/data/*.db
-infra/mosquitto/data/**/*.db
-infra/mosquitto/data/*.log
-infra/mosquitto/data/**/*.log
-
-############################
 # OS / Editor
 ############################
 .DS_Store
