@@ -35,10 +35,19 @@ Se você quer apenas executar uma versão publicada do projeto para testes ou va
 Se você quer rodar o Jubileu localmente, contribuir com código ou evoluir a aplicação:
 
 - consulte [docs/SETUP_DEV_WINDOWS.md](docs/SETUP_DEV_WINDOWS.md) para preparar o ambiente
-- consulte [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para entender a arquitetura
-- consulte [docs/DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) para entender o domínio da aplicação
-- consulte [docs/API.md](docs/API.md) para entender a superfície da API
-- consulte [CONTRIBUTING.md](CONTRIBUTING.md) para padrões de contribuição
+- consulte [docs/UML/Diagrams.md](docs/UML/Diagrams.md) para visualizar sobre UML
+- consulte [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para entender a arquitetura # fazer
+- consulte [docs/DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) para entender o domínio da aplicação # fazer
+- consulte [docs/API.md](docs/API.md) para entender a superfície da API # fazer
+- consulte [CONTRIBUTING. md](CONTRIBUTING .md) para padrões de contribuição # fazer
+
+## Releases
+
+| Descrição                 | Version         | Status                       |
+| ------------------------- | --------------- |----------------------------- |
+| Primeira Versão           | 0.1.0-alpha     | OK                           |
+| Próxima Versão            | 0.1.1           | Possíveis Erros / Bug em X               |
+
 
 ## Arquitetura
 
@@ -54,7 +63,4 @@ React + Vite + TypeScript
        PostgreSQL
 ```
 
-| Descrição                 | Version     | Outcome |
-| ------------------------- | -------------------------- |------------------- | ------- |
-| Primeira Versão    | 0.1.0-alpha                     | OK           |
-| Próxima Versão | 0.1.1                 |  Logged warning       |
+
