@@ -52,6 +52,7 @@ React + Vite + TypeScript
         FastAPI
           ↓
        PostgreSQL
+```
 
 | Descrição                 | Version     | Outcome |
 | ------------------------- | -------------------------- |------------------- | ------- |
