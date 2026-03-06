@@ -13,7 +13,7 @@
 - Rode o bootstrap: `.\scripts\sync_and_setup.ps1`
 
 ## Como rodar
-- Docker: `docker compose up -d` (se houver docker-compose.yml)
+- Docker: `docker compose up -d`
 - API: `cd backend\jubileu-api-fastapi` ; `.\.venv\Scripts\Activate.ps1` ; `uvicorn app.main:app --reload`
 - Web: `cd frontend\jubileu-web` ; `npm run dev`
 
