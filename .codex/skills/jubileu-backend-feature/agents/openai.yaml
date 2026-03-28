@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jubileu Backend Feature"
+  short_description: "Evoluir features backend do Jubileu"
+  default_prompt: "Use $jubileu-backend-feature para implementar ou evoluir uma feature backend no projeto Jubileu."

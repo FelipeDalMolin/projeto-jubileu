@@ -1,23 +1,18 @@
 from __future__ import annotations
 
-import json
-import zlib
-from typing import Iterable, List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
 from app.models.dia_aula import (
-    Aula as AulaModel,
-    Dia as DiaModel,
     EstatisticaJogadorPartida as EstatisticaModel,
     JogadorAula as JogadorAulaModel,
     Partida as PartidaModel,
-    StatusAulaEnum,
-    TeamConfig as TeamConfigModel,
-    TimeAula as TimeAulaModel,
 )
+from app.modules.dias import service as dias_service
+from app.modules.partidas import service as partidas_service
 from app.schemas.dia_aula import (
     CommandOkOut,
     PartidaCreate,
@@ -26,183 +21,20 @@ from app.schemas.dia_aula import (
     StatsJogadorIn,
 )
 
-router = APIRouter(
-    prefix="/dias",
-    tags=["Partidas"],
-)
-
-
-def _obter_aula_ou_404(db: Session, data_iso: str, aula_id: int) -> AulaModel:
-    dia = db.query(DiaModel).filter(DiaModel.data_iso == data_iso).first()
-    if not dia:
-        raise HTTPException(status_code=404, detail="Dia nao encontrado")
-
-    aula = (
-        db.query(AulaModel)
-        .filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id)
-        .first()
-    )
-    if not aula:
-        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
-    return aula
-
-
-def _assert_aula_editavel(aula: AulaModel) -> None:
-    if aula.status == StatusAulaEnum.CONCLUIDA:
-        raise HTTPException(
-            status_code=409,
-            detail="Aula concluida: alteracoes nao permitidas",
-        )
-
-
-def _validar_times_na_aula(db: Session, aula_id: int, time_a_id: int, time_b_id: int) -> None:
-    if time_a_id == time_b_id:
-        raise HTTPException(status_code=400, detail="time_a_id e time_b_id devem ser diferentes")
-
-    times = (
-        db.query(TimeAulaModel)
-        .filter(
-            TimeAulaModel.aula_id == aula_id,
-            TimeAulaModel.id.in_([time_a_id, time_b_id]),
-        )
-        .all()
-    )
-
-    if len(times) != 2:
-        raise HTTPException(status_code=400, detail="Times informados nao pertencem a aula")
-
-
-def _mapear_jogadores_da_aula(db: Session, aula_id: int, jogador_ids: List[int]) -> dict[int, JogadorAulaModel]:
-    if not jogador_ids:
-        return {}
-
-    jogadores = (
-        db.query(JogadorAulaModel)
-        .filter(
-            JogadorAulaModel.aula_id == aula_id,
-            JogadorAulaModel.id.in_(jogador_ids),
-        )
-        .all()
-    )
-
-    encontrados = {j.id for j in jogadores}
-    faltantes = set(jogador_ids) - encontrados
-    if faltantes:
-        faltantes_str = ", ".join(str(jid) for jid in sorted(faltantes))
-        raise HTTPException(
-            status_code=400,
-            detail=f"Jogador(es) nao encontrado(s) na aula: {faltantes_str}",
-        )
-
-    return {j.id: j for j in jogadores}
-
-
-def _calcular_placar(
-    estatisticas: Iterable[EstatisticaModel],
-    jogadores_por_id: dict[int, JogadorAulaModel],
-    time_a_id: int,
-    time_b_id: int,
-) -> tuple[int, int]:
-    gols_a = 0
-    gols_b = 0
-
-    for estat in estatisticas:
-        jogador = jogadores_por_id.get(estat.jogador_aula_id)
-        if not jogador:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Jogador {estat.jogador_aula_id} nao pertence a aula",
-            )
-
-        if jogador.time_id is None:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Jogador {jogador.id} nao possui time na aula",
-            )
-
-        if jogador.time_id == time_a_id:
-            gols_a += estat.gols
-        elif jogador.time_id == time_b_id:
-            gols_b += estat.gols
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Jogador {jogador.id} nao esta em um dos times da partida",
-            )
-
-    return gols_a, gols_b
+router = APIRouter(prefix="/dias", tags=["Partidas"])
 
 
 def _to_partida_out(partida: PartidaModel) -> PartidaOut:
-    # Conversão explícita (Pydantic v2)
     return PartidaOut.model_validate(partida, from_attributes=True)
 
 
-def _calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
-    """
-    Replica a lógica de /estado para combinar base_version (snapshot equipes)
-    com CRC de partidas/estatisticas. Retorna int ou None se algo falhar.
-    """
-    team_config = (
-        db.query(TeamConfigModel)
-        .filter(TeamConfigModel.aula_id == aula.id, TeamConfigModel.is_active.is_(True))
-        .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
-        .first()
-    )
-    base_version = int(team_config.version) if team_config and team_config.version is not None else 0
-
-    partidas_db = (
-        db.query(PartidaModel)
-        .options(selectinload(PartidaModel.estatisticas))
-        .filter(PartidaModel.aula_id == aula.id)
-        .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
-        .all()
-    )
-
-    partidas_version_payload: list = []
-    for partida in partidas_db:
-        partidas_version_payload.append(
-            [
-                partida.id,
-                partida.ordem,
-                partida.time_a_id,
-                partida.time_b_id,
-                [
-                    [
-                        estat.jogador_aula_id,
-                        estat.gols,
-                        estat.assistencias,
-                        estat.chiliques,
-                        estat.faltas,
-                    ]
-                    for estat in sorted(
-                        partida.estatisticas,
-                        key=lambda e: (e.id or 0, e.jogador_aula_id),
-                    )
-                ],
-            ]
-        )
-
-    if partidas_version_payload:
-        partidas_crc32 = zlib.crc32(
-            json.dumps(partidas_version_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-        ) & 0xFFFFFFFF
-    else:
-        partidas_crc32 = 0
-
-    return (base_version << 32) | partidas_crc32
-
-
-@router.get(
-    "/{data_iso}/aulas/{aula_id}/partidas",
-    response_model=List[PartidaOut],
-)
+@router.get("/{data_iso}/aulas/{aula_id}/partidas", response_model=List[PartidaOut])
 def listar_partidas(
     data_iso: str,
     aula_id: int,
     db: Session = Depends(get_db),
 ) -> List[PartidaOut]:
-    aula = _obter_aula_ou_404(db, data_iso, aula_id)
+    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
 
     partidas = (
         db.query(PartidaModel)
@@ -213,11 +45,15 @@ def listar_partidas(
     )
 
     ids_jogadores = [estat.jogador_aula_id for partida in partidas for estat in partida.estatisticas]
-    jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+    jogadores_por_id = partidas_service.mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
 
-    # recalcula placar em memória (não precisa persistir)
     for partida in partidas:
-        gols_a, gols_b = _calcular_placar(partida.estatisticas, jogadores_por_id, partida.time_a_id, partida.time_b_id)
+        gols_a, gols_b = partidas_service.calcular_placar(
+            partida.estatisticas,
+            jogadores_por_id,
+            partida.time_a_id,
+            partida.time_b_id,
+        )
         partida.gols_time_a = gols_a
         partida.gols_time_b = gols_b
 
@@ -235,18 +71,27 @@ def criar_partida(
     payload: PartidaCreate,
     db: Session = Depends(get_db),
 ) -> PartidaOut:
-    aula = _obter_aula_ou_404(db, data_iso, aula_id)
-    _assert_aula_editavel(aula)
-    _validar_times_na_aula(db, aula_id=aula.id, time_a_id=payload.time_a_id, time_b_id=payload.time_b_id)
+    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
+    dias_service.assert_aula_editavel(aula)
+    partidas_service.validar_times_na_aula(
+        db,
+        aula_id=aula.id,
+        time_a_id=payload.time_a_id,
+        time_b_id=payload.time_b_id,
+    )
 
     ordem = payload.ordem
     if ordem is None:
-        total = db.query(PartidaModel).filter(PartidaModel.aula_id == aula.id).count()
-        ordem = total + 1
+        ordem = db.query(PartidaModel).filter(PartidaModel.aula_id == aula.id).count() + 1
 
     ids_jogadores = [e.jogador_aula_id for e in payload.estatisticas]
-    jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
-    gols_a, gols_b = _calcular_placar(payload.estatisticas, jogadores_por_id, payload.time_a_id, payload.time_b_id)
+    jogadores_por_id = partidas_service.mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+    gols_a, gols_b = partidas_service.calcular_placar(
+        payload.estatisticas,
+        jogadores_por_id,
+        payload.time_a_id,
+        payload.time_b_id,
+    )
 
     nova_partida = PartidaModel(
         aula_id=aula.id,
@@ -275,10 +120,7 @@ def criar_partida(
     return _to_partida_out(nova_partida)
 
 
-@router.put(
-    "/{data_iso}/aulas/{aula_id}/partidas/{partida_id}",
-    response_model=PartidaOut,
-)
+@router.put("/{data_iso}/aulas/{aula_id}/partidas/{partida_id}", response_model=PartidaOut)
 def atualizar_partida(
     data_iso: str,
     aula_id: int,
@@ -286,8 +128,8 @@ def atualizar_partida(
     payload: PartidaUpdate,
     db: Session = Depends(get_db),
 ) -> PartidaOut:
-    aula = _obter_aula_ou_404(db, data_iso, aula_id)
-    _assert_aula_editavel(aula)
+    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
+    dias_service.assert_aula_editavel(aula)
 
     partida = (
         db.query(PartidaModel)
@@ -300,16 +142,25 @@ def atualizar_partida(
 
     novo_time_a_id = payload.time_a_id if payload.time_a_id is not None else partida.time_a_id
     novo_time_b_id = payload.time_b_id if payload.time_b_id is not None else partida.time_b_id
-
-    _validar_times_na_aula(db, aula_id=aula.id, time_a_id=novo_time_a_id, time_b_id=novo_time_b_id)
+    partidas_service.validar_times_na_aula(
+        db,
+        aula_id=aula.id,
+        time_a_id=novo_time_a_id,
+        time_b_id=novo_time_b_id,
+    )
 
     if payload.ordem is not None:
         partida.ordem = payload.ordem
 
     if payload.estatisticas is not None:
         ids_jogadores = [e.jogador_aula_id for e in payload.estatisticas]
-        jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
-        gols_a, gols_b = _calcular_placar(payload.estatisticas, jogadores_por_id, novo_time_a_id, novo_time_b_id)
+        jogadores_por_id = partidas_service.mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+        gols_a, gols_b = partidas_service.calcular_placar(
+            payload.estatisticas,
+            jogadores_por_id,
+            novo_time_a_id,
+            novo_time_b_id,
+        )
 
         partida.estatisticas.clear()
         for estat in payload.estatisticas:
@@ -325,8 +176,13 @@ def atualizar_partida(
             )
     else:
         ids_jogadores = [e.jogador_aula_id for e in partida.estatisticas]
-        jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
-        gols_a, gols_b = _calcular_placar(partida.estatisticas, jogadores_por_id, novo_time_a_id, novo_time_b_id)
+        jogadores_por_id = partidas_service.mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+        gols_a, gols_b = partidas_service.calcular_placar(
+            partida.estatisticas,
+            jogadores_por_id,
+            novo_time_a_id,
+            novo_time_b_id,
+        )
 
     partida.time_a_id = novo_time_a_id
     partida.time_b_id = novo_time_b_id
@@ -350,8 +206,8 @@ def atualizar_stats_jogador_partida(
     payload: StatsJogadorIn,
     db: Session = Depends(get_db),
 ) -> CommandOkOut:
-    aula = _obter_aula_ou_404(db, data_iso, aula_id)
-    _assert_aula_editavel(aula)
+    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
+    dias_service.assert_aula_editavel(aula)
 
     partida = (
         db.query(PartidaModel)
@@ -398,30 +254,31 @@ def atualizar_stats_jogador_partida(
         estat.faltas = payload.faltas
 
     db.flush()
-
     ids_jogadores = [e.jogador_aula_id for e in partida.estatisticas] + [jogador.id]
-    jogadores_por_id = _mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
-    gols_a, gols_b = _calcular_placar(partida.estatisticas, jogadores_por_id, partida.time_a_id, partida.time_b_id)
+    jogadores_por_id = partidas_service.mapear_jogadores_da_aula(db, aula.id, ids_jogadores)
+    gols_a, gols_b = partidas_service.calcular_placar(
+        partida.estatisticas,
+        jogadores_por_id,
+        partida.time_a_id,
+        partida.time_b_id,
+    )
     partida.gols_time_a = gols_a
     partida.gols_time_b = gols_b
 
     db.commit()
-    current_version = _calcular_version_atual(db, aula)
+    current_version = partidas_service.calcular_version_atual(db, aula)
     return CommandOkOut(status="ok", version=current_version)
 
 
-@router.delete(
-    "/{data_iso}/aulas/{aula_id}/partidas/{partida_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+@router.delete("/{data_iso}/aulas/{aula_id}/partidas/{partida_id}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_partida(
     data_iso: str,
     aula_id: int,
     partida_id: int,
     db: Session = Depends(get_db),
 ) -> Response:
-    aula = _obter_aula_ou_404(db, data_iso, aula_id)
-    _assert_aula_editavel(aula)
+    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
+    dias_service.assert_aula_editavel(aula)
 
     partida = (
         db.query(PartidaModel)

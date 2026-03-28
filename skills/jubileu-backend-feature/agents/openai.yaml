@@ -1,0 +1,7 @@
+interface:
+  display_name: "Jubileu Backend Feature"
+  short_description: "Implementa, evolui e refatora features backend do Jubileu com disciplina de domínio, migração e arquitetura."
+  default_prompt: "Use $jubileu-backend-feature para implementar, analisar ou refatorar uma feature backend no projeto Jubileu, respeitando domínio, arquitetura-alvo, Alembic, autenticação e constraints de plataforma."
+
+policy:
+  allow_implicit_invocation: true
