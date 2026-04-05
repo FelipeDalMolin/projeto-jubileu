@@ -103,8 +103,8 @@ export default function DiaDetalhe() {
     }
   };
 
-  const irParaAula = (aula: AulaDia) => {
-    navigate(`/dias/${dataIso}/aulas/${aula.id}`);
+  const irParaEvento = (aula: AulaDia) => {
+    navigate(`/dias/${dataIso}/eventos/${aula.id}`);
   };
 
   const handleExcluirAula = async (aula: AulaDia) => {
@@ -315,7 +315,7 @@ export default function DiaDetalhe() {
               <AulaCard
                 key={aula.id}
                 aula={aula}
-                onAbrir={() => irParaAula(aula)}
+                onAbrir={() => irParaEvento(aula)}
                 onExcluir={() => handleExcluirAula(aula)}
               />
             ))}
@@ -394,7 +394,7 @@ function AulaCard({ aula, onAbrir, onExcluir }: AulaCardProps) {
               whiteSpace: "nowrap",
             }}
           >
-            Abrir gestao da turma
+            Abrir evento
           </button>
         </div>
       </div>

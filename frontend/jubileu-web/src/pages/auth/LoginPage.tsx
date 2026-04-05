@@ -1,47 +1,49 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
+import { useAuthSession } from "../../hooks/useAuthSession";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [senha, setSenha] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login } = useAuthSession();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!email || !senha) {
-      alert("Preencha e-mail e senha.");
+    if (!username || !senha) {
+      alert("Preencha usuario e senha.");
       return;
     }
 
     try {
       setSubmitting(true);
-      await login(email, senha); // chama nosso login do contexto
-      navigate("/dias"); // após login, manda para a tela de dias
+      await login(username, senha);
+      navigate("/dias");
     } catch (err) {
       console.error(err);
-      alert("Não foi possível entrar (login simulado).");
+      alert("Nao foi possivel entrar.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div style={{ padding: 40, maxWidth: 360, margin: "40px auto" }}>
+    <div style={{ padding: 40, maxWidth: 420, margin: "40px auto" }}>
       <h2 style={{ marginBottom: 16 }}>Login - Projeto Jubileu</h2>
+      <p style={{ fontSize: 13, color: "#475569", marginBottom: 16 }}>
+        Contas JWT de desenvolvimento: admin/admin123, coach/coach123, aux/aux123, user/user123.
+      </p>
 
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", marginBottom: 4 }}>E-mail</label>
+          <label style={{ display: "block", marginBottom: 4 }}>Usuario</label>
           <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
             style={{ width: "100%" }}
           />
         </div>

@@ -1,9 +1,9 @@
-// src/components/layout/Navbar.tsx
 import { Link, useLocation } from "react-router-dom";
+import NavLinks from "./NavLinks";
+import UserMenu from "./UserMenu";
 
 export default function Navbar() {
   const location = useLocation();
-
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
@@ -18,69 +18,13 @@ export default function Navbar() {
         borderBottom: "4px solid #38bdf8",
       }}
     >
-      {/* Lado esquerdo: logo + menu */}
       <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
         <Link to="/dias" style={{ color: "inherit", fontWeight: 700 }}>
-          🏆 Jubileu
+          Jubileu Eventos
         </Link>
-
-        <nav style={{ display: "flex", gap: 14 }}>
-          <Link
-            to="/dias"
-            style={{
-              textDecoration: isActive("/dias") ? "underline" : "none",
-              textUnderlineOffset: 6,
-            }}
-          >
-            Calendário
-          </Link>
-
-          <Link
-            to="/turmas"
-            style={{
-              textDecoration: isActive("/turmas") ? "underline" : "none",
-              textUnderlineOffset: 6,
-            }}
-          >
-            Turmas
-          </Link>
-
-          <Link
-            to="/jogadores"
-            style={{
-              textDecoration: isActive("/jogadores") ? "underline" : "none",
-              textUnderlineOffset: 6,
-            }}
-          >
-            Jogadores
-          </Link>
-
-          <Link
-            to="/dashboard"
-            style={{
-              textDecoration: isActive("/dashboard") ? "underline" : "none",
-              textUnderlineOffset: 6,
-            }}
-          >
-            Dashboards
-          </Link>
-
-          <Link
-            to="/dashboard/trofeu"
-            style={{
-              textDecoration: isActive("/dashboard/trofeu") ? "underline" : "none",
-              textUnderlineOffset: 6,
-            }}
-          >
-            Troféu
-          </Link>
-        </nav>
+        <NavLinks isActive={isActive} />
       </div>
-
-      {/* Lado direito: botão de login (por enquanto) */}
-      <Link to="/login">
-        <button>Entrar</button>
-      </Link>
+      <UserMenu />
     </header>
   );
 }

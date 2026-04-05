@@ -1,75 +1,163 @@
-// src/context/AuthContext.tsx
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useContext,
-  useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
 
-type UserRole = "coach" | "admin" | "viewer";
+import {
+  getCurrentUser,
+  loginAuth,
+  type UserRole,
+} from "../services/authService";
 
-export type User = {
-  id: string;
-  name: string;
-  email: string;
+export type AuthMode = "jwt" | "legacy";
+
+export type UserSession = {
+  userId: string;
   role: UserRole;
+  jogadorId: number | null;
+  accessToken: string | null;
+  authMode: AuthMode;
+  displayName: string;
+};
+
+export type RequestAuth = {
+  userId: string;
+  role: UserRole;
+  jogadorId?: number;
+  accessToken?: string | null;
 };
 
 type AuthContextType = {
-  user: User | null;
+  user: UserSession | null;
   loading: boolean;
-  login: (email: string, senha: string) => Promise<void>;
+  login: (username: string, senha: string) => Promise<void>;
   logout: () => void;
+  setRole: (role: UserRole) => void;
+  setJogadorId: (jogadorId: number | null) => void;
+  getRequestAuth: () => RequestAuth | null;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = "jubileu:authUser";
+const STORAGE_KEY = "jubileu:authSession";
+
+function parseStoredSession(raw: string | null): UserSession | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<UserSession>;
+    if (!parsed.userId || !parsed.role) return null;
+    return {
+      userId: parsed.userId,
+      role: parsed.role,
+      jogadorId: parsed.jogadorId ?? null,
+      accessToken: parsed.accessToken ?? null,
+      authMode: parsed.authMode ?? "legacy",
+      displayName: parsed.displayName ?? parsed.userId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function persistSession(session: UserSession | null) {
+  if (!session) {
+    localStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UserSession | null>(() =>
+    parseStoredSession(localStorage.getItem(STORAGE_KEY)),
+  );
+  const loading = false;
 
-  // Carrega usuário do localStorage ao iniciar
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
-      }
+  async function login(username: string, senha: string) {
+    const normalized = username.trim();
+    if (!normalized || !senha) {
+      throw new Error("Informe usuario e senha.");
     }
-    setLoading(false);
-  }, []);
 
-  // Login SIMULADO (futuro: trocar por chamada à API)
-  async function login(email: string, senha: string) {
-    // Simula latência
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    try {
+      const token = await loginAuth(normalized, senha);
+      const me = await getCurrentUser(token.access_token);
 
-    const fakeUser: User = {
-      id: "1",
-      name: email.split("@")[0] || "Treinador",
-      email,
-      role: "coach",
-    };
+      const session: UserSession = {
+        userId: me.user_id,
+        role: me.role,
+        jogadorId: me.jogador_id ?? null,
+        accessToken: token.access_token,
+        authMode: "jwt",
+        displayName: normalized,
+      };
 
-    setUser(fakeUser);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(fakeUser));
+      setUser(session);
+      persistSession(session);
+      return;
+    } catch {
+      const fallback: UserSession = {
+        userId: normalized,
+        role: "user",
+        jogadorId: null,
+        accessToken: null,
+        authMode: "legacy",
+        displayName: normalized,
+      };
+      setUser(fallback);
+      persistSession(fallback);
+    }
   }
 
   function logout() {
     setUser(null);
-    localStorage.removeItem(STORAGE_KEY);
+    persistSession(null);
   }
 
-  return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+  function setRole(role: UserRole) {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, role };
+      persistSession(next);
+      return next;
+    });
+  }
+
+  function setJogadorId(jogadorId: number | null) {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, jogadorId };
+      persistSession(next);
+      return next;
+    });
+  }
+
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      loading,
+      login,
+      logout,
+      setRole,
+      setJogadorId,
+      getRequestAuth: () =>
+        user
+          ? {
+              userId: user.userId,
+              role: user.role,
+              jogadorId: user.jogadorId ?? undefined,
+              accessToken: user.accessToken,
+            }
+          : null,
+    }),
+    [loading, user],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextType {

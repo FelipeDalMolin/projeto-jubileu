@@ -1,5 +1,5 @@
 export type EventoTipo = "AULA" | "JOGO_LIVRE";
-export type EventoStatus = "PLANEJADA" | "EM_ANDAMENTO" | "CONCLUIDA" | "CANCELADA";
+export type EventoStatus = "PLANEJADO" | "EM_ANDAMENTO" | "ENCERRADO" | "CANCELADO";
 export type EventoParticipanteStatus =
   | "RSVP"
   | "CHECKED_IN"
@@ -70,4 +70,3 @@ export type Lance = {
   created_by_user_id?: string | null;
   created_at: string;
 };
-
