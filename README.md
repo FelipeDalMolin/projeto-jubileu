@@ -7,14 +7,14 @@ O sistema foi projetado para suportar treinos, jogos livres e campeonatos, permi
 Para configurar o ambiente de desenvolvimento no Windows, consulte [docs/SETUP_DEV_WINDOWS.md](docs/SETUP_DEV_WINDOWS.md).
 
 - [Getting Started](#getting-started)
-  - [Usando uma Release](#usando-uma-release)
-  - [Desenvolvimento e contribuição](#desenvolvimento-e-contribuição)
-- [Arquitetura](#arquitetura)
-- [Estruturação do domínio](#estruturação-do-domínio)
+  - [Usando uma Release](#usando-uma-release) #todo
+  - [Desenvolvimento e contribuição](#desenvolvimento-e-contribuição) #todo
+- [Arquitetura](#arquitetura) #todo
+- [Estruturação do domínio](#estruturação-do-domínio) #todo
 - [Documentação](#documentação)
 - [Releases](#releases)
-- [Compatibilidade entre versões do projeto](#compatibilidade-entre-versões-do-projeto)
-- [Dúvidas, problemas ou sugestões](#dúvidas-problemas-ou-sugestões)
+- [Compatibilidade entre versões do projeto](#compatibilidade-entre-versões-do-projeto) #todo
+- Dúvidas, problemas ou sugestões, abra uma issue
 
 ## Getting Started
 
@@ -36,10 +36,10 @@ Se você quer rodar o Jubileu localmente, contribuir com código ou evoluir a ap
 
 - consulte [docs/SETUP_DEV_WINDOWS.md](docs/SETUP_DEV_WINDOWS.md) para preparar o ambiente
 - consulte [docs/UML/Diagramas.md](docs/UML/Diagramas.md) para visualizar sobre UML
-- consulte [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para entender a arquitetura # fazer
-- consulte [docs/DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) para entender o domínio da aplicação # fazer
-- consulte [docs/API.md](docs/API.md) para entender a superfície da API # fazer
-- consulte [CONTRIBUTING. md](CONTRIBUTING .md) para padrões de contribuição # fazer
+- consulte [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) para entender a arquitetura #todo
+- consulte [docs/DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) para entender o domínio da aplicação #todo
+- consulte [docs/API.md](docs/API.md) para entender a superfície da API #todo
+- consulte [CONTRIBUTING. md](CONTRIBUTING.md) para padrões de contribuição #todo
 
 ## Releases
 
