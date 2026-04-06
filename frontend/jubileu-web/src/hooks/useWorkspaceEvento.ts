@@ -5,6 +5,7 @@ type Params = {
   eventoId?: string;
   enabled?: boolean;
   intervalMs?: number;
+  manualControl?: boolean;
 };
 
 export function useWorkspaceEvento({
@@ -12,11 +13,13 @@ export function useWorkspaceEvento({
   eventoId,
   enabled = true,
   intervalMs = 2500,
+  manualControl = false,
 }: Params) {
   return useWorkspaceAula({
     dataIso,
     aulaId: eventoId,
     enabled,
     intervalMs,
+    manualControl,
   });
 }

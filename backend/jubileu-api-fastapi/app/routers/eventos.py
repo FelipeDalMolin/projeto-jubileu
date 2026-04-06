@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
@@ -10,6 +10,7 @@ from app.schemas.eventos import (
     EventoActionOut,
     EventoParticipanteOut,
     EventoParticipantesListOut,
+    LanceListOut,
     LanceCreateIn,
     LanceCreateOut,
     SeedPartidaIn,
@@ -35,6 +36,24 @@ def checkin_self(
     user: AuthUser = Depends(get_current_user),
 ) -> dict[str, EventoParticipanteOut]:
     return eventos_service.checkin_self_flow(db, evento_id, user)
+
+
+@router.delete("/eventos/{evento_id}/rsvp", response_model=dict[str, EventoParticipanteOut])
+def cancel_rsvp_self(
+    evento_id: int,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> dict[str, EventoParticipanteOut]:
+    return eventos_service.rsvp_self_cancel_flow(db, evento_id, user)
+
+
+@router.delete("/eventos/{evento_id}/checkin", response_model=dict[str, EventoParticipanteOut])
+def cancel_checkin_self(
+    evento_id: int,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> dict[str, EventoParticipanteOut]:
+    return eventos_service.checkin_self_cancel_flow(db, evento_id, user)
 
 
 @router.post(
@@ -116,3 +135,22 @@ def create_lance(
     user: AuthUser = Depends(get_current_user),
 ) -> LanceCreateOut:
     return eventos_service.create_lance_flow(db, partida_id, payload, user)
+
+
+@router.get("/eventos/{evento_id}/lances", response_model=LanceListOut)
+def list_lances(
+    evento_id: int,
+    partida_id: int | None = None,
+    since: str | None = None,
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> LanceListOut:
+    _ = user
+    from datetime import datetime
+
+    try:
+        since_dt = datetime.fromisoformat(since.replace("Z", "+00:00")) if since else None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="Parametro 'since' invalido") from exc
+    return eventos_service.list_lances_flow(db, evento_id, partida_id, since_dt, limit)

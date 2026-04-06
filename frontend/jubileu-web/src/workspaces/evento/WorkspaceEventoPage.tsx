@@ -1,16 +1,25 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { Button } from "../../components/ui/button";
 import WorkspaceEquipesPanel from "../../components/aula/WorkspaceEquipesPanel";
-import WorkspaceHeader from "../../components/aula/WorkspaceHeader";
-import WorkspaceKpis from "../../components/aula/WorkspaceKpis";
 import WorkspacePartidasPanel from "../../components/aula/WorkspacePartidasPanel";
-import WorkspaceWarnings from "../../components/aula/WorkspaceWarnings";
 import { useAuthSession } from "../../hooks/useAuthSession";
 import { useWorkspaceEvento } from "../../hooks/useWorkspaceEvento";
 import type { AuthHeaders } from "../../services/eventosService";
+import { EventoBottomTabs } from "./components/EventoBottomTabs";
+import { EventoContextBar } from "./components/EventoContextBar";
+import { EventoHeader } from "./components/EventoHeader";
+import { FilaChegadaPanel } from "./components/FilaChegadaPanel";
+import { ParticipantesPanel } from "./components/ParticipantesPanel";
+import { PartidaAoVivoCard } from "./components/PartidaAoVivoCard";
+import { QuickAddLance } from "./components/QuickAddLance";
+import { TimelineLances } from "./components/TimelineLances";
+import { TimesPanel } from "./components/TimesPanel";
+import { EventoStatusActions } from "./components/EventoStatusActions";
 import { resolveEventoCapabilities } from "./capabilities";
-import EventoActionsPanel from "./panels/EventoActionsPanel";
+import { useEventoLiveData } from "./hooks/useEventoLiveData";
+import { useEventoPagePollingController } from "./hooks/useEventoPagePollingController";
 
 type Props = {
   dataIso?: string;
@@ -40,13 +49,21 @@ function toRequestAuth(
 export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props) {
   const navigate = useNavigate();
   const auth = useAuthSession();
+  const [activeTab, setActiveTab] = useState("ao-vivo");
   const requestAuth = toRequestAuth(auth.getRequestAuth);
   const eventoIdNum = toEventoIdNumberOrNull(eventoId);
 
-  const { workspace, isLoading, error, refresh } = useWorkspaceEvento({
+  const { workspace, isLoading, error, refresh, poll } = useWorkspaceEvento({
     dataIso,
     eventoId,
+    enabled: false,
+    manualControl: true,
   });
+
+  const partidaAoVivo = useMemo(() => {
+    if (!workspace) return null;
+    return workspace.partidas.find((partida) => partida.status === "EM_ANDAMENTO") ?? workspace.partidas[0] ?? null;
+  }, [workspace]);
 
   const caps = useMemo(() => {
     if (!workspace || !auth.user) return null;
@@ -57,83 +74,230 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     });
   }, [auth.user, workspace]);
 
+  const participantsPollingEnabled = activeTab === "presenca-equipes";
+  const timelinePollingEnabled = activeTab === "ao-vivo";
+  const isJogoLivre = workspace?.meta.tipo === "JOGO";
+  const hasPartidaAoVivo = Boolean(partidaAoVivo?.status === "EM_ANDAMENTO");
+
+  const liveData = useEventoLiveData({
+    eventoId: eventoIdNum ?? 0,
+    partidaId: partidaAoVivo?.id ?? null,
+    auth: requestAuth,
+    timelineEnabled: Boolean(caps && requestAuth && eventoIdNum && timelinePollingEnabled && hasPartidaAoVivo),
+    participantsEnabled: Boolean(
+      caps &&
+        requestAuth &&
+        eventoIdNum &&
+        participantsPollingEnabled &&
+        isJogoLivre &&
+        caps.has("participants_view"),
+    ),
+    manualControl: true,
+  });
+
+  useEffect(() => {
+    if (!eventoIdNum) return;
+    void refresh();
+  }, [eventoIdNum, refresh]);
+
+  useEventoPagePollingController({
+    workspace: {
+      enabled: Boolean(eventoIdNum),
+      intervalMs: 4000,
+      poll,
+    },
+    timeline: {
+      enabled: Boolean(
+        caps &&
+          requestAuth &&
+          eventoIdNum &&
+          timelinePollingEnabled &&
+          hasPartidaAoVivo &&
+          caps.has("lances"),
+      ),
+      intervalMs: 2200,
+      poll: liveData.pollTimelineOnly,
+    },
+    participants: {
+      enabled: Boolean(
+        caps &&
+          requestAuth &&
+          eventoIdNum &&
+          participantsPollingEnabled &&
+          isJogoLivre &&
+          caps.has("participants_view"),
+      ),
+      intervalMs: 3000,
+      poll: liveData.pollParticipantsOnly,
+    },
+  });
+
   if (!dataIso || eventoIdNum === null) {
     return (
-      <main className="container py-3">
-        <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/dias")}>
+      <main className="mx-auto max-w-7xl p-4">
+        <Button variant="ghost" className="mb-3" onClick={() => navigate("/dias")}>
           Voltar
-        </button>
-        <h1>Parametros invalidos</h1>
-        <p>Data ou evento nao informado na URL.</p>
+        </Button>
+        <h1 className="text-xl font-semibold">Parametros invalidos</h1>
+        <p className="text-sm text-muted-foreground">Data ou evento nao informado na URL.</p>
       </main>
     );
   }
 
   if (isLoading && !workspace) {
     return (
-      <main className="container py-3">
-        <button className="btn btn-link p-0 mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
+      <main className="mx-auto max-w-7xl p-4">
+        <Button variant="ghost" className="mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
           Voltar
-        </button>
-        <h1>Evento</h1>
-        <p>Carregando dados do evento...</p>
+        </Button>
+        <h1 className="text-xl font-semibold">Evento</h1>
+        <p className="text-sm text-muted-foreground">Carregando dados do evento...</p>
       </main>
     );
   }
 
   if (!workspace || !caps) {
     return (
-      <main className="container py-3">
-        <button className="btn btn-link p-0 mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
+      <main className="mx-auto max-w-7xl p-4">
+        <Button variant="ghost" className="mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
           Voltar
-        </button>
-        <h1>Evento nao encontrado</h1>
-        <p>Nao foi possivel localizar o evento selecionado.</p>
+        </Button>
+        <h1 className="text-xl font-semibold">Evento nao encontrado</h1>
+        <p className="text-sm text-muted-foreground">Nao foi possivel localizar o evento selecionado.</p>
       </main>
     );
   }
 
+  const tabItems = [
+    {
+      id: "ao-vivo",
+      label: "Ao Vivo",
+      content: (
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-4 md:col-span-2">
+            {hasPartidaAoVivo ? (
+              <TimelineLances
+                items={liveData.timelineItems}
+                isLoading={liveData.timelineLoading}
+                error={liveData.timelineError}
+              />
+            ) : (
+              <div className="rounded-md border border-dashed border-border bg-white p-4 text-sm text-muted-foreground">
+                <p className="mb-2 font-medium text-foreground">Pre-jogo</p>
+                <ul className="list-disc pl-4">
+                  <li>Marque presenca e organize equipes na aba Presenca & Equipes.</li>
+                  <li>Crie a primeira partida na aba Partidas (ou seed para JOGO_LIVRE).</li>
+                  <li>Inicie o evento para habilitar timeline e quick add de lances.</li>
+                </ul>
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            <PartidaAoVivoCard partida={partidaAoVivo} eventoStatus={workspace.meta.status} />
+            <EventoStatusActions
+              auth={requestAuth}
+              caps={caps}
+              eventoId={eventoIdNum}
+              status={workspace.meta.status}
+              onChanged={async () => {
+                await refresh();
+                await liveData.forceRefresh();
+              }}
+            />
+            <QuickAddLance
+              auth={requestAuth}
+              caps={caps}
+              eventoStatus={workspace.meta.status}
+              partidaStatus={partidaAoVivo?.status ?? null}
+              partidaId={partidaAoVivo?.id ?? null}
+              onSubmitted={liveData.forceRefresh}
+            />
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "presenca-equipes",
+      label: "Presenca & Equipes",
+      content: (
+        <div className="space-y-4">
+          <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-600">
+            Presenca/check-in e montagem de equipes ficam unificados nesta aba para operacao de jogo.
+          </div>
+          {isJogoLivre ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <ParticipantesPanel
+                participants={liveData.participants}
+                isLoading={liveData.isLoadingParticipants}
+                error={liveData.participantsError}
+              />
+              <FilaChegadaPanel presentes={liveData.presentes} />
+            </div>
+          ) : (
+            <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-600">
+              Para eventos do tipo AULA, participantes/check-in canonicos nao se aplicam.
+              Use a lista de jogadores da turma abaixo para presenca e montagem.
+            </div>
+          )}
+          <WorkspaceEquipesPanel
+            dataIso={workspace.meta.data_iso}
+            aulaId={eventoIdNum}
+            meta={workspace.meta}
+            equipes={workspace.equipes}
+            onRefresh={async () => {
+              await refresh();
+              await liveData.forceRefresh();
+            }}
+          />
+        </div>
+      ),
+    },
+    {
+      id: "partidas",
+      label: "Partidas",
+      content: (
+        <div className="space-y-4">
+          <WorkspacePartidasPanel
+            dataIso={workspace.meta.data_iso}
+            aulaId={eventoIdNum}
+            equipes={workspace.equipes}
+            partidas={workspace.partidas}
+            onRefresh={async () => {
+              await refresh();
+              await liveData.forceRefresh();
+            }}
+          />
+          <TimesPanel equipes={workspace.equipes} />
+        </div>
+      ),
+    },
+  ];
+
   return (
-    <main className="container py-3">
-      <div className="d-flex justify-content-between align-items-start mb-2">
-        <button className="btn btn-link p-0" onClick={() => navigate(`/dias/${dataIso}`)}>
+    <main className="mx-auto max-w-7xl p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <Button variant="ghost" onClick={() => navigate(`/dias/${dataIso}`)}>
           Voltar para o dia
-        </button>
-        {source === "aula_legacy" && <small className="text-muted">Rota legada /aulas em compatibilidade</small>}
+        </Button>
+        {source === "aula_legacy" ? (
+          <span className="text-xs text-muted-foreground">Compat mode: /aulas</span>
+        ) : null}
       </div>
 
-      <WorkspaceHeader meta={workspace.meta} header={workspace.header} />
-      <WorkspaceKpis kpis={workspace.kpis} />
-      {error && <div className="alert alert-warning py-2">{error}</div>}
-      <WorkspaceWarnings warnings={workspace.warnings} />
+      <EventoHeader meta={workspace.meta} header={workspace.header} source={source} />
+      <EventoContextBar meta={workspace.meta} kpis={workspace.kpis} partidaAtivaId={partidaAoVivo?.id ?? null} />
 
-      <EventoActionsPanel
-        eventoId={eventoIdNum}
-        caps={caps}
-        auth={requestAuth}
-        defaultPartidaId={workspace.partidas[0]?.id ?? null}
-        onRefreshWorkspace={refresh}
-      />
-
-      {caps.has("workspace_equipes") && (
-        <WorkspaceEquipesPanel
-          dataIso={workspace.meta.data_iso}
-          aulaId={eventoIdNum}
-          meta={workspace.meta}
-          equipes={workspace.equipes}
-          onRefresh={refresh}
-        />
+      {(liveData.timelineError?.startsWith("401") || liveData.participantsError?.startsWith("401")) && (
+        <div className="mb-3 rounded-md bg-amber-50 p-2 text-sm text-amber-800">
+          Sessao invalida ou expirada para endpoints canonicos. Refaça login em /login.
+        </div>
       )}
 
-      {caps.has("workspace_partidas") && (
-        <WorkspacePartidasPanel
-          dataIso={workspace.meta.data_iso}
-          aulaId={eventoIdNum}
-          equipes={workspace.equipes}
-          partidas={workspace.partidas}
-          onRefresh={refresh}
-        />
-      )}
+      {error ? (
+        <div className="mb-4 rounded-md bg-amber-50 p-2 text-sm text-amber-700">{error}</div>
+      ) : null}
+
+      <EventoBottomTabs items={tabItems} value={activeTab} onValueChange={setActiveTab} />
     </main>
   );
 }

@@ -64,6 +64,9 @@ export type Lance = {
   partida_id: number;
   evento_id: number;
   jogador_id?: number | null;
+  jogador_nome?: string | null;
+  time_id?: number | null;
+  time_nome?: string | null;
   tipo: string;
   payload: Record<string, unknown>;
   client_event_id?: string | null;

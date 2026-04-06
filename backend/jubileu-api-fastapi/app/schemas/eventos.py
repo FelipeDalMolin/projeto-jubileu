@@ -88,9 +88,16 @@ class LanceOut(BaseModel):
     client_event_id: Optional[str] = None
     created_by_user_id: Optional[str] = None
     created_at: datetime
+    jogador_nome: Optional[str] = None
+    time_id: Optional[int] = None
+    time_nome: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class LanceCreateOut(BaseModel):
     lance: LanceOut
+
+
+class LanceListOut(BaseModel):
+    items: list[LanceOut] = Field(default_factory=list)

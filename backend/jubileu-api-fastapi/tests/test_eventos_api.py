@@ -85,6 +85,39 @@ def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     assert resp.json()["participante"]["status"] == "CHECKED_IN"
     assert isinstance(resp.json()["participante"]["arrival_seq"], int)
 
+    resp = client.delete(
+        f"/api/eventos/{evento_id}/checkin",
+        headers={
+            "X-User-Id": "u1",
+            "X-Role": "user",
+            "X-Jogador-Id": str(jogador_1_id),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["participante"]["status"] == "CHECKED_OUT"
+
+    resp = client.delete(
+        f"/api/eventos/{evento_id}/rsvp",
+        headers={
+            "X-User-Id": "u1",
+            "X-Role": "user",
+            "X-Jogador-Id": str(jogador_1_id),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["participante"]["status"] == "CANCELED"
+
+    resp = client.post(
+        f"/api/eventos/{evento_id}/checkin",
+        headers={
+            "X-User-Id": "u1",
+            "X-Role": "user",
+            "X-Jogador-Id": str(jogador_1_id),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["participante"]["status"] == "CHECKED_IN"
+
     resp = client.post(
         f"/api/eventos/{evento_id}/participants/{jogador_2_id}/checkin",
         headers={"X-User-Id": "coach", "X-Role": "treinador"},
@@ -109,3 +142,12 @@ def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     assert resp.status_code == 200, resp.text
     assert resp.json()["lance"]["tipo"] == "GOL"
 
+    resp = client.get(
+        f"/api/eventos/{evento_id}/lances",
+        headers={"X-User-Id": "u1", "X-Role": "user", "X-Jogador-Id": str(jogador_1_id)},
+    )
+    assert resp.status_code == 200, resp.text
+    items = resp.json()["items"]
+    assert len(items) == 1
+    assert items[0]["tipo"] == "GOL"
+    assert items[0]["jogador_nome"] == "Jogador 1"

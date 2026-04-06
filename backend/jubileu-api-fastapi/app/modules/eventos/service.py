@@ -28,6 +28,7 @@ from app.schemas.eventos import (
     LanceCreateIn,
     LanceCreateOut,
     LanceOut,
+    LanceListOut,
     PartidaSeedOut,
     SeedPartidaIn,
     SeedPartidaOut,
@@ -73,6 +74,45 @@ def participante_out(p: EventoParticipanteModel) -> EventoParticipanteOut:
         checkin_at=p.checkin_at,
         checkout_at=p.checkout_at,
         arrival_seq=p.arrival_seq,
+    )
+
+
+def lance_out(db: Session, lance: LanceModel) -> LanceOut:
+    jogador_nome: str | None = None
+    time_id: int | None = None
+    time_nome: str | None = None
+
+    if lance.jogador_id is not None:
+        jogador_aula = (
+            db.query(JogadorAulaModel)
+            .filter(
+                JogadorAulaModel.aula_id == lance.aula_id,
+                JogadorAulaModel.jogador_id == lance.jogador_id,
+            )
+            .first()
+        )
+        if jogador_aula:
+            jogador_nome = jogador_aula.nome
+            time_id = jogador_aula.time_id
+            if time_id is not None:
+                time = db.query(TimeAulaModel).filter(TimeAulaModel.id == time_id).first()
+                time_nome = time.nome if time else None
+
+    return LanceOut.model_validate(
+        {
+            "id": lance.id,
+            "partida_id": lance.partida_id,
+            "evento_id": lance.aula_id,
+            "jogador_id": lance.jogador_id,
+            "tipo": lance.tipo,
+            "payload": lance.payload,
+            "client_event_id": lance.client_event_id,
+            "created_by_user_id": lance.created_by_user_id,
+            "created_at": lance.created_at,
+            "jogador_nome": jogador_nome,
+            "time_id": time_id,
+            "time_nome": time_nome,
+        }
     )
 
 
@@ -171,6 +211,32 @@ def rsvp_self_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, Eve
     return {"participante": participante_out(participante)}
 
 
+def rsvp_self_cancel_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, EventoParticipanteOut]:
+    evento = get_evento_or_404(db, evento_id)
+    assert_evento_tipo_jogo_livre(evento)
+    if user.jogador_id is None:
+        raise HTTPException(status_code=403, detail="User sem jogador associado")
+
+    participante = (
+        db.query(EventoParticipanteModel)
+        .filter(
+            EventoParticipanteModel.aula_id == evento.id,
+            EventoParticipanteModel.jogador_id == user.jogador_id,
+        )
+        .first()
+    )
+    if not participante:
+        raise HTTPException(status_code=404, detail="Participacao nao encontrada")
+    if participante.status == EventoParticipanteStatusEnum.CHECKED_IN:
+        raise HTTPException(status_code=409, detail="Use desfazer check-in antes de cancelar RSVP")
+
+    participante.status = EventoParticipanteStatusEnum.CANCELED
+    participante.updated_by_user_id = user.user_id
+    db.commit()
+    db.refresh(participante)
+    return {"participante": participante_out(participante)}
+
+
 def checkin_self_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, EventoParticipanteOut]:
     evento = get_evento_or_404(db, evento_id)
     assert_evento_em_andamento(evento)
@@ -185,6 +251,33 @@ def checkin_self_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, 
         if participante.arrival_seq is None:
             participante.arrival_seq = next_arrival_seq(db, evento.id)
         participante.updated_by_user_id = user.user_id
+    db.commit()
+    db.refresh(participante)
+    return {"participante": participante_out(participante)}
+
+
+def checkin_self_cancel_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, EventoParticipanteOut]:
+    evento = get_evento_or_404(db, evento_id)
+    assert_evento_em_andamento(evento)
+    if user.jogador_id is None:
+        raise HTTPException(status_code=403, detail="User sem jogador associado")
+
+    participante = (
+        db.query(EventoParticipanteModel)
+        .filter(
+            EventoParticipanteModel.aula_id == evento.id,
+            EventoParticipanteModel.jogador_id == user.jogador_id,
+        )
+        .first()
+    )
+    if not participante:
+        raise HTTPException(status_code=404, detail="Participacao nao encontrada")
+    if participante.status != EventoParticipanteStatusEnum.CHECKED_IN:
+        raise HTTPException(status_code=409, detail="Participante nao esta CHECKED_IN")
+
+    participante.status = EventoParticipanteStatusEnum.CHECKED_OUT
+    participante.checkout_at = datetime.now(timezone.utc)
+    participante.updated_by_user_id = user.user_id
     db.commit()
     db.refresh(participante)
     return {"participante": participante_out(participante)}
@@ -417,21 +510,7 @@ def create_lance_flow(
             .first()
         )
         if existing:
-            return LanceCreateOut(
-                lance=LanceOut.model_validate(
-                    {
-                        "id": existing.id,
-                        "partida_id": existing.partida_id,
-                        "evento_id": existing.aula_id,
-                        "jogador_id": existing.jogador_id,
-                        "tipo": existing.tipo,
-                        "payload": existing.payload,
-                        "client_event_id": existing.client_event_id,
-                        "created_by_user_id": existing.created_by_user_id,
-                        "created_at": existing.created_at,
-                    }
-                )
-            )
+            return LanceCreateOut(lance=lance_out(db, existing))
 
     lance = LanceModel(
         partida_id=partida.id,
@@ -445,18 +524,34 @@ def create_lance_flow(
     db.add(lance)
     db.commit()
     db.refresh(lance)
-    return LanceCreateOut(
-        lance=LanceOut.model_validate(
-            {
-                "id": lance.id,
-                "partida_id": lance.partida_id,
-                "evento_id": lance.aula_id,
-                "jogador_id": lance.jogador_id,
-                "tipo": lance.tipo,
-                "payload": lance.payload,
-                "client_event_id": lance.client_event_id,
-                "created_by_user_id": lance.created_by_user_id,
-                "created_at": lance.created_at,
-            }
+    return LanceCreateOut(lance=lance_out(db, lance))
+
+
+def list_lances_flow(
+    db: Session,
+    evento_id: int,
+    partida_id: int | None,
+    since: datetime | None,
+    limit: int,
+) -> LanceListOut:
+    get_evento_or_404(db, evento_id)
+    cap_limit = max(1, min(limit, 500))
+
+    query = (
+        db.query(LanceModel)
+        .filter(
+            LanceModel.aula_id == evento_id,
+            LanceModel.is_deleted.is_(False),
         )
     )
+    if partida_id is not None:
+        query = query.filter(LanceModel.partida_id == partida_id)
+    if since is not None:
+        query = query.filter(LanceModel.created_at > since)
+
+    items = (
+        query.order_by(LanceModel.created_at.asc(), LanceModel.id.asc())
+        .limit(cap_limit)
+        .all()
+    )
+    return LanceListOut(items=[lance_out(db, lance) for lance in items])

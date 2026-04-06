@@ -7,6 +7,7 @@ type Params = {
   aulaId?: string;
   enabled?: boolean;
   intervalMs?: number;
+  manualControl?: boolean;
 };
 
 function toAulaIdNumberOrNull(aulaId?: string): number | null {
@@ -20,6 +21,7 @@ export function useWorkspaceAula({
   aulaId,
   enabled = true,
   intervalMs = 2500,
+  manualControl = false,
 }: Params) {
   const [workspace, setWorkspace] = useState<WorkspaceAula | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -32,8 +34,8 @@ export function useWorkspaceAula({
   const aulaIdNum = toAulaIdNumberOrNull(aulaId);
 
   const fetchWorkspace = useCallback(
-    async (sinceVersion?: number, forceLoading?: boolean) => {
-      if (!dataIso || aulaIdNum === null) return;
+    async (sinceVersion?: number, forceLoading?: boolean): Promise<boolean> => {
+      if (!dataIso || aulaIdNum === null) return false;
       if (forceLoading) setIsLoading(true);
       try {
         const resp = await obterWorkspaceAula(dataIso, aulaIdNum, sinceVersion);
@@ -41,9 +43,12 @@ export function useWorkspaceAula({
           setWorkspace(resp.data);
           lastVersionRef.current = resp.data.meta?.version ?? null;
           setError(null);
+          return true;
         }
+        return true;
       } catch (err: any) {
         setError(err?.message ?? "Erro ao carregar workspace da aula");
+        return false;
       } finally {
         setIsLoading(false);
       }
@@ -67,6 +72,7 @@ export function useWorkspaceAula({
   }, [dataIso, aulaId]);
 
   useEffect(() => {
+    if (manualControl) return;
     if (!enabled || !dataIso) return;
     if (aulaIdNum === null) {
       setError("Aula invalida");
@@ -92,10 +98,14 @@ export function useWorkspaceAula({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [dataIso, aulaIdNum, enabled, intervalMs, fetchWorkspace]);
+  }, [dataIso, aulaIdNum, enabled, intervalMs, fetchWorkspace, manualControl]);
 
   const refresh = useCallback(async () => {
-    await fetchWorkspace(undefined, true);
+    return await fetchWorkspace(undefined, true);
+  }, [fetchWorkspace]);
+
+  const poll = useCallback(async () => {
+    return await fetchWorkspace(lastVersionRef.current ?? undefined, false);
   }, [fetchWorkspace]);
 
   return {
@@ -103,5 +113,6 @@ export function useWorkspaceAula({
     isLoading,
     error,
     refresh,
+    poll,
   };
 }

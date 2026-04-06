@@ -15,3 +15,4 @@ export {
   listarPresentesEvento,
 } from "./eventos/eventoParticipantsService";
 export { criarLancePartida } from "./eventos/lancesService";
+export { listarLancesEvento, mapLanceToTimelineItem } from "./eventos/lancesQueryService";

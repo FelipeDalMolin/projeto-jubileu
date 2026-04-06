@@ -4,6 +4,7 @@ import type { EstatisticaJogadorPartida } from "./dia";
 export type PartidaEstado = {
   id: number;
   ordem: number;
+  status: "PLANEJADA" | "EM_ANDAMENTO" | "ENCERRADA";
   timeAId: string;
   timeBId: string;
   golsTimeA: number;
