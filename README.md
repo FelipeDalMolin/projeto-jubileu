@@ -64,6 +64,8 @@ Documentação completa para configurar o projeto em diferentes ambientes:
 
 **Recomendação**: Comece por [DOCS_NAVIGATION.md](docs/DOCS_NAVIGATION.md) para escolher o caminho certo para seu caso de uso.
 
+**Ou assista em:** https://youtu.be/dAXu-O_J-vs?si=U1ecyWdOuq1QvD9G
+
 ## Documentação
 
 Recursos principais de documentação do projeto:
