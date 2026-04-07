@@ -1,36 +1,43 @@
-# ARCHITECTURE (Slice 00 Baseline)
+# ARQUITETURA (Slice 00 - Baseline)
 
-## Runtime topology
+## Topologia de execução
 
-Official deployment shape:
+Formato oficial de implantação:
 
 `Cloudflare -> NGINX -> FastAPI -> PostgreSQL`
 
-Non-negotiable platform constraints:
+### Restrições não negociáveis da plataforma
 
-- NGINX is the only public entrypoint.
-- FastAPI is not publicly exposed.
-- PostgreSQL is not publicly exposed.
-- `/api` remains the gateway model for backend exposure.
+- O **NGINX** é o único ponto de entrada público.
+- O **FastAPI** não deve ser exposto publicamente.
+- O **PostgreSQL** não deve ser exposto publicamente.
+- O prefixo `/api` permanece como gateway padrão de exposição do backend.
+- 
 
-## Current backend architecture
+## Arquitetura atual do backend
 
-Current backend organization is still mostly layer-by-type:
+A organização atual do backend ainda segue majoritariamente o padrão **por tipo de camada**:
 
 - `app/routers/`
 - `app/models/`
 - `app/schemas/`
 - `app/services/`
 
-Entry and infra details:
+### Detalhes de entrada e infraestrutura
 
-- `app/main.py` creates the FastAPI app and includes routers directly.
-- `app/database.py` currently owns env loading, engine, session factory, and base.
-- `app/deps_auth.py` still uses header-based auth mode in this phase.
+- `app/main.py` instancia a aplicação FastAPI e registra os routers diretamente.
+- `app/database.py` concentra:
+  - carregamento de variáveis de ambiente
+  - criação do engine
+  - factory de sessões
+  - definição da base ORM
+- `app/deps_auth.py` ainda utiliza autenticação baseada em headers (fase atual).
 
-## Target architecture direction
+---
 
-Refactor target (incremental, compatibility-first):
+## Direção da arquitetura alvo
+
+Objetivo do refactor (incremental e com compatibilidade preservada):
 
 ```text
 app/
@@ -59,31 +66,51 @@ Execution order is fixed by baseline:
 5. Slice 04 - JWT + RBAC
 6. Slice 05 - Linux/NGINX deployment assets
 
-## Compatibility commitments for Slice 00
+## Compromissos de compatibilidade — Slice 00
 
-- Persistence naming remains unchanged (`Aula` is still persisted).
-- Auth flow remains unchanged (header-based behavior preserved).
-- Existing public route contracts remain unchanged, except `/health` addition.
-- Business payload semantics remain unchanged.
+- A nomenclatura de persistência permanece inalterada (`Aula` continua sendo persistido).
+- O fluxo de autenticação permanece inalterado (comportamento via header preservado).
+- Os contratos públicos existentes permanecem inalterados, com exceção da adição de `/health`.
+- A semântica dos payloads de negócio permanece inalterada.
 
-## Alembic viability check (clean database)
+---
 
-Validation executed on 2026-03-22 against a clean PostgreSQL instance:
+## Validação de viabilidade do Alembic (base limpa)
 
-- Command: `alembic upgrade head`
-- Result: success up to head `0011_evento_participantes_lances`
+Validação executada em **22/03/2026** contra uma instância limpa do PostgreSQL:
 
-## Migration drift risk note
+- Comando executado:
 
-Even with successful clean upgrade, migration risk remains non-trivial:
+- `alembic upgrade head`
+- success up to head `0011_evento_participantes_lances`
 
-- Migration history has multi-branch merge points (for example, `0003_*` branches merged later), which increases operational complexity in existing environments.
-- Several migrations are corrective/idempotent alignment steps, indicating historical model/schema drift pressure.
-- SQLite test coverage does not fully validate PostgreSQL behavior for enums, defaults, transactional DDL nuances, and conditional DDL logic.
-- Production upgrades require staged validation with PostgreSQL data snapshots and rollback-aware runbooks.
+## Nota de risco — Drift de migrations
 
-## Remaining legacy hotspots
+Apesar da execução bem-sucedida em base limpa, o risco de migrations ainda é **relevante**:
 
-- `app/models/dia_aula.py` as a concentration point for multiple aggregates.
-- Router-heavy domain logic in day and match flows.
-- Transitional overlap between `JogadorAula` and `EventoParticipante` semantics.
+- O histórico de migrations contém **pontos de merge entre múltiplas branches**  
+(ex: branches `0003_*` posteriormente unificadas), aumentando a complexidade operacional.
+
+- Existem migrations com caráter **corretivo/idempotente**, indicando pressão histórica de drift entre modelo e schema.
+
+- A cobertura de testes com SQLite **não valida completamente** comportamentos específicos do PostgreSQL, como:
+- enums
+- valores default
+- DDL transacional
+- lógica condicional em migrations
+
+- Atualizações em produção exigem:
+- validação em ambiente com snapshot de dados PostgreSQL
+- runbooks com estratégia de rollback
+
+---
+
+## Pontos críticos legados remanescentes
+
+- `app/models/dia_aula.py` atua como um ponto de concentração de múltiplos agregados.
+- Lógica de domínio excessiva nos routers, especialmente nos fluxos de:
+- dia
+- partida
+- Sobreposição conceitual transitória entre:
+- `JogadorAula`
+- `EventoParticipante`
