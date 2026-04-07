@@ -88,7 +88,7 @@ fi
 
 # 7. Validar instalação
 if [ -d "$NODE_MODULES" ]; then
-    local count=$(find "$NODE_MODULES" -maxdepth 1 -type d | wc -l)
+ count=$(find "$NODE_MODULES" -maxdepth 1 -type d | wc -l)
     debug "node_modules com ~$count diretórios"
 fi
 

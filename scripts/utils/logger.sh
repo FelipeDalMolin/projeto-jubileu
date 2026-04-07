@@ -5,8 +5,8 @@
 set -o pipefail
 
 # Diretório de logs
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_DIR="${SCRIPT_DIR}/../logs"
+LOGGER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="${LOGGER_SCRIPT_DIR}/../logs"
 mkdir -p "$LOG_DIR"
 
 LOG_FILE="$LOG_DIR/setup-$(date +%Y%m%d-%H%M%S).log"
@@ -26,26 +26,30 @@ NC='\033[0m' # No Color
 log_message() {
     local level=$1
     local message=$2
-    local timestamp=$(date '+%H:%M:%S')
-    
-    case $level in
+    local timestamp
+    timestamp=$(date '+%H:%M:%S')
+
+    case "$level" in
         INFO)
-            echo -e "${CYAN}[$timestamp] [INFO]${NC} $message"
+            echo -e "${CYAN}[${timestamp}] [INFO]${NC} $message"
             ;;
         SUCCESS)
-            echo -e "${GREEN}[$timestamp] [SUCCESS]${NC} $message"
+            echo -e "${GREEN}[${timestamp}] [SUCCESS]${NC} $message"
             ;;
         WARN)
-            echo -e "${YELLOW}[$timestamp] [WARN]${NC} $message"
+            echo -e "${YELLOW}[${timestamp}] [WARN]${NC} $message"
             ;;
         ERROR)
-            echo -e "${RED}[$timestamp] [ERROR]${NC} $message"
+            echo -e "${RED}[${timestamp}] [ERROR]${NC} $message"
             ;;
         DEBUG)
-            echo -e "${GRAY}[$timestamp] [DEBUG]${NC} $message"
+            echo -e "${GRAY}[${timestamp}] [DEBUG]${NC} $message"
+            ;;
+        *)
+            echo -e "[${timestamp}] [$level] $message"
             ;;
     esac
-    
+
     echo "[$timestamp] [$level] $message" >> "$LOG_FILE"
 }
 
