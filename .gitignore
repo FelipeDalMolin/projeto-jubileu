@@ -45,6 +45,7 @@ node_modules/
 jspm_packages/
 bower_components/
 web_modules/
+.venv/
 
 ############################
 # TypeScript / JS
@@ -97,6 +98,15 @@ dist
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+############################
+# Project specific ignores
+############################
+docs/refactors/
+projeto-jubileu/
+projeto-jubileu-clean.zip
+print.txt
+.codex/
 
 ############################
 # Vite
