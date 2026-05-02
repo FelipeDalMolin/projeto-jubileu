@@ -1,11 +1,11 @@
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import type { WorkspaceAulaHeader, WorkspaceAulaMeta } from "../../../types/workspaceAula";
+import type { WorkspaceEventoHeader, WorkspaceEventoMeta } from "../../../types/workspaceEvento";
 
-function statusVariant(status: WorkspaceAulaMeta["status"]) {
+function statusVariant(status: WorkspaceEventoMeta["status"]) {
   if (status === "EM_ANDAMENTO") return "success";
-  if (status === "PLANEJADA") return "warning";
-  if (status === "CANCELADA") return "danger";
+  if (status === "PLANEJADO") return "warning";
+  if (status === "CANCELADO") return "danger";
   return "secondary";
 }
 
@@ -14,8 +14,8 @@ export function EventoHeader({
   header,
   source,
 }: {
-  meta: WorkspaceAulaMeta;
-  header: WorkspaceAulaHeader;
+  meta: WorkspaceEventoMeta;
+  header: WorkspaceEventoHeader;
   source: "evento" | "aula_legacy";
 }) {
   return (

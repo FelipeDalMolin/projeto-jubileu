@@ -1,5 +1,6 @@
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
+import type { EventoStatus } from "../../../types/evento";
 import type { WorkspaceAulaPartida } from "../../../types/workspaceAula";
 
 export function PartidaAoVivoCard({
@@ -7,7 +8,7 @@ export function PartidaAoVivoCard({
   eventoStatus,
 }: {
   partida: WorkspaceAulaPartida | null;
-  eventoStatus: string;
+  eventoStatus: EventoStatus;
 }) {
   if (!partida) {
     return (

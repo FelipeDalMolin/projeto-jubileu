@@ -34,14 +34,32 @@ function inferSecondary(payload: Record<string, unknown>): {
     payload.jogador2_nome ??
     payload.assist_jogador_nome ??
     payload.assistente_nome;
-  const jogadorId = typeof idCandidate === "number" ? idCandidate : null;
+  const jogadorId =
+    typeof idCandidate === "number"
+      ? idCandidate
+      : typeof idCandidate === "string" && Number.isFinite(Number(idCandidate))
+        ? Number(idCandidate)
+        : null;
   const jogadorNome = typeof nomeCandidate === "string" ? nomeCandidate : null;
   return { jogadorId, jogadorNome };
 }
 
 function inferMinute(payload: Record<string, unknown>): number | null {
   const candidate = payload.minute ?? payload.minuto;
-  return typeof candidate === "number" ? candidate : null;
+  return typeof candidate === "number"
+    ? candidate
+    : typeof candidate === "string" && Number.isFinite(Number(candidate))
+      ? Number(candidate)
+      : null;
+}
+
+function inferTimeId(payload: Record<string, unknown>): number | null {
+  const candidate = payload.time_id ?? payload.timeId;
+  return typeof candidate === "number"
+    ? candidate
+    : typeof candidate === "string" && Number.isFinite(Number(candidate))
+      ? Number(candidate)
+      : null;
 }
 
 export function mapLanceToTimelineItem(lance: Lance): LanceTimelineItem {
@@ -53,7 +71,7 @@ export function mapLanceToTimelineItem(lance: Lance): LanceTimelineItem {
     eventoId: lance.evento_id,
     partidaId: lance.partida_id,
     tipo: lance.tipo,
-    timeId: lance.time_id ?? null,
+    timeId: lance.time_id ?? inferTimeId(payload),
     timeNome: lance.time_nome ?? null,
     jogadorPrincipalId: lance.jogador_id ?? null,
     jogadorPrincipalNome: lance.jogador_nome ?? null,

@@ -73,3 +73,16 @@ export type Lance = {
   created_by_user_id?: string | null;
   created_at: string;
 };
+
+export function normalizeEventoTipo(raw: string | null | undefined): EventoTipo {
+  if (raw === "JOGO" || raw === "JOGO_LIVRE") return "JOGO_LIVRE";
+  return "AULA";
+}
+
+export function normalizeEventoStatus(raw: string | null | undefined): EventoStatus {
+  if (raw === "PLANEJADA" || raw === "PLANEJADO") return "PLANEJADO";
+  if (raw === "EM_ANDAMENTO") return "EM_ANDAMENTO";
+  if (raw === "CONCLUIDA" || raw === "ENCERRADO") return "ENCERRADO";
+  if (raw === "CANCELADA" || raw === "CANCELADO") return "CANCELADO";
+  return "PLANEJADO";
+}

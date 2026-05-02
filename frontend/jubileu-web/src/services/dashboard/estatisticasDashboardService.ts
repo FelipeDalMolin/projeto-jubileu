@@ -55,6 +55,6 @@ export async function obterVisaoGeralEstatisticas(
   if (params.periodo) search.set("periodo", String(params.periodo));
   if (params.turma) search.set("turma", String(params.turma));
   const qs = search.toString();
-  const path = `/dashboards/estatisticas/visao-geral${qs ? `?${qs}` : ""}`;
+  const path = `/api/dashboards/estatisticas/visao-geral${qs ? `?${qs}` : ""}`;
   return fetchJson<VisaoGeralEstatisticas>(path, options?.force);
 }

@@ -7,6 +7,8 @@ export type AuthHeaders = {
   accessToken?: string | null;
 };
 
+const forcedLegacyUsers = new Set<string>();
+
 function isJwtExpired(token: string): boolean {
   try {
     const payloadPart = token.split(".")[1];
@@ -37,7 +39,10 @@ async function safeText(resp: Response) {
 }
 
 export function buildAuthHeaders(auth: AuthHeaders): HeadersInit {
-  const useBearer = Boolean(auth.accessToken) && !isJwtExpired(auth.accessToken!);
+  const useBearer =
+    Boolean(auth.accessToken) &&
+    !isJwtExpired(auth.accessToken!) &&
+    !forcedLegacyUsers.has(auth.userId);
   return {
     ...(useBearer ? { Authorization: `Bearer ${auth.accessToken}` } : {}),
     "X-User-Id": auth.userId,
@@ -52,6 +57,12 @@ function buildLegacyOnlyHeaders(auth: AuthHeaders): HeadersInit {
     "X-Role": auth.role ?? "user",
     ...(auth.jogadorId != null ? { "X-Jogador-Id": String(auth.jogadorId) } : {}),
   };
+}
+
+function shouldRetryWithLegacy(resp: Response, auth: AuthHeaders): boolean {
+  if (resp.status !== 401 || !auth.accessToken) return false;
+  forcedLegacyUsers.add(auth.userId);
+  return true;
 }
 
 export async function postJson<T>(
@@ -69,7 +80,7 @@ export async function postJson<T>(
     },
     body: body != null ? JSON.stringify(body) : undefined,
   });
-  if (resp.status === 401 && auth.accessToken) {
+  if (shouldRetryWithLegacy(resp, auth)) {
     resp = await fetch(buildUrl(path), {
       method: "POST",
       headers: {
@@ -91,7 +102,7 @@ export async function getJson<T>(path: string, auth: AuthHeaders): Promise<T> {
     method: "GET",
     headers: buildAuthHeaders(auth),
   });
-  if (resp.status === 401 && auth.accessToken) {
+  if (shouldRetryWithLegacy(resp, auth)) {
     resp = await fetch(buildUrl(path), {
       method: "GET",
       headers: buildLegacyOnlyHeaders(auth),
@@ -108,7 +119,7 @@ export async function deleteJson<T>(path: string, auth: AuthHeaders): Promise<T>
     method: "DELETE",
     headers: buildAuthHeaders(auth),
   });
-  if (resp.status === 401 && auth.accessToken) {
+  if (shouldRetryWithLegacy(resp, auth)) {
     resp = await fetch(buildUrl(path), {
       method: "DELETE",
       headers: buildLegacyOnlyHeaders(auth),

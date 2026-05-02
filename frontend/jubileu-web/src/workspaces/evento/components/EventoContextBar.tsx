@@ -1,14 +1,14 @@
 import { Badge } from "../../../components/ui/badge";
 import { Card, CardContent } from "../../../components/ui/card";
-import type { WorkspaceAulaKpis, WorkspaceAulaMeta } from "../../../types/workspaceAula";
+import type { WorkspaceEventoKpis, WorkspaceEventoMeta } from "../../../types/workspaceEvento";
 
 export function EventoContextBar({
   meta,
   kpis,
   partidaAtivaId,
 }: {
-  meta: WorkspaceAulaMeta;
-  kpis: WorkspaceAulaKpis;
+  meta: WorkspaceEventoMeta;
+  kpis: WorkspaceEventoKpis;
   partidaAtivaId: number | null;
 }) {
   return (

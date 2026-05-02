@@ -537,6 +537,18 @@ def list_lances_flow(
     get_evento_or_404(db, evento_id)
     cap_limit = max(1, min(limit, 500))
 
+    if partida_id is not None:
+        partida = (
+            db.query(PartidaModel.id)
+            .filter(
+                PartidaModel.id == partida_id,
+                PartidaModel.aula_id == evento_id,
+            )
+            .first()
+        )
+        if not partida:
+            raise HTTPException(status_code=404, detail="Partida nao encontrada para o evento")
+
     query = (
         db.query(LanceModel)
         .filter(

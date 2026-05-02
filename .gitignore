@@ -102,7 +102,16 @@ dist
 ############################
 # Project specific ignores
 ############################
-docs/refactors/
+docs/refactors/*
+!docs/refactors/Backend/
+!docs/refactors/Backend/**
+!docs/refactors/Frontend/
+!docs/refactors/Frontend/**
+!docs/refactors/Infra/
+!docs/refactors/Infra/**
+!docs/refactors/EXECUTION_INDEX.md
+!docs/refactors/linear-core-dev-map.md
+!docs/refactors/execution-plan-roadmap.md
 projeto-jubileu/
 projeto-jubileu-clean.zip
 print.txt

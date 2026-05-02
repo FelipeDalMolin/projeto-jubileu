@@ -51,7 +51,7 @@ async function fetchJson<T>(path: string, force = false): Promise<T> {
 }
 
 export async function obterResumoJogadores(options?: { force?: boolean }): Promise<ResumoJogadores> {
-  return fetchJson<ResumoJogadores>("/dashboards/jogadores/resumo", options?.force);
+  return fetchJson<ResumoJogadores>("/api/dashboards/jogadores/resumo", options?.force);
 }
 
 export async function obterRankingJogadores(
@@ -62,6 +62,6 @@ export async function obterRankingJogadores(
   if (params.periodo) search.set("periodo", String(params.periodo));
   if (params.turma) search.set("turma", String(params.turma));
   const qs = search.toString();
-  const path = `/dashboards/jogadores/ranking${qs ? `?${qs}` : ""}`;
+  const path = `/api/dashboards/jogadores/ranking${qs ? `?${qs}` : ""}`;
   return fetchJson<RankingJogadores>(path, options?.force);
 }

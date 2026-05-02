@@ -25,6 +25,9 @@ import type {
   WorkspaceAulaEquipes,
   WorkspaceAulaMeta,
 } from "../../types/workspaceAula";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Input } from "../ui/input";
 
 type Props = {
   dataIso: string;
@@ -246,8 +249,8 @@ export default function WorkspaceEquipesPanel({
     try {
       await iniciarAula(dataIso, aulaId);
       await onRefresh();
-    } catch (err: any) {
-      setStatusError(err?.message ?? "Erro ao iniciar a aula.");
+    } catch (err: unknown) {
+      setStatusError(err instanceof Error ? err.message : "Erro ao iniciar a aula.");
     } finally {
       setStatusLoading(false);
     }
@@ -259,8 +262,8 @@ export default function WorkspaceEquipesPanel({
     try {
       await encerrarAula(dataIso, aulaId);
       await onRefresh();
-    } catch (err: any) {
-      setStatusError(err?.message ?? "Erro ao encerrar a aula.");
+    } catch (err: unknown) {
+      setStatusError(err instanceof Error ? err.message : "Erro ao encerrar a aula.");
     } finally {
       setStatusLoading(false);
     }
@@ -274,150 +277,130 @@ export default function WorkspaceEquipesPanel({
         : meta.status;
 
   return (
-    <div className="row">
-      {/* COLUNA ESQUERDA */}
-      <section className="col-12 col-lg-4 mb-4">
-        <h3 className="h5">Jogadores da turma</h3>
-
-        <section className="mb-3">
-          <h3 className="h6 mb-2">Painel de status da aula</h3>
-          <div className="border rounded p-2">
-            <div className="d-flex justify-content-between align-items-start mb-2">
-              <div>
-                <strong>Status atual:</strong> {statusLabel}
-              </div>
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+      <section className="space-y-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Status do Evento</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+              <strong>Status atual:</strong> {statusLabel}
             </div>
 
-            {statusError && (
-              <div className="alert alert-warning py-2 mb-2">{statusError}</div>
-            )}
+            {statusError ? <div className="rounded-md bg-amber-50 p-2 text-sm text-amber-800">{statusError}</div> : null}
 
-            {meta.status === "PLANEJADA" && (
-              <>
-                {presentesCount === 0 && (
-                  <div className="alert alert-info py-2 mb-2">
+            {meta.status === "PLANEJADA" ? (
+              <div className="space-y-2">
+                {presentesCount === 0 ? (
+                  <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-700">
                     Nenhum jogador marcado como presente.
                   </div>
-                )}
-                <div className="d-flex gap-2">
-                  <button
+                ) : null}
+                <div className="flex flex-wrap gap-2">
+                  <Button
                     type="button"
-                    className="btn btn-sm btn-success"
+                    size="sm"
                     onClick={handleIniciarAula}
                     disabled={statusLoading || presentesCount === 0}
                   >
                     Iniciar aula
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline-danger"
-                    disabled
-                    title="Acao ainda nao disponivel"
-                  >
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" disabled title="Acao ainda nao disponivel">
                     Cancelar aula
-                  </button>
+                  </Button>
                 </div>
+              </div>
+            ) : null}
+
+            {meta.status === "EM_ANDAMENTO" ? (
+              <Button type="button" size="sm" variant="secondary" onClick={handleEncerrarAula} disabled={statusLoading}>
+                Encerrar aula
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Presenca da Turma</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {jogadores.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum jogador associado a esta turma ainda.</p>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" size="sm" variant="outline" onClick={handleMarcarTodosSoTreino}>
+                    Marcar todos como SO TREINO
+                  </Button>
+                  <Button type="button" size="sm" variant="outline" onClick={handleLimparStatus}>
+                    Limpar status
+                  </Button>
+                </div>
+
+                <Input
+                  type="text"
+                  placeholder="Filtrar por nome..."
+                  value={filtroNome}
+                  onChange={handleFiltroChange}
+                />
+
+                <div className="max-h-[420px] overflow-y-auto rounded-md border p-2">
+                  <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                    <strong className="text-foreground">Jogador</strong>
+                    <span>Status</span>
+                  </div>
+                  {jogadoresFiltrados.map((j) => (
+                    <LinhaJogador
+                      key={j.jogadorId}
+                      jogador={j}
+                      onAlterarStatus={handleAlterarStatus}
+                      onDragStart={onJogadorDragStart}
+                    />
+                  ))}
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Jogadores em algum time sao considerados <strong>presentes em jogo</strong>.
+                </p>
               </>
             )}
-
-            {meta.status === "EM_ANDAMENTO" && (
-              <button
-                type="button"
-                className="btn btn-sm btn-warning"
-                onClick={handleEncerrarAula}
-                disabled={statusLoading}
-              >
-                Encerrar aula
-              </button>
-            )}
-          </div>
-        </section>
-
-        {jogadores.length === 0 ? (
-          <p className="text-muted">Nenhum jogador associado a esta turma ainda.</p>
-        ) : (
-          <>
-            <div className="d-flex gap-2 mb-2">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-success"
-                onClick={handleMarcarTodosSoTreino}
-              >
-                Marcar todos como SO TREINOU
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline-secondary"
-                onClick={handleLimparStatus}
-              >
-                Limpar status
-              </button>
-            </div>
-
-            <input
-              type="text"
-              className="form-control form-control-sm mb-2"
-              placeholder="Filtrar por nome..."
-              value={filtroNome}
-              onChange={handleFiltroChange}
-            />
-
-            <div className="border rounded p-2" style={{ maxHeight: 420, overflowY: "auto" }}>
-              <div className="d-flex justify-content-between mb-1">
-                <strong>Jogador</strong>
-                <small className="text-muted">Status</small>
-              </div>
-
-              {jogadoresFiltrados.map((j) => (
-                <LinhaJogador
-                  key={j.jogadorId}
-                  jogador={j}
-                  onAlterarStatus={handleAlterarStatus}
-                  onDragStart={onJogadorDragStart}
-                />
-              ))}
-            </div>
-
-            <p className="mt-2 mb-0" style={{ fontSize: 12 }}>
-              Jogadores em algum time sao <strong>presentes em jogo</strong>.
-              Para quem nao entrar, selecione <em>So treino</em>, <em>Faltou</em>{" "}
-              ou <em>Atestado</em>.
-            </p>
-          </>
-        )}
+          </CardContent>
+        </Card>
       </section>
 
-      {/* COLUNA DIREITA */}
-      <section className="col-12 col-lg-8">
-        {/* Equipes */}
-        <div className="mb-4">
-          <div className="d-flex justify-content-between align-items-center mb-2">
-            <h3 className="h5 mb-0">Equipes</h3>
-            <div className="d-flex gap-2">
-              <button type="button" className="btn btn-sm btn-primary" onClick={handleAdicionarEquipe}>
-                + Adicionar equipe
-              </button>
-              <button type="button" className="btn btn-sm btn-outline-danger" onClick={handleLimparEquipes}>
-                Limpar equipes
-              </button>
+      <section className="space-y-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle>Montagem de Equipes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Arraste jogadores da lista para montar os times. Para tirar alguem, clique em remover.
+              </p>
+              <div className="flex gap-2">
+                <Button type="button" size="sm" onClick={handleAdicionarEquipe}>
+                  + Adicionar equipe
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={handleLimparEquipes}>
+                  Limpar equipes
+                </Button>
+              </div>
             </div>
-          </div>
 
-          <p className="text-muted" style={{ fontSize: 12 }}>
-            Arraste jogadores da lista para montar os times. Para tirar alguem, clique no x.
-          </p>
-
-          {times.length === 0 ? (
-            <p className="text-muted">
-              Nenhuma equipe cadastrada. Clique em <strong>Adicionar equipe</strong>.
-            </p>
-          ) : (
-            <div className="row g-2">
-              {times.map((time) => {
-                const jogadoresTime = jogadoresPorTime(time.id);
-                return (
-                  <div key={time.id} className="col-12 col-md-6">
+            {times.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Nenhuma equipe cadastrada. Clique em <strong>Adicionar equipe</strong>.
+              </p>
+            ) : (
+              <div className="grid gap-2 md:grid-cols-2">
+                {times.map((time) => {
+                  const jogadoresTime = jogadoresPorTime(time.id);
+                  return (
                     <DropArea
+                      key={time.id}
                       titulo={time.nome}
                       descricao={
                         time.caracteristica ||
@@ -427,38 +410,36 @@ export default function WorkspaceEquipesPanel({
                       onDragOver={onAreaDragOver}
                       onRemove={() => handleRemoverTime(time.id)}
                     >
-                      <input
+                      <Input
                         type="text"
-                        className="form-control form-control-sm mb-2"
+                        className="mb-2"
                         placeholder="Caracteristica do time..."
                         value={time.caracteristica ?? ""}
                         onChange={(e) => handleChangeCaracteristica(time.id, e)}
                       />
 
-                      <div className="d-flex flex-wrap gap-1">
+                      <div className="flex flex-wrap gap-1">
                         {jogadoresTime.map((j) => (
                           <ChipJogador key={j.jogadorId} jogador={j} onRemover={handleRemoverDoTime} />
                         ))}
 
-                        {jogadoresTime.length === 0 && (
-                          <span className="text-muted" style={{ fontSize: 12 }}>
-                            Arraste jogadores para ca
-                          </span>
-                        )}
+                        {jogadoresTime.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">Arraste jogadores para ca</span>
+                        ) : null}
                       </div>
                     </DropArea>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                  );
+                })}
+              </div>
+            )}
 
-        <div className="d-flex justify-content-end">
-          <button type="button" className="btn btn-success" onClick={handleSalvarEstadoEquipes}>
-            Salvar estado das equipes
-          </button>
-        </div>
+            <div className="flex justify-end">
+              <Button type="button" onClick={handleSalvarEstadoEquipes}>
+                Salvar estado das equipes
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
     </div>
   );
@@ -476,19 +457,19 @@ function LinhaJogador({ jogador, onAlterarStatus, onDragStart }: LinhaJogadorPro
   };
 
   return (
-    <div className="d-flex justify-content-between align-items-center py-1 border-bottom">
+    <div className="flex items-center justify-between border-b py-1 last:border-b-0">
       <span
         draggable
         onDragStart={(e) => onDragStart(e, jogador.jogadorId)}
         style={{ cursor: "grab" }}
         title="Arraste o nome para uma equipe"
+        className="text-sm"
       >
         {jogador.nome}
       </span>
 
       <select
-        className="form-select form-select-sm"
-        style={{ maxWidth: 140 }}
+        className="w-[150px] rounded-md border border-input bg-background px-2 py-1 text-sm"
         value={jogador.status}
         onChange={handleChange}
       >
@@ -513,17 +494,17 @@ type DropAreaProps = {
 
 function DropArea({ titulo, descricao, onDrop, onDragOver, onRemove, children }: DropAreaProps) {
   return (
-    <div className="border rounded p-2 h-100" onDrop={onDrop} onDragOver={onDragOver}>
-      <div className="d-flex justify-content-between align-items-start mb-1">
-        <div className="d-flex flex-column">
+    <div className="h-full rounded-md border bg-muted/20 p-3" onDrop={onDrop} onDragOver={onDragOver}>
+      <div className="mb-1 flex items-start justify-between">
+        <div className="flex flex-col">
           <strong>{titulo}</strong>
-          <small className="text-muted">{descricao}</small>
+          <small className="text-muted-foreground">{descricao}</small>
         </div>
-        {onRemove && (
-          <button type="button" className="btn btn-link btn-sm text-danger p-0" onClick={onRemove}>
+        {onRemove ? (
+          <button type="button" className="p-0 text-xs text-red-600 hover:underline" onClick={onRemove}>
             Remover
           </button>
-        )}
+        ) : null}
       </div>
       {children}
     </div>
@@ -537,7 +518,7 @@ type ChipJogadorProps = {
 
 function ChipJogador({ jogador, onRemover }: ChipJogadorProps) {
   return (
-    <span className="badge bg-secondary d-inline-flex align-items-center gap-1">
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 px-2 py-1 text-xs text-white">
       {jogador.nome}
       <button
         type="button"

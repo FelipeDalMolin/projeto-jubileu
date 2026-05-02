@@ -46,7 +46,7 @@ async function fetchJson<T>(path: string, force = false): Promise<T> {
 }
 
 export async function obterResumoPartidas(options?: { force?: boolean }): Promise<ResumoPartidas> {
-  return fetchJson<ResumoPartidas>("/dashboards/partidas/resumo", options?.force);
+  return fetchJson<ResumoPartidas>("/api/dashboards/partidas/resumo", options?.force);
 }
 
 export async function obterSeriePorDia(
@@ -57,6 +57,6 @@ export async function obterSeriePorDia(
   if (params.periodo) search.set("periodo", String(params.periodo));
   if (params.turma) search.set("turma", String(params.turma));
   const qs = search.toString();
-  const path = `/dashboards/partidas/serie-por-dia${qs ? `?${qs}` : ""}`;
+  const path = `/api/dashboards/partidas/serie-por-dia${qs ? `?${qs}` : ""}`;
   return fetchJson<SeriePorDia>(path, options?.force);
 }

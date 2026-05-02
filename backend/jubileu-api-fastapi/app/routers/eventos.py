@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Literal
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
@@ -119,7 +121,7 @@ def list_participants(
 @router.get("/eventos/{evento_id}/presentes", response_model=EventoParticipantesListOut)
 def list_presentes(
     evento_id: int,
-    order: str = "arrival",
+    order: Literal["arrival", "id"] = "arrival",
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> EventoParticipantesListOut:
@@ -140,17 +142,19 @@ def create_lance(
 @router.get("/eventos/{evento_id}/lances", response_model=LanceListOut)
 def list_lances(
     evento_id: int,
-    partida_id: int | None = None,
+    partida_id: int | None = Query(default=None, ge=1),
     since: str | None = None,
-    limit: int = 200,
+    limit: int = Query(default=200, ge=1, le=500),
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> LanceListOut:
     _ = user
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     try:
         since_dt = datetime.fromisoformat(since.replace("Z", "+00:00")) if since else None
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="Parametro 'since' invalido") from exc
+    if since_dt is not None and since_dt.tzinfo is None:
+        since_dt = since_dt.replace(tzinfo=timezone.utc)
     return eventos_service.list_lances_flow(db, evento_id, partida_id, since_dt, limit)

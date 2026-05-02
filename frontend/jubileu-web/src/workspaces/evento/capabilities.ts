@@ -1,5 +1,5 @@
 import type { UserRole } from "../../services/authService";
-import type { TipoEventoAula, StatusAula } from "../../types/dia";
+import { normalizeEventoStatus, normalizeEventoTipo } from "../../types/evento";
 
 export type EventoCapability =
   | "workspace_equipes"
@@ -13,8 +13,8 @@ export type EventoCapability =
   | "lances";
 
 type ResolveInput = {
-  tipo: TipoEventoAula;
-  status: StatusAula;
+  tipo: string;
+  status: string;
   role: UserRole;
 };
 
@@ -27,10 +27,12 @@ function add(set: Set<EventoCapability>, ...caps: EventoCapability[]) {
 export function resolveEventoCapabilities(input: ResolveInput): Set<EventoCapability> {
   const caps = new Set<EventoCapability>();
   const isAdminRole = ADMIN_ROLES.includes(input.role);
+  const tipo = normalizeEventoTipo(input.tipo);
+  const status = normalizeEventoStatus(input.status);
 
   add(caps, "participants_view");
 
-  if (input.tipo === "AULA") {
+  if (tipo === "AULA") {
     add(caps, "workspace_equipes", "workspace_partidas");
     if (isAdminRole) {
       add(caps, "event_admin_actions");
@@ -38,7 +40,7 @@ export function resolveEventoCapabilities(input: ResolveInput): Set<EventoCapabi
     return caps;
   }
 
-  if (input.tipo === "JOGO") {
+  if (tipo === "JOGO_LIVRE") {
     add(caps, "rsvp", "checkin_self", "lances");
     if (isAdminRole) {
       add(caps, "checkin_manual", "seed_partida", "event_admin_actions");
@@ -46,7 +48,7 @@ export function resolveEventoCapabilities(input: ResolveInput): Set<EventoCapabi
     return caps;
   }
 
-  if (isAdminRole && input.status !== "CONCLUIDA") {
+  if (isAdminRole && status !== "ENCERRADO" && status !== "CANCELADO") {
     add(caps, "event_admin_actions");
   }
 

@@ -151,3 +151,52 @@ def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     assert len(items) == 1
     assert items[0]["tipo"] == "GOL"
     assert items[0]["jogador_nome"] == "Jogador 1"
+
+
+def test_eventos_presentes_order_invalido_retorna_422(client: TestClient, db_session):
+    evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
+    headers = {
+        "X-User-Id": "u1",
+        "X-Role": "user",
+        "X-Jogador-Id": str(jogador_1_id),
+    }
+
+    resp = client.get(f"/api/eventos/{evento_id}/presentes?order=foo", headers=headers)
+    assert resp.status_code == 422, resp.text
+
+
+def test_eventos_lances_since_invalido_retorna_422(client: TestClient, db_session):
+    evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
+    headers = {
+        "X-User-Id": "u1",
+        "X-Role": "user",
+        "X-Jogador-Id": str(jogador_1_id),
+    }
+
+    resp = client.get(f"/api/eventos/{evento_id}/lances?since=nao-data", headers=headers)
+    assert resp.status_code == 422, resp.text
+    assert "since" in resp.text.lower()
+
+
+def test_eventos_lances_partida_fora_do_evento_retorna_404(client: TestClient, db_session):
+    evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
+    headers = {
+        "X-User-Id": "u1",
+        "X-Role": "user",
+        "X-Jogador-Id": str(jogador_1_id),
+    }
+
+    resp = client.get(f"/api/eventos/{evento_id}/lances?partida_id=999999", headers=headers)
+    assert resp.status_code == 404, resp.text
+
+
+def test_eventos_lances_limit_fora_da_faixa_retorna_422(client: TestClient, db_session):
+    evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
+    headers = {
+        "X-User-Id": "u1",
+        "X-Role": "user",
+        "X-Jogador-Id": str(jogador_1_id),
+    }
+
+    resp = client.get(f"/api/eventos/{evento_id}/lances?limit=0", headers=headers)
+    assert resp.status_code == 422, resp.text

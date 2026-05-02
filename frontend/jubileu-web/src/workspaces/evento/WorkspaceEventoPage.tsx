@@ -10,6 +10,7 @@ import type { AuthHeaders } from "../../services/eventosService";
 import { EventoBottomTabs } from "./components/EventoBottomTabs";
 import { EventoContextBar } from "./components/EventoContextBar";
 import { EventoHeader } from "./components/EventoHeader";
+import { EventoPresenceActionsCard } from "./components/EventoPresenceActionsCard";
 import { FilaChegadaPanel } from "./components/FilaChegadaPanel";
 import { ParticipantesPanel } from "./components/ParticipantesPanel";
 import { PartidaAoVivoCard } from "./components/PartidaAoVivoCard";
@@ -49,11 +50,11 @@ function toRequestAuth(
 export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props) {
   const navigate = useNavigate();
   const auth = useAuthSession();
-  const [activeTab, setActiveTab] = useState("ao-vivo");
+  const [activeTab, setActiveTab] = useState("presenca-equipes");
   const requestAuth = toRequestAuth(auth.getRequestAuth);
   const eventoIdNum = toEventoIdNumberOrNull(eventoId);
 
-  const { workspace, isLoading, error, refresh, poll } = useWorkspaceEvento({
+  const { workspace, workspaceLegacy, isLoading, error, refresh, poll } = useWorkspaceEvento({
     dataIso,
     eventoId,
     enabled: false,
@@ -61,9 +62,13 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
   });
 
   const partidaAoVivo = useMemo(() => {
-    if (!workspace) return null;
-    return workspace.partidas.find((partida) => partida.status === "EM_ANDAMENTO") ?? workspace.partidas[0] ?? null;
-  }, [workspace]);
+    if (!workspaceLegacy) return null;
+    return (
+      workspaceLegacy.partidas.find((partida) => partida.status === "EM_ANDAMENTO") ??
+      workspaceLegacy.partidas[0] ??
+      null
+    );
+  }, [workspaceLegacy]);
 
   const caps = useMemo(() => {
     if (!workspace || !auth.user) return null;
@@ -74,9 +79,12 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     });
   }, [auth.user, workspace]);
 
+  const eventoTipo = workspace?.meta.tipo ?? null;
+  const eventoStatus = workspace?.meta.status ?? null;
+
   const participantsPollingEnabled = activeTab === "presenca-equipes";
   const timelinePollingEnabled = activeTab === "ao-vivo";
-  const isJogoLivre = workspace?.meta.tipo === "JOGO";
+  const isJogoLivre = eventoTipo === "JOGO_LIVRE";
   const hasPartidaAoVivo = Boolean(partidaAoVivo?.status === "EM_ANDAMENTO");
 
   const liveData = useEventoLiveData({
@@ -100,37 +108,53 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     void refresh();
   }, [eventoIdNum, refresh]);
 
-  useEventoPagePollingController({
-    workspace: {
-      enabled: Boolean(eventoIdNum),
-      intervalMs: 4000,
+  const pollingConfig = useMemo(
+    () => ({
+      workspace: {
+        enabled: Boolean(eventoIdNum),
+        intervalMs: 4000,
+        poll,
+      },
+      timeline: {
+        enabled: Boolean(
+          caps &&
+            requestAuth &&
+            eventoIdNum &&
+            timelinePollingEnabled &&
+            hasPartidaAoVivo &&
+            caps.has("lances"),
+        ),
+        intervalMs: 2200,
+        poll: liveData.pollTimelineOnly,
+      },
+      participants: {
+        enabled: Boolean(
+          caps &&
+            requestAuth &&
+            eventoIdNum &&
+            participantsPollingEnabled &&
+            isJogoLivre &&
+            caps.has("participants_view"),
+        ),
+        intervalMs: 3000,
+        poll: liveData.pollParticipantsOnly,
+      },
+    }),
+    [
+      caps,
+      eventoIdNum,
+      hasPartidaAoVivo,
+      isJogoLivre,
+      liveData.pollParticipantsOnly,
+      liveData.pollTimelineOnly,
+      participantsPollingEnabled,
       poll,
-    },
-    timeline: {
-      enabled: Boolean(
-        caps &&
-          requestAuth &&
-          eventoIdNum &&
-          timelinePollingEnabled &&
-          hasPartidaAoVivo &&
-          caps.has("lances"),
-      ),
-      intervalMs: 2200,
-      poll: liveData.pollTimelineOnly,
-    },
-    participants: {
-      enabled: Boolean(
-        caps &&
-          requestAuth &&
-          eventoIdNum &&
-          participantsPollingEnabled &&
-          isJogoLivre &&
-          caps.has("participants_view"),
-      ),
-      intervalMs: 3000,
-      poll: liveData.pollParticipantsOnly,
-    },
-  });
+      requestAuth,
+      timelinePollingEnabled,
+    ],
+  );
+
+  useEventoPagePollingController(pollingConfig);
 
   if (!dataIso || eventoIdNum === null) {
     return (
@@ -156,7 +180,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     );
   }
 
-  if (!workspace || !caps) {
+  if (!workspace || !workspaceLegacy || !caps) {
     return (
       <main className="mx-auto max-w-7xl p-4">
         <Button variant="ghost" className="mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
@@ -168,8 +192,8 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     );
   }
 
-  const tabItems = [
-    {
+  const tabMap = {
+    "ao-vivo": {
       id: "ao-vivo",
       label: "Ao Vivo",
       content: (
@@ -198,7 +222,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
               auth={requestAuth}
               caps={caps}
               eventoId={eventoIdNum}
-              status={workspace.meta.status}
+              status={eventoStatus ?? "PLANEJADO"}
               onChanged={async () => {
                 await refresh();
                 await liveData.forceRefresh();
@@ -207,16 +231,18 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
             <QuickAddLance
               auth={requestAuth}
               caps={caps}
-              eventoStatus={workspace.meta.status}
+              eventoStatus={eventoStatus ?? "PLANEJADO"}
               partidaStatus={partidaAoVivo?.status ?? null}
               partidaId={partidaAoVivo?.id ?? null}
+              jogadores={workspaceLegacy.equipes.jogadores}
+              times={workspaceLegacy.equipes.times.map((time) => ({ id: time.id, nome: time.nome }))}
               onSubmitted={liveData.forceRefresh}
             />
           </div>
         </div>
       ),
     },
-    {
+    "presenca-equipes": {
       id: "presenca-equipes",
       label: "Presenca & Equipes",
       content: (
@@ -225,13 +251,26 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
             Presenca/check-in e montagem de equipes ficam unificados nesta aba para operacao de jogo.
           </div>
           {isJogoLivre ? (
-            <div className="grid gap-4 md:grid-cols-2">
-              <ParticipantesPanel
+            <div className="space-y-4">
+              <EventoPresenceActionsCard
+                auth={requestAuth}
+                caps={caps}
+                eventoId={eventoIdNum}
+                eventoStatus={eventoStatus ?? "PLANEJADO"}
                 participants={liveData.participants}
-                isLoading={liveData.isLoadingParticipants}
-                error={liveData.participantsError}
+                onChanged={async () => {
+                  await liveData.refreshParticipantsOnly();
+                  await refresh();
+                }}
               />
-              <FilaChegadaPanel presentes={liveData.presentes} />
+              <div className="grid gap-4 md:grid-cols-2">
+                <ParticipantesPanel
+                  participants={liveData.participants}
+                  isLoading={liveData.isLoadingParticipants}
+                  error={liveData.participantsError}
+                />
+                <FilaChegadaPanel presentes={liveData.presentes} />
+              </div>
             </div>
           ) : (
             <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-600">
@@ -240,10 +279,10 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
             </div>
           )}
           <WorkspaceEquipesPanel
-            dataIso={workspace.meta.data_iso}
+            dataIso={workspaceLegacy.meta.data_iso}
             aulaId={eventoIdNum}
-            meta={workspace.meta}
-            equipes={workspace.equipes}
+            meta={workspaceLegacy.meta}
+            equipes={workspaceLegacy.equipes}
             onRefresh={async () => {
               await refresh();
               await liveData.forceRefresh();
@@ -252,26 +291,32 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
         </div>
       ),
     },
-    {
+    partidas: {
       id: "partidas",
       label: "Partidas",
       content: (
         <div className="space-y-4">
           <WorkspacePartidasPanel
-            dataIso={workspace.meta.data_iso}
+            dataIso={workspaceLegacy.meta.data_iso}
             aulaId={eventoIdNum}
-            equipes={workspace.equipes}
-            partidas={workspace.partidas}
+            equipes={workspaceLegacy.equipes}
+            partidas={workspaceLegacy.partidas}
             onRefresh={async () => {
               await refresh();
               await liveData.forceRefresh();
             }}
           />
-          <TimesPanel equipes={workspace.equipes} />
+          <TimesPanel equipes={workspaceLegacy.equipes} />
         </div>
       ),
     },
-  ];
+  } as const;
+
+  const tabOrder =
+    workspace.meta.tipo === "AULA"
+      ? (["presenca-equipes", "ao-vivo", "partidas"] as const)
+      : (["ao-vivo", "presenca-equipes", "partidas"] as const);
+  const tabItems = tabOrder.map((tabId) => tabMap[tabId]);
 
   return (
     <main className="mx-auto max-w-7xl p-4">

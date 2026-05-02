@@ -8,6 +8,7 @@ import {
   startEvento,
   type AuthHeaders,
 } from "../../../services/eventosService";
+import type { EventoStatus } from "../../../types/evento";
 import type { EventoCapability } from "../capabilities";
 
 export function EventoStatusActions({
@@ -20,7 +21,7 @@ export function EventoStatusActions({
   auth: AuthHeaders | null;
   caps: Set<EventoCapability>;
   eventoId: number;
-  status: string;
+  status: EventoStatus;
   onChanged: () => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
@@ -63,7 +64,7 @@ export function EventoStatusActions({
             <Button
               size="sm"
               onClick={() => void doAction("start")}
-              disabled={loading || status !== "PLANEJADA"}
+              disabled={loading || status !== "PLANEJADO"}
             >
               Iniciar
             </Button>
@@ -79,7 +80,7 @@ export function EventoStatusActions({
               size="sm"
               variant="danger"
               onClick={() => void doAction("cancel")}
-              disabled={loading || status !== "PLANEJADA"}
+              disabled={loading || status !== "PLANEJADO"}
             >
               Cancelar
             </Button>
