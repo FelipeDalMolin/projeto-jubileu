@@ -16,3 +16,9 @@ export {
 } from "./eventos/eventoParticipantsService";
 export { criarLancePartida } from "./eventos/lancesService";
 export { listarLancesEvento, mapLanceToTimelineItem } from "./eventos/lancesQueryService";
+export {
+  atualizarConfiguracaoRotacaoEvento,
+  confirmarSorteioRotacaoEvento,
+  obterEstadoRotacaoEvento,
+  previewSorteioRotacaoEvento,
+} from "./eventos/rotacaoService";

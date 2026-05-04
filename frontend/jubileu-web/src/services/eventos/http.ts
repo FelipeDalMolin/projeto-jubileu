@@ -38,6 +38,13 @@ async function safeText(resp: Response) {
   }
 }
 
+function toNetworkError(err: unknown): Error {
+  if (err instanceof Error && err.name === "TypeError") {
+    return new Error("Falha de rede ao chamar API. Verifique backend/proxy/CORS.");
+  }
+  return err instanceof Error ? err : new Error("Erro inesperado de rede");
+}
+
 export function buildAuthHeaders(auth: AuthHeaders): HeadersInit {
   const useBearer =
     Boolean(auth.accessToken) &&
@@ -71,25 +78,34 @@ export async function postJson<T>(
   body?: unknown,
   extraHeaders?: HeadersInit,
 ): Promise<T> {
-  let resp = await fetch(buildUrl(path), {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...buildAuthHeaders(auth),
-      ...(extraHeaders ?? {}),
-    },
-    body: body != null ? JSON.stringify(body) : undefined,
-  });
-  if (shouldRetryWithLegacy(resp, auth)) {
+  let resp: Response;
+  try {
     resp = await fetch(buildUrl(path), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...buildLegacyOnlyHeaders(auth),
+        ...buildAuthHeaders(auth),
         ...(extraHeaders ?? {}),
       },
       body: body != null ? JSON.stringify(body) : undefined,
     });
+  } catch (err: unknown) {
+    throw toNetworkError(err);
+  }
+  if (shouldRetryWithLegacy(resp, auth)) {
+    try {
+      resp = await fetch(buildUrl(path), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...buildLegacyOnlyHeaders(auth),
+          ...(extraHeaders ?? {}),
+        },
+        body: body != null ? JSON.stringify(body) : undefined,
+      });
+    } catch (err: unknown) {
+      throw toNetworkError(err);
+    }
   }
   if (!resp.ok) {
     throw new Error(`${resp.status} ${await safeText(resp)}`);
@@ -98,15 +114,24 @@ export async function postJson<T>(
 }
 
 export async function getJson<T>(path: string, auth: AuthHeaders): Promise<T> {
-  let resp = await fetch(buildUrl(path), {
-    method: "GET",
-    headers: buildAuthHeaders(auth),
-  });
-  if (shouldRetryWithLegacy(resp, auth)) {
+  let resp: Response;
+  try {
     resp = await fetch(buildUrl(path), {
       method: "GET",
-      headers: buildLegacyOnlyHeaders(auth),
+      headers: buildAuthHeaders(auth),
     });
+  } catch (err: unknown) {
+    throw toNetworkError(err);
+  }
+  if (shouldRetryWithLegacy(resp, auth)) {
+    try {
+      resp = await fetch(buildUrl(path), {
+        method: "GET",
+        headers: buildLegacyOnlyHeaders(auth),
+      });
+    } catch (err: unknown) {
+      throw toNetworkError(err);
+    }
   }
   if (!resp.ok) {
     throw new Error(`${resp.status} ${await safeText(resp)}`);
@@ -115,15 +140,65 @@ export async function getJson<T>(path: string, auth: AuthHeaders): Promise<T> {
 }
 
 export async function deleteJson<T>(path: string, auth: AuthHeaders): Promise<T> {
-  let resp = await fetch(buildUrl(path), {
-    method: "DELETE",
-    headers: buildAuthHeaders(auth),
-  });
-  if (shouldRetryWithLegacy(resp, auth)) {
+  let resp: Response;
+  try {
     resp = await fetch(buildUrl(path), {
       method: "DELETE",
-      headers: buildLegacyOnlyHeaders(auth),
+      headers: buildAuthHeaders(auth),
     });
+  } catch (err: unknown) {
+    throw toNetworkError(err);
+  }
+  if (shouldRetryWithLegacy(resp, auth)) {
+    try {
+      resp = await fetch(buildUrl(path), {
+        method: "DELETE",
+        headers: buildLegacyOnlyHeaders(auth),
+      });
+    } catch (err: unknown) {
+      throw toNetworkError(err);
+    }
+  }
+  if (!resp.ok) {
+    throw new Error(`${resp.status} ${await safeText(resp)}`);
+  }
+  return await resp.json();
+}
+
+export async function patchJson<T>(
+  path: string,
+  auth: AuthHeaders,
+  body?: unknown,
+  extraHeaders?: HeadersInit,
+): Promise<T> {
+  let resp: Response;
+  try {
+    resp = await fetch(buildUrl(path), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildAuthHeaders(auth),
+        ...(extraHeaders ?? {}),
+      },
+      body: body != null ? JSON.stringify(body) : undefined,
+    });
+  } catch (err: unknown) {
+    throw toNetworkError(err);
+  }
+  if (shouldRetryWithLegacy(resp, auth)) {
+    try {
+      resp = await fetch(buildUrl(path), {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...buildLegacyOnlyHeaders(auth),
+          ...(extraHeaders ?? {}),
+        },
+        body: body != null ? JSON.stringify(body) : undefined,
+      });
+    } catch (err: unknown) {
+      throw toNetworkError(err);
+    }
   }
   if (!resp.ok) {
     throw new Error(`${resp.status} ${await safeText(resp)}`);

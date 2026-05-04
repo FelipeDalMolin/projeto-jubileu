@@ -35,7 +35,7 @@ export function resolveEventoCapabilities(input: ResolveInput): Set<EventoCapabi
   if (tipo === "AULA") {
     add(caps, "workspace_equipes", "workspace_partidas");
     if (isAdminRole) {
-      add(caps, "event_admin_actions");
+      add(caps, "event_admin_actions", "lances");
     }
     return caps;
   }

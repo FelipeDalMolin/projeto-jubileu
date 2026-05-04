@@ -16,12 +16,14 @@ from app.models.dia_aula_core import (
 from app.models.dia_aula_enums import (
     EventoParticipanteStatusEnum,
     PartidaStatusEnum,
+    RotacaoSorteioStatusEnum,
     StatusAulaEnum,
     StatusPresencaEnum,
     TipoEventoAulaEnum,
 )
 from app.models.dia_aula_event import EventoParticipante, Lance
 from app.models.dia_aula_match import EstatisticaJogadorPartida, Partida
+from app.models.dia_aula_rotation import EventoRotacaoEstado, EventoRotacaoSorteio
 
 __all__ = [
     "Dia",
@@ -34,9 +36,12 @@ __all__ = [
     "EstatisticaJogadorPartida",
     "EventoParticipante",
     "Lance",
+    "EventoRotacaoEstado",
+    "EventoRotacaoSorteio",
     "StatusAulaEnum",
     "TipoEventoAulaEnum",
     "StatusPresencaEnum",
     "EventoParticipanteStatusEnum",
     "PartidaStatusEnum",
+    "RotacaoSorteioStatusEnum",
 ]

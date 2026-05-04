@@ -40,6 +40,8 @@ New continuation:
 - `docs/refactors/Backend/06-evento-api-contract-hardening.md`
 - `docs/refactors/Backend/07-workspace-evento-read-model.md`
 - `docs/refactors/Backend/08-auth-session-operational-hardening.md`
+- `docs/refactors/Backend/09-aula-partida-lifecycle.md`
+- `docs/refactors/Backend/10-evento-contracts-tests-release.md`
 
 ### Frontend
 
@@ -61,6 +63,10 @@ New continuation:
 - `docs/refactors/Frontend/10-rsvp-checkin-self-actions.md`
 - `docs/refactors/Frontend/11-evento-polling-live-stability.md`
 - `docs/refactors/Frontend/12-user-jogador-operational-session.md`
+- `docs/refactors/Frontend/13-aula-ao-vivo-semantics.md`
+- `docs/refactors/Frontend/14-aula-lances-v2.md`
+- `docs/refactors/Frontend/15-jogo-livre-e2e.md`
+- `docs/refactors/Frontend/16-evento-polling-auth-hardening.md`
 
 ### Infra
 

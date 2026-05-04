@@ -55,14 +55,26 @@ Canonical event direction:
 - `POST /api/eventos/{evento_id}/cancel`
 - `POST /api/eventos/{evento_id}/partidas/seed`
 - `GET /api/eventos/{evento_id}/lances`
+- `GET /api/eventos/{evento_id}/rotacao/estado`
+- `POST /api/eventos/{evento_id}/rotacao/preview-sorteio`
+- `POST /api/eventos/{evento_id}/rotacao/confirmar-sorteio`
 
 Any missing or inconsistent implementation must be handled by a backend hardening slice before the frontend relies on it as a stable contract.
+
+Rotation contract notes:
+
+- `team_size_ref` is an operational reference, never a hard blocker.
+- Preview and confirm are token-based to keep manual draw auditable.
+- Confirm applies exactly the previewed result; no recalculate on confirm.
+- Queue and next-team groups allow incomplete or unbalanced compositions.
 
 ### Partidas and Lances
 
 Current match/lance surfaces include:
 
 - `POST /api/partidas/{partida_id}/lances`
+- `PUT /api/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/start`
+- `PUT /api/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/end`
 - legacy Aula match routes under `/dias/{data_iso}/aulas/{aula_id}/partidas`
 
 Timeline reads should use canonical event routes where available, while legacy mutation surfaces may coexist during transition.

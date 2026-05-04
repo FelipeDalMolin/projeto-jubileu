@@ -20,6 +20,12 @@ The current milestone is execution stability:
 - stabilize polling and auth fallback behavior
 - prepare runtime/deploy documentation for MVP use
 
+Immediate operational priority:
+
+- stabilize `AULA` live semantics and match lifecycle before expanding event types
+- then execute `JOGO_LIVRE` end-to-end as the next operational event mode
+- keep `OUTRO` as modeling-prep only in this cycle
+
 ## Execution Tracks
 
 ### Backend

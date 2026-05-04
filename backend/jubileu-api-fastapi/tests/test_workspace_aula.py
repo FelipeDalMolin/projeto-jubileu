@@ -5,7 +5,9 @@ from app.models.dia_aula import (
     Dia as DiaModel,
     EstatisticaJogadorPartida as EstatisticaJogadorPartidaModel,
     JogadorAula as JogadorAulaModel,
+    Lance as LanceModel,
     Partida as PartidaModel,
+    PartidaStatusEnum,
     StatusAulaEnum,
     StatusPresencaEnum,
     TeamConfig as TeamConfigModel,
@@ -296,3 +298,87 @@ def test_team_config_version_increments_on_move(client: TestClient, db_session):
     assert resp.status_code == 200, resp.text
     second_version = resp.json()["meta"]["version"]
     assert second_version != first_version
+
+
+def test_workspace_version_changes_when_event_status_changes(client: TestClient, db_session):
+    data_iso = "2026-01-27"
+    aula = _criar_aula_com_jogadores(
+        db_session,
+        data_iso=data_iso,
+        jogadores_por_time=[1, 1],
+    )
+
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace")
+    assert resp.status_code == 200, resp.text
+    version_before = resp.json()["meta"]["version"]
+
+    aula_db = db_session.query(AulaModel).filter(AulaModel.id == aula.id).first()
+    assert aula_db is not None
+    aula_db.status = StatusAulaEnum.EM_ANDAMENTO
+    db_session.commit()
+
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace?since_version={version_before}")
+    assert resp.status_code == 200, resp.text
+    version_after = resp.json()["meta"]["version"]
+    assert version_after != version_before
+    assert resp.json()["meta"]["status"] == "EM_ANDAMENTO"
+
+
+def test_workspace_placar_reflete_lance_gol_e_muda_versao(client: TestClient, db_session):
+    data_iso = "2026-01-28"
+    aula = _criar_aula_com_jogadores(
+        db_session,
+        data_iso=data_iso,
+        jogadores_por_time=[1, 1],
+    )
+    times = (
+        db_session.query(TimeAulaModel)
+        .filter(TimeAulaModel.aula_id == aula.id)
+        .order_by(TimeAulaModel.id.asc())
+        .all()
+    )
+    partida = PartidaModel(
+        aula_id=aula.id,
+        ordem=1,
+        status=PartidaStatusEnum.EM_ANDAMENTO,
+        time_a_id=times[0].id,
+        time_b_id=times[1].id,
+    )
+    db_session.add(partida)
+    db_session.flush()
+    db_session.add(
+        LanceModel(
+            partida_id=partida.id,
+            aula_id=aula.id,
+            jogador_id=None,
+            tipo="GOL",
+            payload={"minute": 1, "time_id": times[0].id},
+            created_by_user_id="test",
+        )
+    )
+    db_session.commit()
+
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace")
+    assert resp.status_code == 200, resp.text
+    version_before = resp.json()["meta"]["version"]
+    partida_out = resp.json()["partidas"][0]
+    assert partida_out["golsTimeA"] == 1
+    assert partida_out["golsTimeB"] == 0
+
+    db_session.add(
+        LanceModel(
+            partida_id=partida.id,
+            aula_id=aula.id,
+            jogador_id=None,
+            tipo="GOL",
+            payload={"minute": 2, "time_id": times[1].id},
+            created_by_user_id="test",
+        )
+    )
+    db_session.commit()
+
+    resp = client.get(f"/dias/{data_iso}/aulas/{aula.id}/workspace?since_version={version_before}")
+    assert resp.status_code == 200, resp.text
+    partida_after = resp.json()["partidas"][0]
+    assert partida_after["golsTimeA"] == 1
+    assert partida_after["golsTimeB"] == 1

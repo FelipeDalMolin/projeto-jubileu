@@ -4,18 +4,18 @@
 
 This document maps refactor slices to Linear decisions and execution issues.
 
-Linear issue numbers are assigned by Linear. The proposed DEV numbers below assume the next available DEV issue after the current visible sequence ending at `DEV-19`.
+Linear issue numbers are assigned by Linear. Proposed DEV numbers must be aligned to the next available issue at creation time.
 
 ## CORE Decisions
 
 | CORE | Scope | Usage in refactor execution |
 |---|---|---|
-| `CORE-1` | Architectural principles | Compatibility-first execution, append-only event thinking, service ownership |
-| `CORE-2` | Aula state model | TeamConfig, snapshots, versioned state, state transition discipline |
-| `CORE-3` | Workspace DTO | WorkspaceAula and future WorkspaceEvento read-model contracts |
-| `CORE-4` | Aula/Evento status and type | Status/type compatibility and canonical event vocabulary |
-| `CORE-5` | Player presence flow | RSVP, check-in, attendance, arrival ordering, self actions |
-| `CORE-6` | Modular UI and indicators | EventoPage panels, KPIs, warnings, operational UI layout |
+| `CORE-1` | Architectural principles | Compatibility-first execution, service ownership, gateway rules |
+| `CORE-2` | Aula state model | TeamConfig, snapshots, versioned state discipline |
+| `CORE-3` | Workspace DTO | WorkspaceAula and WorkspaceEvento read-model contracts |
+| `CORE-4` | Aula/Evento status and type | Status/type compatibility and lifecycle transitions |
+| `CORE-5` | Player presence flow | RSVP/check-in/attendance/arrival ordering/self actions |
+| `CORE-6` | Modular UI and indicators | EventoPage panels, KPIs, warnings, operational UX |
 
 ## Existing DEV Context
 
@@ -35,23 +35,45 @@ Linear issue numbers are assigned by Linear. The proposed DEV numbers below assu
 | `DEV-17` | Existing baseline | Aula state aggregation |
 | `DEV-18` | Existing baseline | Contract validation |
 | `DEV-19` | Existing baseline | Workspace DTO endpoint |
+| `DEV-20` | Existing baseline | Refactor docs consolidation |
+| `DEV-21` | Existing baseline | Backend 06 event contract hardening |
+| `DEV-22` | Existing baseline | Frontend 08 event contract alignment |
+| `DEV-23` | Existing baseline | Frontend 09 WorkspaceEvento adapter |
+| `DEV-24` | Existing baseline | Frontend 10 RSVP/check-in self actions |
+| `DEV-25` | Existing baseline | Frontend 11 polling/live stability |
+| `DEV-26` | Existing baseline | Frontend 12 operational user/jogador session |
+| `DEV-27` | Existing baseline | Infra 00-03 runtime/gateway/deploy MVP |
 
-## New DEV Issues
+## Current Expansion (AULA stabilization + next event type)
 
-| DEV | Title | Slice path | CORE links | Branch pattern | Linear |
+Use existing CORE decisions only (`CORE-4`, `CORE-5`, `CORE-6`, and `CORE-3` for polling stability).
+
+| DEV | Title | Scope | CORE links | Branch pattern |
 |---|---|---|---|---|
-| `DEV-20` | Consolidar docs/refactors e índice de execução | `docs/refactors/EXECUTION_INDEX.md` | `CORE-1`, `CORE-2`, `CORE-3`, `CORE-6` | `dev-20-docs-refactors-execution-index` | https://linear.app/projeto-jubileu/issue/DEV-20/consolidar-docsrefactors-e-indice-de-execucao |
-| `DEV-21` | Backend 06 - hardening dos contratos canônicos de Evento | `docs/refactors/Backend/06-evento-api-contract-hardening.md` | `CORE-1`, `CORE-4`, `CORE-5` | `dev-21-backend-evento-api-contract-hardening` | https://linear.app/projeto-jubileu/issue/DEV-21/backend-06-hardening-dos-contratos-canonicos-de-evento |
-| `DEV-22` | Frontend 08 - alinhamento de contratos de Evento | `docs/refactors/Frontend/08-evento-contract-alignment.md` | `CORE-3`, `CORE-4`, `CORE-6` | `dev-22-frontend-evento-contract-alignment` | https://linear.app/projeto-jubileu/issue/DEV-22/frontend-08-alinhamento-de-contratos-de-evento |
-| `DEV-23` | Frontend 09 - adapter WorkspaceEvento | `docs/refactors/Frontend/09-workspace-evento-adapter.md` | `CORE-2`, `CORE-3`, `CORE-6` | `dev-23-frontend-workspace-evento-adapter` | https://linear.app/projeto-jubileu/issue/DEV-23/frontend-09-adapter-workspaceevento |
-| `DEV-24` | Frontend 10 - RSVP/check-in self actions | `docs/refactors/Frontend/10-rsvp-checkin-self-actions.md` | `CORE-5`, `CORE-6` | `dev-24-frontend-rsvp-checkin-self-actions` | https://linear.app/projeto-jubileu/issue/DEV-24/frontend-10-rsvpcheck-in-self-actions |
-| `DEV-25` | Frontend 11 - polling/live stability | `docs/refactors/Frontend/11-evento-polling-live-stability.md` | `CORE-2`, `CORE-3`, `CORE-6` | `dev-25-frontend-evento-polling-live-stability` | https://linear.app/projeto-jubileu/issue/DEV-25/frontend-11-pollinglive-stability |
-| `DEV-26` | Frontend 12 - sessão operacional user/jogador | `docs/refactors/Frontend/12-user-jogador-operational-session.md` | `CORE-5` | `dev-26-frontend-user-jogador-session` | https://linear.app/projeto-jubileu/issue/DEV-26/frontend-12-sessao-operacional-userjogador |
-| `DEV-27` | Infra 00-03 - runtime, gateway e deploy MVP | `docs/refactors/Infra/00-overview.md` | `CORE-1` | `dev-27-infra-runtime-gateway-deploy-mvp` | https://linear.app/projeto-jubileu/issue/DEV-27/infra-00-03-runtime-gateway-e-deploy-mvp |
+| `DEV-28` | Corrigir semantica Ao Vivo em AULA | `frontend/workspaces/evento` (partida ativa somente `EM_ANDAMENTO`) | `CORE-4`, `CORE-6` | `dev-28-aula-ao-vivo-semantics` |
+| `DEV-29` | Lifecycle explicito de partida start/end | `backend/routers/partidas.py` + `/api` aliases + tests | `CORE-4`, `CORE-6` | `dev-29-aula-partida-lifecycle` |
+| `DEV-30` | Gerencia de lances v2 para AULA | capabilities + timeline/quick add com gate por status | `CORE-4`, `CORE-6` | `dev-30-aula-lances-v2` |
+| `DEV-31` | JOGO_LIVRE E2E | RSVP/check-in/presentes/seed/lances no workspace | `CORE-5`, `CORE-6` | `dev-31-jogo-livre-e2e` |
+| `DEV-32` | Hardening polling/autenticacao por canal | controller unico, backoff, circuit breaker, hidden tab pause | `CORE-3`, `CORE-6` | `dev-32-evento-polling-auth-hardening` |
+| `DEV-33` | Contratos, testes e release docs | API/ROADMAP/RELEASES + matriz de validacao | `CORE-4`, `CORE-5`, `CORE-6` | `dev-33-evento-contract-tests-release` |
+
+Execution note:
+
+- `DEV-28`, `DEV-29` and `DEV-30` are the immediate stabilization path for current `AULA`.
+- `DEV-31` starts the next operational event type already present in domain (`JOGO_LIVRE`).
+- `OUTRO` remains modeling-prep only in this cycle (no operational UI flow yet).
+
+## WorkspaceEvento vNext (operational tabs + manual rotation)
+
+| DEV | Title | Scope | CORE links | Branch pattern |
+|---|---|---|---|---|
+| `DEV-34` | WorkspaceEvento vNext tabs | Presenca como aba principal, Partida Atual, Partidas historico | `CORE-4`, `CORE-6` | `dev-34-workspace-evento-tabs-vnext` |
+| `DEV-35` | Rotacao manual auditavel | preview/confirm por token, estado persistido, fila/proximos times | `CORE-4`, `CORE-5`, `CORE-6` | `dev-35-evento-rotacao-manual-audit` |
+| `DEV-36` | Query + cronometro operacional | migracao TanStack Query, cronometro por inicio_at/fim_at, alerta de fim | `CORE-3`, `CORE-6` | `dev-36-evento-query-timer-hardening` |
 
 ## Issue Body Template
 
-Each new DEV issue should include:
+Each DEV issue should include:
 
 - slice path
 - related CORE issues

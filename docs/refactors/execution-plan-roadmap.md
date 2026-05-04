@@ -40,6 +40,17 @@ The current persistence model remains Aula-centered while the product language a
 7. User/Jogador operational session.
 8. Infra runtime, gateway and deploy MVP hardening.
 
+## Current Delivery Window
+
+The immediate window follows DEV-28 through DEV-33:
+
+1. `DEV-28` AULA live semantics fix.
+2. `DEV-29` explicit match lifecycle (`start`/`end`) + alias validation.
+3. `DEV-30` AULA lances v2 gating and timeline behavior.
+4. `DEV-31` JOGO_LIVRE end-to-end operational flow.
+5. `DEV-32` polling/auth channel hardening.
+6. `DEV-33` contract/tests/release documentation closure.
+
 ## Non-Negotiables
 
 - Do not rename `Aula`, `JogadorAula`, or `EventoParticipante` casually.

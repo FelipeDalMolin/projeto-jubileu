@@ -5,6 +5,8 @@ export type PartidaEstado = {
   id: number;
   ordem: number;
   status: "PLANEJADA" | "EM_ANDAMENTO" | "ENCERRADA";
+  inicio_at?: string | null;
+  fim_at?: string | null;
   timeAId: string;
   timeBId: string;
   golsTimeA: number;

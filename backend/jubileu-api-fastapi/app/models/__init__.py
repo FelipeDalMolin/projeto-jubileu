@@ -8,11 +8,14 @@ from app.models.dia_aula import (
     EstatisticaJogadorPartida,
     EventoParticipante,
     Lance,
+    EventoRotacaoEstado,
+    EventoRotacaoSorteio,
     StatusAulaEnum,
     TipoEventoAulaEnum,
     StatusPresencaEnum,
     EventoParticipanteStatusEnum,
     PartidaStatusEnum,
+    RotacaoSorteioStatusEnum,
 )
 
 __all__ = [
@@ -25,9 +28,12 @@ __all__ = [
     "EstatisticaJogadorPartida",
     "EventoParticipante",
     "Lance",
+    "EventoRotacaoEstado",
+    "EventoRotacaoSorteio",
     "StatusAulaEnum",
     "TipoEventoAulaEnum",
     "StatusPresencaEnum",
     "EventoParticipanteStatusEnum",
     "PartidaStatusEnum",
+    "RotacaoSorteioStatusEnum",
 ]

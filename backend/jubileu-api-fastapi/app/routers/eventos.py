@@ -15,6 +15,12 @@ from app.schemas.eventos import (
     LanceListOut,
     LanceCreateIn,
     LanceCreateOut,
+    RotacaoConfirmIn,
+    RotacaoConfirmOut,
+    RotacaoEstadoOut,
+    RotacaoEstadoUpdateIn,
+    RotacaoPreviewIn,
+    RotacaoPreviewOut,
     SeedPartidaIn,
     SeedPartidaOut,
 )
@@ -158,3 +164,42 @@ def list_lances(
     if since_dt is not None and since_dt.tzinfo is None:
         since_dt = since_dt.replace(tzinfo=timezone.utc)
     return eventos_service.list_lances_flow(db, evento_id, partida_id, since_dt, limit)
+
+
+@router.get("/eventos/{evento_id}/rotacao/estado", response_model=RotacaoEstadoOut)
+def get_rotacao_estado(
+    evento_id: int,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> RotacaoEstadoOut:
+    return eventos_service.get_rotacao_estado_flow(db, evento_id, user)
+
+
+@router.patch("/eventos/{evento_id}/rotacao/estado", response_model=RotacaoEstadoOut)
+def update_rotacao_estado(
+    evento_id: int,
+    payload: RotacaoEstadoUpdateIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> RotacaoEstadoOut:
+    return eventos_service.update_rotacao_estado_flow(db, evento_id, payload, user)
+
+
+@router.post("/eventos/{evento_id}/rotacao/preview-sorteio", response_model=RotacaoPreviewOut)
+def preview_rotacao_sorteio(
+    evento_id: int,
+    payload: RotacaoPreviewIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> RotacaoPreviewOut:
+    return eventos_service.preview_rotacao_sorteio_flow(db, evento_id, payload, user)
+
+
+@router.post("/eventos/{evento_id}/rotacao/confirmar-sorteio", response_model=RotacaoConfirmOut)
+def confirmar_rotacao_sorteio(
+    evento_id: int,
+    payload: RotacaoConfirmIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> RotacaoConfirmOut:
+    return eventos_service.confirm_rotacao_sorteio_flow(db, evento_id, payload.token, user)

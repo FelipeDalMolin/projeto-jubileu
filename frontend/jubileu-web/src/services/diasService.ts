@@ -265,6 +265,7 @@ export type EstadoEquipesSnapshot = {
 export type PartidaPersistida = {
   id: string;
   ordem: number;
+  status: "PLANEJADA" | "EM_ANDAMENTO" | "ENCERRADA";
   timeAId: string;
   timeBId: string;
   golsTimeA: number;
@@ -371,6 +372,7 @@ export async function criarPartidaNaAula(
   return {
     id: String(json.id),
     ordem: json.ordem ?? 0,
+    status: json.status ?? "PLANEJADA",
     timeAId: String(json.timeAId ?? json.time_a_id),
     timeBId: String(json.timeBId ?? json.time_b_id),
     golsTimeA: json.golsTimeA ?? json.gols_time_a ?? 0,
@@ -385,6 +387,44 @@ export async function criarPartidaNaAula(
       nota: e.nota ?? undefined,
     })),
   };
+}
+
+export async function iniciarPartidaNaAula(
+  dataIso: string,
+  aulaId: string | number,
+  partidaId: string | number,
+): Promise<{ version?: number }> {
+  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}/start`), {
+    method: "PUT",
+  });
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao iniciar partida ${partidaId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+
+  const data = await resp.json();
+  return { version: data?.version };
+}
+
+export async function encerrarPartidaNaAula(
+  dataIso: string,
+  aulaId: string | number,
+  partidaId: string | number,
+): Promise<{ version?: number }> {
+  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}/end`), {
+    method: "PUT",
+  });
+
+  if (!resp.ok) {
+    throw new Error(
+      `Erro ao encerrar partida ${partidaId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+    );
+  }
+
+  const data = await resp.json();
+  return { version: data?.version };
 }
 
 export async function removerPartidaDaAula(

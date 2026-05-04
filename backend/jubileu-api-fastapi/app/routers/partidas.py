@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -10,6 +11,8 @@ from app.models.dia_aula import (
     EstatisticaJogadorPartida as EstatisticaModel,
     JogadorAula as JogadorAulaModel,
     Partida as PartidaModel,
+    PartidaStatusEnum,
+    StatusAulaEnum,
 )
 from app.modules.dias import service as dias_service
 from app.modules.partidas import service as partidas_service
@@ -26,6 +29,18 @@ router = APIRouter(prefix="/dias", tags=["Partidas"])
 
 def _to_partida_out(partida: PartidaModel) -> PartidaOut:
     return PartidaOut.model_validate(partida, from_attributes=True)
+
+
+def _obter_partida_na_aula_or_404(db: Session, aula_id: int, partida_id: int) -> PartidaModel:
+    partida = (
+        db.query(PartidaModel)
+        .options(selectinload(PartidaModel.estatisticas))
+        .filter(PartidaModel.id == partida_id, PartidaModel.aula_id == aula_id)
+        .first()
+    )
+    if not partida:
+        raise HTTPException(status_code=404, detail="Partida nao encontrada para esta aula")
+    return partida
 
 
 @router.get("/{data_iso}/aulas/{aula_id}/partidas", response_model=List[PartidaOut])
@@ -131,14 +146,7 @@ def atualizar_partida(
     aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
     dias_service.assert_aula_editavel(aula)
 
-    partida = (
-        db.query(PartidaModel)
-        .options(selectinload(PartidaModel.estatisticas))
-        .filter(PartidaModel.id == partida_id, PartidaModel.aula_id == aula.id)
-        .first()
-    )
-    if not partida:
-        raise HTTPException(status_code=404, detail="Partida nao encontrada para esta aula")
+    partida = _obter_partida_na_aula_or_404(db, aula.id, partida_id)
 
     novo_time_a_id = payload.time_a_id if payload.time_a_id is not None else partida.time_a_id
     novo_time_b_id = payload.time_b_id if payload.time_b_id is not None else partida.time_b_id
@@ -209,14 +217,7 @@ def atualizar_stats_jogador_partida(
     aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
     dias_service.assert_aula_editavel(aula)
 
-    partida = (
-        db.query(PartidaModel)
-        .options(selectinload(PartidaModel.estatisticas))
-        .filter(PartidaModel.id == partida_id, PartidaModel.aula_id == aula.id)
-        .first()
-    )
-    if not partida:
-        raise HTTPException(status_code=404, detail="Partida nao encontrada para esta aula")
+    partida = _obter_partida_na_aula_or_404(db, aula.id, partida_id)
 
     jogador = (
         db.query(JogadorAulaModel)
@@ -291,3 +292,74 @@ def deletar_partida(
     db.delete(partida)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.put("/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/start", response_model=CommandOkOut)
+def iniciar_partida(
+    data_iso: str,
+    aula_id: int,
+    partida_id: int,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
+    dias_service.assert_aula_editavel(aula)
+    partida = _obter_partida_na_aula_or_404(db, aula.id, partida_id)
+
+    if aula.status != StatusAulaEnum.EM_ANDAMENTO:
+        raise HTTPException(status_code=409, detail="Evento precisa estar EM_ANDAMENTO para iniciar partida")
+    if partida.status != PartidaStatusEnum.PLANEJADA:
+        raise HTTPException(status_code=409, detail="Partida nao pode iniciar neste status")
+
+    partida.status = PartidaStatusEnum.EM_ANDAMENTO
+    partida.inicio_at = partida.inicio_at or datetime.now(timezone.utc)
+    partida.fim_at = None
+    db.commit()
+    current_version = partidas_service.calcular_version_atual(db, aula)
+    return CommandOkOut(status="ok", version=current_version)
+
+
+@router.post("/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/start", response_model=CommandOkOut)
+def iniciar_partida_post(
+    data_iso: str,
+    aula_id: int,
+    partida_id: int,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    return iniciar_partida(data_iso=data_iso, aula_id=aula_id, partida_id=partida_id, db=db)
+
+
+@router.put("/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/end", response_model=CommandOkOut)
+def encerrar_partida(
+    data_iso: str,
+    aula_id: int,
+    partida_id: int,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
+    partida = _obter_partida_na_aula_or_404(db, aula.id, partida_id)
+
+    if partida.status != PartidaStatusEnum.EM_ANDAMENTO:
+        raise HTTPException(status_code=409, detail="Partida nao pode encerrar neste status")
+    if aula.status not in {StatusAulaEnum.EM_ANDAMENTO, StatusAulaEnum.CONCLUIDA}:
+        raise HTTPException(
+            status_code=409,
+            detail="Partida so pode ser encerrada com aula EM_ANDAMENTO ou CONCLUIDA",
+        )
+    if aula.status == StatusAulaEnum.EM_ANDAMENTO:
+        dias_service.assert_aula_editavel(aula)
+
+    partida.status = PartidaStatusEnum.ENCERRADA
+    partida.fim_at = datetime.now(timezone.utc)
+    db.commit()
+    current_version = partidas_service.calcular_version_atual(db, aula)
+    return CommandOkOut(status="ok", version=current_version)
+
+
+@router.post("/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/end", response_model=CommandOkOut)
+def encerrar_partida_post(
+    data_iso: str,
+    aula_id: int,
+    partida_id: int,
+    db: Session = Depends(get_db),
+) -> CommandOkOut:
+    return encerrar_partida(data_iso=data_iso, aula_id=aula_id, partida_id=partida_id, db=db)

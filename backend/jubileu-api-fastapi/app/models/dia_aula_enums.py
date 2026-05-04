@@ -36,3 +36,10 @@ class PartidaStatusEnum(str, enum.Enum):
     PLANEJADA = "PLANEJADA"
     EM_ANDAMENTO = "EM_ANDAMENTO"
     ENCERRADA = "ENCERRADA"
+
+
+class RotacaoSorteioStatusEnum(str, enum.Enum):
+    PREVIEWED = "PREVIEWED"
+    CONFIRMED = "CONFIRMED"
+    CANCELED = "CANCELED"
+    EXPIRED = "EXPIRED"

@@ -39,7 +39,17 @@ export function EventoStatusActions({
       if (action === "cancel") await cancelEvento(eventoId, auth);
       await onChanged();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Falha na atualizacao de status");
+      const message = err instanceof Error ? err.message : "Falha na atualizacao de status";
+      if (message.startsWith("409")) {
+        try {
+          await onChanged();
+          setError("Estado do evento mudou no servidor. Tela sincronizada; tente novamente.");
+          return;
+        } catch {
+          // Keep original error if refresh also fails.
+        }
+      }
+      setError(message);
     } finally {
       setLoading(false);
     }

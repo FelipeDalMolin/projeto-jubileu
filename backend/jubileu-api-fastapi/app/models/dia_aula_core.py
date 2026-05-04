@@ -93,6 +93,19 @@ class Aula(Base):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    rotacao_estado: Mapped[Optional["EventoRotacaoEstado"]] = relationship(
+        "EventoRotacaoEstado",
+        back_populates="aula",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    rotacao_sorteios: Mapped[List["EventoRotacaoSorteio"]] = relationship(
+        "EventoRotacaoSorteio",
+        back_populates="aula",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
 
 class AulaEquipesEstado(Base):

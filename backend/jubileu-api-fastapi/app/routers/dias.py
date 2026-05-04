@@ -15,6 +15,8 @@ from app.models.dia_aula import (
     Aula as AulaModel,
     Dia as DiaModel,
     JogadorAula as JogadorAulaModel,
+    Partida as PartidaModel,
+    PartidaStatusEnum,
     StatusAulaEnum,
     StatusPresencaEnum,
     TimeAula as TimeAulaModel,
@@ -118,7 +120,7 @@ def criar_aula_no_dia(
                 aula_id=aula.id,
                 jogador_id=jogador_id,
                 nome=jogador_nome or f"Jogador {jogador_id}",
-                status=StatusPresencaEnum.faltou,
+                status=StatusPresencaEnum.so_treino,
             )
         )
 
@@ -148,18 +150,6 @@ def iniciar_aula(
         raise HTTPException(
             status_code=400,
             detail="Aula nao pode ser iniciada: status atual diferente de PLANEJADA",
-        )
-
-    presentes_count = (
-        db.query(JogadorAulaModel)
-        .filter(JogadorAulaModel.aula_id == aula.id)
-        .filter(JogadorAulaModel.status == StatusPresencaEnum.presente)
-        .count()
-    )
-    if presentes_count == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Aula nao pode ser iniciada sem jogadores presentes",
         )
 
     db.query(JogadorAulaModel).filter(
@@ -197,6 +187,20 @@ def finalizar_aula(
         raise HTTPException(
             status_code=400,
             detail="Aula nao pode ser finalizada: status atual diferente de EM_ANDAMENTO",
+        )
+
+    partida_ativa = (
+        db.query(PartidaModel.id)
+        .filter(
+            PartidaModel.aula_id == aula.id,
+            PartidaModel.status == PartidaStatusEnum.EM_ANDAMENTO,
+        )
+        .first()
+    )
+    if partida_ativa:
+        raise HTTPException(
+            status_code=409,
+            detail="Encerre a partida em andamento antes de encerrar a aula",
         )
 
     aula.status = StatusAulaEnum.CONCLUIDA

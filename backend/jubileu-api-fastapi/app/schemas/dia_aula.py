@@ -155,6 +155,8 @@ class PartidaEstadoOut(BaseModel):
     id: int
     ordem: int
     status: PartidaStatusEnum = PartidaStatusEnum.PLANEJADA
+    inicio_at: Optional[datetime] = None
+    fim_at: Optional[datetime] = None
     timeAId: str
     timeBId: str
     golsTimeA: int

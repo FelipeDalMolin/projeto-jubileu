@@ -11,6 +11,7 @@ from app.models.dia_aula import (
     Aula as AulaModel,
     Dia as DiaModel,
     JogadorAula as JogadorAulaModel,
+    Lance as LanceModel,
     Partida as PartidaModel,
     StatusPresencaEnum,
     TeamConfig as TeamConfigModel,
@@ -64,7 +65,10 @@ def _carregar_partidas(
 ) -> tuple[List[PartidaEstadoOut], int]:
     partidas_db = (
         db.query(PartidaModel)
-        .options(selectinload(PartidaModel.estatisticas))
+        .options(
+            selectinload(PartidaModel.estatisticas),
+            selectinload(PartidaModel.lances),
+        )
         .filter(PartidaModel.aula_id == aula.id)
         .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
         .all()
@@ -76,33 +80,72 @@ def _carregar_partidas(
         for estat in partida.estatisticas
     ]
 
-    jogadores_time_map: dict[int, Optional[int]] = {}
-    if estat_ids:
-        rows = (
-            db.query(JogadorAulaModel.id, JogadorAulaModel.time_id)
-            .filter(JogadorAulaModel.aula_id == aula.id)
-            .filter(JogadorAulaModel.id.in_(estat_ids))
-            .all()
-        )
-        jogadores_time_map = {row.id: row.time_id for row in rows}
+    jogador_aula_rows = (
+        db.query(JogadorAulaModel.id, JogadorAulaModel.jogador_id, JogadorAulaModel.time_id)
+        .filter(JogadorAulaModel.aula_id == aula.id)
+        .all()
+    )
+    jogadores_time_map: dict[int, Optional[int]] = {
+        int(row.id): row.time_id for row in jogador_aula_rows
+    }
+    jogadores_global_time_map: dict[int, Optional[int]] = {
+        int(row.jogador_id): row.time_id
+        for row in jogador_aula_rows
+        if row.jogador_id is not None
+    }
 
     partidas_out: List[PartidaEstadoOut] = []
     partidas_version_payload: list = []
 
     for partida in partidas_db:
-        gols_a = 0
-        gols_b = 0
+        gols_a_stats = 0
+        gols_b_stats = 0
         for estat in partida.estatisticas:
             time_id = jogadores_time_map.get(estat.jogador_aula_id)
             if time_id == partida.time_a_id:
-                gols_a += estat.gols
+                gols_a_stats += estat.gols
             elif time_id == partida.time_b_id:
-                gols_b += estat.gols
+                gols_b_stats += estat.gols
+
+        gols_a_lances = 0
+        gols_b_lances = 0
+        for lance in partida.lances:
+            if lance.is_deleted:
+                continue
+            if (lance.tipo or "").upper() != "GOL":
+                continue
+
+            time_id: int | None = None
+            if isinstance(lance.payload, dict):
+                raw_time_id = lance.payload.get("time_id")
+                if raw_time_id is not None:
+                    try:
+                        time_id = int(raw_time_id)
+                    except (TypeError, ValueError):
+                        time_id = None
+
+            if time_id is None and lance.jogador_id is not None:
+                time_id = jogadores_global_time_map.get(int(lance.jogador_id))
+
+            if time_id == partida.time_a_id:
+                gols_a_lances += 1
+            elif time_id == partida.time_b_id:
+                gols_b_lances += 1
+
+        if gols_a_lances > 0 or gols_b_lances > 0:
+            gols_a = gols_a_lances
+            gols_b = gols_b_lances
+        else:
+            gols_a = gols_a_stats
+            gols_b = gols_b_stats
 
         partidas_out.append(
             PartidaEstadoOut(
                 id=partida.id,
                 ordem=partida.ordem,
+                status=partida.status,
+                inicio_at=partida.inicio_at,
+                fim_at=partida.fim_at,
                 timeAId=str(partida.time_a_id),
                 timeBId=str(partida.time_b_id),
                 golsTimeA=gols_a,
@@ -115,6 +158,7 @@ def _carregar_partidas(
             [
                 partida.id,
                 partida.ordem,
+                partida.status.value if hasattr(partida.status, "value") else str(partida.status),
                 partida.time_a_id,
                 partida.time_b_id,
                 gols_a,
@@ -130,6 +174,19 @@ def _carregar_partidas(
                     for estat in sorted(
                         partida.estatisticas,
                         key=lambda e: (e.id or 0, e.jogador_aula_id),
+                    )
+                ],
+                [
+                    [
+                        lance.id,
+                        lance.tipo,
+                        lance.jogador_id,
+                        lance.payload,
+                        lance.is_deleted,
+                    ]
+                    for lance in sorted(
+                        partida.lances,
+                        key=lambda l: (l.created_at or 0, l.id or 0),
                     )
                 ],
             ]
@@ -242,7 +299,19 @@ def build_workspace_aula(db: Session, aula: AulaModel) -> WorkspaceAulaOut:
 
     jogadores, times, base_version = _carregar_snapshot_equipes(db, aula)
     partidas_out, partidas_crc32 = _carregar_partidas(db, aula)
-    current_version = (base_version << 32) | partidas_crc32
+    event_meta_payload = [
+        aula.status.value if hasattr(aula.status, "value") else str(aula.status),
+        aula.tipo.value if hasattr(aula.tipo, "value") else str(aula.tipo),
+        aula.horario_inicio,
+        aula.horario_fim,
+    ]
+    event_meta_crc32 = zlib.crc32(
+        json.dumps(event_meta_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ) & 0xFFFFFFFF
+    content_crc32 = zlib.crc32(
+        json.dumps([partidas_crc32, event_meta_crc32], separators=(",", ":")).encode("utf-8")
+    ) & 0xFFFFFFFF
+    current_version = (base_version << 32) | content_crc32
 
     meta = WorkspaceAulaMetaOut(
         id=aula.id,

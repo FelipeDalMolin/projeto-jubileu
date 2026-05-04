@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.dia_aula import EventoParticipanteStatusEnum, PartidaStatusEnum
+from app.models.dia_aula import EventoParticipanteStatusEnum, PartidaStatusEnum, RotacaoSorteioStatusEnum
 
 
 EventoTipoCanonical = Literal["AULA", "JOGO_LIVRE"]
@@ -101,3 +101,82 @@ class LanceCreateOut(BaseModel):
 
 class LanceListOut(BaseModel):
     items: list[LanceOut] = Field(default_factory=list)
+
+
+class RotacaoIndicadoresOut(BaseModel):
+    jogadores_em_campo: int = 0
+    jogadores_na_fila: int = 0
+    proximos_times_completos: int = 0
+    jogadores_aguardando_complemento: int = 0
+
+
+class RotacaoGrupoOut(BaseModel):
+    grupo_id: str
+    jogadores_ids: list[int] = Field(default_factory=list)
+    target_size: int
+    faltam: int
+    completo: bool
+
+
+class RotacaoEstadoOut(BaseModel):
+    evento_id: int
+    team_size_ref: int
+    duracao_partida_segundos: int
+    fila_jogadores_ids: list[int] = Field(default_factory=list)
+    proximos_times: list[RotacaoGrupoOut] = Field(default_factory=list)
+    indicadores: RotacaoIndicadoresOut
+    version: int
+    updated_at: datetime | None = None
+    updated_by_user_id: str | None = None
+
+
+class RotacaoGrupoPatchIn(BaseModel):
+    grupo_id: str
+    jogadores_ids: list[int] = Field(default_factory=list)
+
+
+class RotacaoEstadoUpdateIn(BaseModel):
+    team_size_ref: int | None = Field(default=None, gt=0, le=50)
+    duracao_partida_segundos: int | None = Field(default=None, ge=60, le=7200)
+    fila_jogadores_ids: list[int] | None = None
+    proximos_times: list[RotacaoGrupoPatchIn] | None = None
+
+
+class RotacaoPreviewIn(BaseModel):
+    grupo_alvo_id: str
+    partida_origem_id: int | None = None
+
+
+class RotacaoPreviewOut(BaseModel):
+    token: str
+    evento_id: int
+    grupo_alvo_id: str
+    needed_count: int
+    candidatos_ids: list[int] = Field(default_factory=list)
+    sorteados_ids: list[int] = Field(default_factory=list)
+    nao_sorteados_ids: list[int] = Field(default_factory=list)
+    expires_at: datetime
+
+
+class RotacaoConfirmIn(BaseModel):
+    token: str
+
+
+class RotacaoAuditRecordOut(BaseModel):
+    token: str
+    status: RotacaoSorteioStatusEnum
+    grupo_alvo_id: str
+    needed_count: int
+    candidatos_ids: list[int] = Field(default_factory=list)
+    sorteados_ids: list[int] = Field(default_factory=list)
+    nao_sorteados_ids: list[int] = Field(default_factory=list)
+    partida_origem_id: int | None = None
+    created_by_user_id: str | None = None
+    created_at: datetime
+    confirmed_at: datetime | None = None
+    expires_at: datetime
+
+
+class RotacaoConfirmOut(BaseModel):
+    estado: RotacaoEstadoOut
+    audit: RotacaoAuditRecordOut

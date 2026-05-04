@@ -23,6 +23,11 @@ During refactor execution, use internal milestone tags when useful:
 - `v0.2.0-dev.frontend-11`
 - `v0.2.0-dev.frontend-12`
 - `v0.2.0-dev.infra-00`
+- `v0.2.0-dev.frontend-13` (DEV-28/DEV-30 stream)
+- `v0.2.0-dev.backend-09` (DEV-29 stream)
+- `v0.2.0-dev.frontend-14` (DEV-31 stream)
+- `v0.2.0-dev.frontend-15` (DEV-32 stream)
+- `v0.2.0-dev.docs-33` (DEV-33 closure)
 
 ## Release Checklist
 
