@@ -193,31 +193,31 @@ try {
         $message = $result[1]
         
         if ($isOk) {
-            Write-Host "✅ $testName : OK" -ForegroundColor Green
+            Write-Host "$testName : OK" -ForegroundColor Green
             $passCount++
         } else {
-            Write-Host "❌ $testName : FALHOU" -ForegroundColor Red
-            Write-Host "   → $message" -ForegroundColor Red
+            Write-Host "$testName : FALHOU" -ForegroundColor Red
+            Write-Host "   -> $message" -ForegroundColor Red
             $failCount++
         }
     }
     
     Info ""
-    Info "📊 Resultados:"
+    Info "Resultados:"
     Success "$passCount testes passaram"
     if ($failCount -gt 0) {
         Warn "$failCount testes falharam"
     }
     
     Info ""
-    Info "📋 Log completo: $(Get-LogFile)"
+    Info "Log completo: $(Get-LogFile)"
     
     # ==============================================================
     # 6. RECOMENDAÇÕES
     # ==============================================================
     if ($failCount -eq 0) {
         Success ""
-        Success "✨ Tudo OK! Seu ambiente está pronto."
+        Success "Tudo OK! Seu ambiente está pronto."
         Info ""
         Info "Você pode iniciar com:"
         Info "  Backend:  cd .\backend\jubileu-api-fastapi"
@@ -227,7 +227,7 @@ try {
         Info "            npm run dev"
     } else {
         Warn ""
-        Warn "⚠️  Você tem $failCount issue(s) para resolver:"
+        Warn "Você tem $failCount issue(s) para resolver:"
         
         foreach ($test in $testResults.GetEnumerator() | Sort-Object -Property Key) {
             $testName = $test.Key
@@ -236,7 +236,7 @@ try {
             $message = $result[1]
             
             if (-not $isOk) {
-                Warn "  • $testName: $message"
+                Warn "  • ${testName}: $message"
             }
         }
         

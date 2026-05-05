@@ -44,6 +44,7 @@ function Write-Log {
 
 function Info { Write-Log -Message $args[0] -Level "INFO" }
 function Warn { Write-Log -Message $args[0] -Level "WARN" }
+function Fail { Write-Log -Message $args[0] -Level "ERROR" }
 function Error-Log { Write-Log -Message $args[0] -Level "ERROR" }
 function Debug { Write-Log -Message $args[0] -Level "DEBUG" }
 function Success { Write-Log -Message $args[0] -Level "SUCCESS" }
