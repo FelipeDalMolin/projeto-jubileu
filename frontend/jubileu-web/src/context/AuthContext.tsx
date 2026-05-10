@@ -17,6 +17,8 @@ export type AuthMode = "jwt" | "legacy";
 
 export type UserSession = {
   userId: string;
+  username?: string | null;
+  email?: string | null;
   role: UserRole;
   jogadorId: number | null;
   accessToken: string | null;
@@ -53,6 +55,8 @@ function parseStoredSession(raw: string | null): UserSession | null {
     return {
       userId: parsed.userId,
       role: parsed.role,
+      username: parsed.username ?? null,
+      email: parsed.email ?? null,
       jogadorId: parsed.jogadorId ?? null,
       accessToken: parsed.accessToken ?? null,
       authMode: parsed.authMode ?? "legacy",
@@ -89,11 +93,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const session: UserSession = {
         userId: me.user_id,
+        username: me.username ?? normalized,
+        email: me.email ?? null,
         role: me.role,
         jogadorId: me.jogador_id ?? null,
         accessToken: token.access_token,
         authMode: "jwt",
-        displayName: normalized,
+        displayName: me.display_name ?? me.username ?? normalized,
       };
 
       setUser(session);
@@ -102,6 +108,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       const fallback: UserSession = {
         userId: normalized,
+        username: normalized,
+        email: null,
         role: "user",
         jogadorId: null,
         accessToken: null,

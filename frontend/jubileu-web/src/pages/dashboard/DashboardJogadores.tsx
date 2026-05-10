@@ -27,6 +27,10 @@ function parsePeriodFromSearch(search: URLSearchParams): number {
   return ALLOWED_PERIODS.has(raw) ? raw : 30;
 }
 
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export default function DashboardJogadores() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -67,8 +71,8 @@ export default function DashboardJogadores() {
         ]);
         setResumo(resumoResp);
         setRanking(rankingResp.items ?? []);
-      } catch (err: any) {
-        setError(err?.message ?? "Erro ao carregar jogadores.");
+      } catch (err: unknown) {
+        setError(errorMessage(err, "Erro ao carregar jogadores."));
       } finally {
         setLoading(false);
       }

@@ -25,8 +25,8 @@ def test_api_alias_routes_exist():
         ("/api/eventos/{evento_id}/rotacao/preview-sorteio", "POST"),
         ("/api/eventos/{evento_id}/rotacao/confirmar-sorteio", "POST"),
         ("/api/partidas/{partida_id}/lances", "POST"),
-        ("/api/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/start", "PUT"),
-        ("/api/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/end", "PUT"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start", "PUT"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end", "PUT"),
     }
 
     missing = expected_alias_contracts - route_methods

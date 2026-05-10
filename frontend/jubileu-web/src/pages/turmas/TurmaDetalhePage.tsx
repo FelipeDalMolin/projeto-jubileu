@@ -17,6 +17,10 @@ type TurmaJogador = {
   nome: string;
 };
 
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export default function TurmaDetalhePage() {
   const { turmaId } = useParams<RouteParams>();
   const ehNova = turmaId === "nova";
@@ -75,9 +79,9 @@ export default function TurmaDetalhePage() {
         setNome(t.nome);
 
         await recarregarJogadoresTurma(t.id);
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error(e);
-        setErro(e?.message ?? "Falha ao carregar dados da turma.");
+        setErro(errorMessage(e, "Falha ao carregar dados da turma."));
       } finally {
         if (alive) setLoading(false);
       }
@@ -113,9 +117,9 @@ export default function TurmaDetalhePage() {
       if (!turma) return;
       const atualizada = await atualizarTurma(turma.id, { nome: nomeTrim });
       setTurma(atualizada);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setErro(e?.message ?? "Erro ao salvar turma.");
+      setErro(errorMessage(e, "Erro ao salvar turma."));
     }
   }
 
@@ -126,9 +130,9 @@ export default function TurmaDetalhePage() {
       await adicionarJogadorNaTurma(turma.id, Number(novoJogadorId));
       await recarregarJogadoresTurma(turma.id);
       setNovoJogadorId("");
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setErro(e?.message ?? "Erro ao adicionar jogador.");
+      setErro(errorMessage(e, "Erro ao adicionar jogador."));
     }
   }
 
@@ -138,9 +142,9 @@ export default function TurmaDetalhePage() {
     try {
       await removerJogadorDaTurma(turma.id, jogadorId);
       await recarregarJogadoresTurma(turma.id);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setErro(e?.message ?? "Erro ao remover jogador.");
+      setErro(errorMessage(e, "Erro ao remover jogador."));
     }
   }
 

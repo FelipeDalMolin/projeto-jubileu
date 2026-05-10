@@ -4,7 +4,7 @@ import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import type { EventoStatus } from "../../../types/evento";
-import type { WorkspaceAulaPartida } from "../../../types/workspaceAula";
+import type { WorkspaceEventoPartida } from "../../../types/workspaceEvento";
 
 function parseDateMs(iso?: string | null): number | null {
   if (!iso) return null;
@@ -53,8 +53,8 @@ export function PartidaAoVivoCard({
   onEncerrarPartida,
   onSalvarDuracao,
 }: {
-  partidaAtiva: WorkspaceAulaPartida | null;
-  partidaFallback?: WorkspaceAulaPartida | null;
+  partidaAtiva: WorkspaceEventoPartida | null;
+  partidaFallback?: WorkspaceEventoPartida | null;
   eventoStatus: EventoStatus;
   duracaoPartidaSegundos?: number;
   canManagePartida?: boolean;

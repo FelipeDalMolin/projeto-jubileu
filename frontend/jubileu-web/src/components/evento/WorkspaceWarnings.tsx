@@ -1,7 +1,7 @@
-import type { WorkspaceAulaWarning } from "../../types/workspaceAula";
+import type { WorkspaceEventoWarning } from "../../types/workspaceEvento";
 
 type Props = {
-  warnings: WorkspaceAulaWarning[];
+  warnings: WorkspaceEventoWarning[];
 };
 
 export default function WorkspaceWarnings({ warnings }: Props) {

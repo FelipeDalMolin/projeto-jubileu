@@ -10,4 +10,6 @@ class AuthAccount:
     username: str
     password: str
     role: str
+    display_name: str
+    email: Optional[str] = None
     jogador_id: Optional[int] = None

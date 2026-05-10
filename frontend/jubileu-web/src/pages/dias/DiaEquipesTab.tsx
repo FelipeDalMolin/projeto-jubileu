@@ -1,28 +1,32 @@
 import { useMemo, useState } from "react";
-import type { AulaDia, PresencaJogadorDia, TimeDia } from "../../types/dia";
-import { salvarEstadoEquipesAula, criarTimeNaAula } from "../../services/diasService";
-import { useAulaEstadoPolling } from "../../hooks/useAulaEstadoPolling";
+import type { EventoDia, PresencaJogadorDia, TimeDia } from "../../types/dia";
+import { salvarEstadoEquipesEvento, criarTimeNoEvento } from "../../services/diasService";
+import { useEventoEstadoPolling } from "../../hooks/useEventoEstadoPolling";
 
 type Props = {
   dataIso: string;
-  aula: AulaDia;
+  evento: EventoDia;
 };
 
-export default function DiaEquipesTab({ dataIso, aula }: Props) {
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
+export default function DiaEquipesTab({ dataIso, evento }: Props) {
   const [salvando, setSalvando] = useState(false);
   const [novoTimeNome, setNovoTimeNome] = useState("");
 
-  const { estado, setEstado, loading, refreshNow, error } = useAulaEstadoPolling({
+  const { estado, setEstado, loading, refreshNow, error } = useEventoEstadoPolling({
     dataIso,
-    aulaId: Number(aula.id),
+    eventoId: Number(evento.id),
     enabled: true,
   });
 
   const normalizeTimeId = (id: string) => (id.startsWith("time-") ? id : `time-${id}`);
 
   const equipes = useMemo(() => {
-    const baseJogadores = estado?.equipes?.jogadores ?? aula.jogadores ?? [];
-    const baseTimes = estado?.equipes?.times ?? aula.times ?? [];
+    const baseJogadores = estado?.equipes?.jogadores ?? evento.jogadores ?? [];
+    const baseTimes = estado?.equipes?.times ?? evento.times ?? [];
 
     const timesNorm: TimeDia[] = baseTimes.map((t) => ({
       ...t,
@@ -35,7 +39,7 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
     }));
 
     return { jogadores: jogadoresNorm, times: timesNorm };
-  }, [estado, aula.jogadores, aula.times]);
+  }, [estado, evento.jogadores, evento.times]);
 
   const jogadores = equipes.jogadores;
   const times = equipes.times;
@@ -51,7 +55,7 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
   ) {
     setSalvando(true);
     try {
-      await salvarEstadoEquipesAula(dataIso, aula.id, jogadoresAtualizados, timesAtualizados);
+      await salvarEstadoEquipesEvento(dataIso, evento.id, jogadoresAtualizados, timesAtualizados);
       refreshNow();
     } catch (err) {
       console.error(err);
@@ -90,7 +94,7 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
 
     try {
       setSalvando(true);
-      const novo = await criarTimeNaAula(dataIso, aula.id, { nome });
+      const novo = await criarTimeNoEvento(dataIso, evento.id, { nome });
       const timeId = normalizeTimeId(novo.id);
       const timesAtualizados = [...times, { ...novo, id: timeId }];
       setNovoTimeNome("");
@@ -106,9 +110,9 @@ export default function DiaEquipesTab({ dataIso, aula }: Props) {
 
       await salvarEstado(jogadores, timesAtualizados);
       await refreshNow();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err?.message ?? "Erro ao criar time.");
+      alert(errorMessage(err, "Erro ao criar time."));
     } finally {
       setSalvando(false);
     }

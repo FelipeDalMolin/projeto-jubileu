@@ -28,7 +28,7 @@ def test_smoke_critical_route_contracts_exist():
         ("/turmas/", "GET"),
         ("/dias/", "GET"),
         ("/dias/{data_iso}", "GET"),
-        ("/dias/{data_iso}/aulas/{aula_id}/workspace", "GET"),
+        ("/dias/{data_iso}/eventos/{evento_id}/workspace", "GET"),
         ("/api/eventos/{evento_id}/rsvp", "POST"),
         ("/api/eventos/{evento_id}/checkin", "POST"),
         ("/api/eventos/{evento_id}/partidas/seed", "POST"),

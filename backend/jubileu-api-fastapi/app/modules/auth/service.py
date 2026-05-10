@@ -9,8 +9,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.models.usuario import Usuario as UsuarioModel
 from app.modules.auth.models import AuthAccount
 
 ALLOWED_ROLES = {"admin", "treinador", "auxiliar", "user"}
@@ -21,14 +23,108 @@ class AuthUser:
     user_id: str
     role: str
     jogador_id: Optional[int]
+    username: str | None = None
+    display_name: str | None = None
+    email: str | None = None
 
 
 DEFAULT_ACCOUNTS: dict[str, AuthAccount] = {
-    "admin": AuthAccount(user_id="u-admin", username="admin", password="admin123", role="admin"),
-    "coach": AuthAccount(user_id="u-coach", username="coach", password="coach123", role="treinador"),
-    "aux": AuthAccount(user_id="u-aux", username="aux", password="aux123", role="auxiliar"),
-    "user": AuthAccount(user_id="u-user", username="user", password="user123", role="user"),
+    "admin": AuthAccount(
+        user_id="u-admin",
+        username="admin",
+        password="admin123",
+        role="admin",
+        display_name="Administrador",
+        email="admin@jubileu.local",
+    ),
+    "coach": AuthAccount(
+        user_id="u-coach",
+        username="coach",
+        password="coach123",
+        role="treinador",
+        display_name="Treinador",
+        email="coach@jubileu.local",
+    ),
+    "aux": AuthAccount(
+        user_id="u-aux",
+        username="aux",
+        password="aux123",
+        role="auxiliar",
+        display_name="Auxiliar",
+        email="aux@jubileu.local",
+    ),
+    "user": AuthAccount(
+        user_id="u-user",
+        username="user",
+        password="user123",
+        role="user",
+        display_name="Usuario",
+        email="user@jubileu.local",
+    ),
 }
+
+
+def password_hash(password: str) -> str:
+    material = f"{settings.JWT_SECRET}:{password}".encode("utf-8")
+    return hashlib.sha256(material).hexdigest()
+
+
+def ensure_default_users(db: Session) -> None:
+    for account in DEFAULT_ACCOUNTS.values():
+        user = (
+            db.query(UsuarioModel)
+            .filter(
+                (UsuarioModel.user_id == account.user_id)
+                | (UsuarioModel.username == account.username)
+            )
+            .first()
+        )
+        if user:
+            changed = False
+            if user.password_hash != password_hash(account.password):
+                user.password_hash = password_hash(account.password)
+                changed = True
+            if user.display_name != account.display_name:
+                user.display_name = account.display_name
+                changed = True
+            if user.email != account.email:
+                user.email = account.email
+                changed = True
+            if user.role != account.role:
+                user.role = account.role
+                changed = True
+            if changed:
+                db.add(user)
+            continue
+
+        db.add(
+            UsuarioModel(
+                user_id=account.user_id,
+                username=account.username,
+                password_hash=password_hash(account.password),
+                display_name=account.display_name,
+                email=account.email,
+                role=account.role,
+                jogador_id=account.jogador_id,
+            )
+        )
+    db.commit()
+
+
+def auth_user_from_model(user: UsuarioModel) -> AuthUser:
+    return AuthUser(
+        user_id=user.user_id,
+        role=user.role,
+        jogador_id=user.jogador_id,
+        username=user.username,
+        display_name=user.display_name,
+        email=user.email,
+    )
+
+
+def get_usuario_by_user_id(db: Session, user_id: str) -> UsuarioModel | None:
+    ensure_default_users(db)
+    return db.query(UsuarioModel).filter(UsuarioModel.user_id == user_id).first()
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -52,6 +148,7 @@ def create_access_token(user: AuthUser) -> tuple[str, int]:
         "sub": user.user_id,
         "role": user.role,
         "jogador_id": user.jogador_id,
+        "username": user.username,
         "iat": int(now.timestamp()),
         "exp": int(exp_at.timestamp()),
     }
@@ -96,14 +193,16 @@ def decode_access_token(token: str) -> AuthUser:
         user_id=str(payload.get("sub", "")),
         role=role,
         jogador_id=jogador_id,
+        username=payload.get("username"),
     )
 
 
-def authenticate_user(username: str, password: str) -> Optional[AuthUser]:
-    account = DEFAULT_ACCOUNTS.get(username.strip().lower())
-    if not account or account.password != password:
+def authenticate_user(db: Session, username: str, password: str) -> Optional[AuthUser]:
+    ensure_default_users(db)
+    user = db.query(UsuarioModel).filter(UsuarioModel.username == username.strip().lower()).first()
+    if not user or user.password_hash != password_hash(password):
         return None
-    return AuthUser(user_id=account.user_id, role=account.role, jogador_id=account.jogador_id)
+    return auth_user_from_model(user)
 
 
 def parse_legacy_headers(
@@ -147,6 +246,7 @@ def parse_authorization_bearer(authorization: str | None) -> Optional[AuthUser]:
 
 
 def resolve_current_user(
+    db: Session,
     authorization: str | None,
     x_user_id: str | None,
     x_role: str | None,
@@ -161,12 +261,15 @@ def resolve_current_user(
 
     bearer_user = parse_authorization_bearer(authorization)
     if bearer_user is not None:
-        return bearer_user
+        persisted = get_usuario_by_user_id(db, bearer_user.user_id)
+        return auth_user_from_model(persisted) if persisted else bearer_user
 
     if mode == "jwt_only":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
 
-    return parse_legacy_headers(x_user_id, x_role, x_jogador_id)
+    legacy_user = parse_legacy_headers(x_user_id, x_role, x_jogador_id)
+    persisted = get_usuario_by_user_id(db, legacy_user.user_id)
+    return auth_user_from_model(persisted) if persisted else legacy_user
 
 
 def require_roles(user: AuthUser, *roles: str) -> None:

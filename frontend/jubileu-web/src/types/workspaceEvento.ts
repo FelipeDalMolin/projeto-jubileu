@@ -1,28 +1,51 @@
 import type { EventoStatus, EventoTipo } from "./evento";
-import type {
-  WorkspaceAula,
-  WorkspaceAulaEquipes,
-  WorkspaceAulaHeader,
-  WorkspaceAulaKpis,
-  WorkspaceAulaMeta,
-  WorkspaceAulaPartida,
-  WorkspaceAulaWarning,
-} from "./workspaceAula";
+import type { PartidaEstado } from "./eventoEstado";
+import type { PresencaJogadorDia, TimeDia } from "./dia";
 
-export type WorkspaceEventoMeta = Omit<WorkspaceAulaMeta, "status" | "tipo"> & {
+export type WorkspaceEventoMeta = {
+  id: number;
+  data_iso: string;
+  turma_id: number;
   status: EventoStatus;
   tipo: EventoTipo;
-  legacy_status: WorkspaceAulaMeta["status"];
-  legacy_tipo: WorkspaceAulaMeta["tipo"];
+  version: number;
 };
 
-export type WorkspaceEvento = Omit<WorkspaceAula, "meta"> & {
+export type WorkspaceEventoHeader = {
+  titulo: string;
+  horario_inicio: string;
+  horario_fim: string;
+};
+
+export type WorkspaceEventoKpis = {
+  total_jogadores: number;
+  presentes: number;
+  gols_total: number;
+};
+
+export type WorkspaceEventoWarning = {
+  code: string;
+  message: string;
+  severity: "info" | "warning" | "error";
+};
+
+export type WorkspaceEventoEquipes = {
+  jogadores: PresencaJogadorDia[];
+  times: TimeDia[];
+};
+
+export type WorkspaceEventoPartida = PartidaEstado;
+
+export type WorkspaceEvento = {
   meta: WorkspaceEventoMeta;
+  header: WorkspaceEventoHeader;
+  kpis: WorkspaceEventoKpis;
+  equipes: WorkspaceEventoEquipes;
+  partidas: WorkspaceEventoPartida[];
+  eventos: string[];
+  warnings: WorkspaceEventoWarning[];
 };
 
-export type WorkspaceEventoHeader = WorkspaceAulaHeader;
-export type WorkspaceEventoKpis = WorkspaceAulaKpis;
-export type WorkspaceEventoEquipes = WorkspaceAulaEquipes;
-export type WorkspaceEventoPartida = WorkspaceAulaPartida;
-export type WorkspaceEventoWarning = WorkspaceAulaWarning;
-
+export type WorkspaceEventoResponse =
+  | { status: 204; data?: undefined }
+  | { status: 200; data: WorkspaceEvento };

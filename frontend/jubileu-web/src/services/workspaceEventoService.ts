@@ -1,4 +1,4 @@
-import type { WorkspaceAula, WorkspaceAulaResponse } from "../types/workspaceAula";
+import type { WorkspaceEvento, WorkspaceEventoResponse } from "../types/workspaceEvento";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -17,11 +17,11 @@ async function safeText(resp: Response) {
   }
 }
 
-export async function obterWorkspaceAula(
+export async function obterWorkspaceEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   sinceVersion?: number,
-): Promise<WorkspaceAulaResponse> {
+): Promise<WorkspaceEventoResponse> {
   const params = new URLSearchParams();
 
   if (sinceVersion !== undefined) {
@@ -32,7 +32,7 @@ export async function obterWorkspaceAula(
 
   const resp = await fetch(
     buildUrl(
-      `/dias/${dataIso}/aulas/${aulaId}/workspace${query ? `?${query}` : ""}`,
+      `/dias/${dataIso}/eventos/${eventoId}/workspace${query ? `?${query}` : ""}`,
     ),
   );
 
@@ -42,13 +42,13 @@ export async function obterWorkspaceAula(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao obter workspace da aula: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao obter workspace da evento: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
-  const data: WorkspaceAula = await resp.json();
+  const data: WorkspaceEvento = await resp.json();
   if (typeof data?.meta?.version !== "number") {
-    throw new Error("Workspace da aula invalido: campo 'meta.version' ausente");
+    throw new Error("Workspace da evento invalido: campo 'meta.version' ausente");
   }
 
   return { status: 200, data };

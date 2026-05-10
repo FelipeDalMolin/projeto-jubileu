@@ -1,4 +1,4 @@
-import type { Jogador, Turma, RegistroAula } from "../../domain/trofeu/trofeuTypes";
+import type { Jogador, Turma, RegistroEvento } from "../../domain/trofeu/trofeuTypes";
 
 export const trofeuJogadores: Jogador[] = [
   { id: 1, nome: "João Lima", apelido: "JL", status: "ativo" },
@@ -19,7 +19,7 @@ export const trofeuTurmas: Turma[] = [
 ];
 
 // Registros cobrindo ~60 dias para permitir comparação 30/30
-export const trofeuRegistros: RegistroAula[] = [
+export const trofeuRegistros: RegistroEvento[] = [
   {
     dataIso: "2025-01-20",
     turmaId: 10,

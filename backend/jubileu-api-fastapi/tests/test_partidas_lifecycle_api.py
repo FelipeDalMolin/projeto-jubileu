@@ -2,24 +2,24 @@ from fastapi.testclient import TestClient
 
 from datetime import datetime, timezone
 
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     Dia as DiaModel,
-    JogadorAula as JogadorAulaModel,
+    JogadorEvento as JogadorEventoModel,
     Partida as PartidaModel,
     PartidaStatusEnum,
-    StatusAulaEnum,
+    StatusEventoEnum,
     StatusPresencaEnum,
-    TipoEventoAulaEnum,
-    TimeAula as TimeAulaModel,
+    TipoEventoEnum,
+    TimeEvento as TimeEventoModel,
 )
 from app.models.jogador_turma import Turma as TurmaModel
 
 
-def _criar_aula_com_partida(
+def _criar_evento_com_partida(
     db_session,
     *,
-    status_aula: StatusAulaEnum,
+    status_evento: StatusEventoEnum,
     status_partida: PartidaStatusEnum = PartidaStatusEnum.PLANEJADA,
 ):
     dia = DiaModel(data_iso="2026-05-03")
@@ -27,35 +27,35 @@ def _criar_aula_com_partida(
     db_session.add_all([dia, turma])
     db_session.flush()
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
         turma_id=turma.id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=1,
-        tipo=TipoEventoAulaEnum.AULA,
+        numero_evento_na_turma=1,
+        tipo=TipoEventoEnum.AULA,
         horario_inicio="19:00",
         horario_fim="20:00",
-        status=status_aula,
+        status=status_evento,
     )
-    db_session.add(aula)
+    db_session.add(evento)
     db_session.flush()
 
-    time_a = TimeAulaModel(aula_id=aula.id, nome="Time A")
-    time_b = TimeAulaModel(aula_id=aula.id, nome="Time B")
+    time_a = TimeEventoModel(evento_id=evento.id, nome="Time A")
+    time_b = TimeEventoModel(evento_id=evento.id, nome="Time B")
     db_session.add_all([time_a, time_b])
     db_session.flush()
 
     db_session.add_all(
         [
-            JogadorAulaModel(
-                aula_id=aula.id,
+            JogadorEventoModel(
+                evento_id=evento.id,
                 jogador_id=None,
                 nome="Jogador A",
                 status=StatusPresencaEnum.presente,
                 time_id=time_a.id,
             ),
-            JogadorAulaModel(
-                aula_id=aula.id,
+            JogadorEventoModel(
+                evento_id=evento.id,
                 jogador_id=None,
                 nome="Jogador B",
                 status=StatusPresencaEnum.presente,
@@ -66,7 +66,7 @@ def _criar_aula_com_partida(
     db_session.flush()
 
     partida = PartidaModel(
-        aula_id=aula.id,
+        evento_id=evento.id,
         ordem=1,
         time_a_id=time_a.id,
         time_b_id=time_b.id,
@@ -75,13 +75,13 @@ def _criar_aula_com_partida(
     )
     db_session.add(partida)
     db_session.commit()
-    return dia.data_iso, aula.id, partida.id
+    return dia.data_iso, evento.id, partida.id
 
 
 def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_session):
-    data_iso, aula_id, partida_id = _criar_aula_com_partida(db_session, status_aula=StatusAulaEnum.EM_ANDAMENTO)
+    data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
-    resp = client.put(f"/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/start")
+    resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "ok"
     assert isinstance(resp.json().get("version"), int)
@@ -94,7 +94,7 @@ def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_sessi
     assert resp.status_code == 200, resp.text
     assert resp.json()["lance"]["tipo"] == "GOL"
 
-    resp = client.put(f"/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/end")
+    resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "ok"
 
@@ -108,39 +108,39 @@ def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_sessi
 
 
 def test_partida_nao_inicia_com_evento_fora_de_andamento(client: TestClient, db_session):
-    data_iso, aula_id, partida_id = _criar_aula_com_partida(db_session, status_aula=StatusAulaEnum.PLANEJADA)
+    data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.PLANEJADO)
 
-    resp = client.put(f"/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/start")
+    resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
     assert resp.status_code == 409, resp.text
     assert "Evento precisa estar EM_ANDAMENTO" in resp.text
 
 
 def test_partida_nao_encerra_sem_estar_em_andamento(client: TestClient, db_session):
-    data_iso, aula_id, partida_id = _criar_aula_com_partida(db_session, status_aula=StatusAulaEnum.EM_ANDAMENTO)
+    data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
-    resp = client.put(f"/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/end")
+    resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
     assert resp.status_code == 409, resp.text
     assert "Partida nao pode encerrar neste status" in resp.text
 
 
-def test_finalizar_aula_bloqueia_com_partida_ativa(client: TestClient, db_session):
-    data_iso, aula_id, partida_id = _criar_aula_com_partida(db_session, status_aula=StatusAulaEnum.EM_ANDAMENTO)
+def test_finalizar_evento_bloqueia_com_partida_ativa(client: TestClient, db_session):
+    data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
-    resp = client.put(f"/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/start")
+    resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
     assert resp.status_code == 200, resp.text
 
-    resp = client.put(f"/dias/{data_iso}/aulas/{aula_id}/finish")
+    resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/finish")
     assert resp.status_code == 409, resp.text
     assert "partida em andamento" in resp.text.lower()
 
 
-def test_encerrar_partida_permite_reconciliar_aula_concluida(client: TestClient, db_session):
-    data_iso, aula_id, partida_id = _criar_aula_com_partida(
+def test_encerrar_partida_permite_reconciliar_evento_concluida(client: TestClient, db_session):
+    data_iso, evento_id, partida_id = _criar_evento_com_partida(
         db_session,
-        status_aula=StatusAulaEnum.CONCLUIDA,
+        status_evento=StatusEventoEnum.ENCERRADO,
         status_partida=PartidaStatusEnum.EM_ANDAMENTO,
     )
 
-    resp = client.put(f"/dias/{data_iso}/aulas/{aula_id}/partidas/{partida_id}/end")
+    resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "ok"

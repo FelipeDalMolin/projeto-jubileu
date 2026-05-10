@@ -8,7 +8,6 @@ import {
   obterVisaoGeralEstatisticas,
   type VisaoGeralEstatisticas,
   type ItemScore,
-  type GolsPorTurma,
 } from "../../services/dashboard/estatisticasDashboardService";
 
 const ALLOWED_PERIODS = new Set([30, 90, 365]);
@@ -25,6 +24,10 @@ function useDebouncedValue<T>(value: T, delay = 400) {
 function parsePeriodFromSearch(search: URLSearchParams): number {
   const raw = Number(search.get("periodo") ?? 30);
   return ALLOWED_PERIODS.has(raw) ? raw : 30;
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
 }
 
 export default function DashboardEstatisticas() {
@@ -62,8 +65,8 @@ export default function DashboardEstatisticas() {
           { force },
         );
         setVisao(resp);
-      } catch (err: any) {
-        setError(err?.message ?? "Erro ao carregar estatísticas.");
+      } catch (err: unknown) {
+        setError(errorMessage(err, "Erro ao carregar estatísticas."));
       } finally {
         setLoading(false);
       }
@@ -85,18 +88,18 @@ export default function DashboardEstatisticas() {
     return Array.from(nomes);
   }, [visao]);
 
-  const filterBySearch = <T extends { nome?: string; turmaNome?: string }>(items: T[]) => {
+  const filterBySearch = useCallback(<T extends { nome?: string; turmaNome?: string }>(items: T[]) => {
     const term = debouncedSearch.trim().toLowerCase();
     if (!term) return items;
     return items.filter(
       (i) =>
         (i.nome ?? "").toLowerCase().includes(term) ||
-        (i as any).turmaNome?.toLowerCase?.().includes(term),
+        (i.turmaNome ?? "").toLowerCase().includes(term),
     );
-  };
+  }, [debouncedSearch]);
 
-  const artilheiros = useMemo(() => filterBySearch<ItemScore>(visao?.topArtilheiros ?? []), [visao, debouncedSearch]);
-  const presencas = useMemo(() => filterBySearch<ItemScore>(visao?.topPresencas ?? []), [visao, debouncedSearch]);
+  const artilheiros = useMemo(() => filterBySearch<ItemScore>(visao?.topArtilheiros ?? []), [visao, filterBySearch]);
+  const presencas = useMemo(() => filterBySearch<ItemScore>(visao?.topPresencas ?? []), [visao, filterBySearch]);
   const golsTurma = useMemo(() => {
     const term = debouncedSearch.trim().toLowerCase();
     const base = visao?.golsPorTurma ?? [];

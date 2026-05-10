@@ -3,16 +3,16 @@ from __future__ import annotations
 import enum
 
 
-class StatusAulaEnum(str, enum.Enum):
-    PLANEJADA = "PLANEJADA"
+class StatusEventoEnum(str, enum.Enum):
+    PLANEJADO = "PLANEJADO"
     EM_ANDAMENTO = "EM_ANDAMENTO"
-    CONCLUIDA = "CONCLUIDA"
-    CANCELADA = "CANCELADA"
+    ENCERRADO = "ENCERRADO"
+    CANCELADO = "CANCELADO"
 
 
-class TipoEventoAulaEnum(str, enum.Enum):
+class TipoEventoEnum(str, enum.Enum):
     AULA = "AULA"
-    JOGO = "JOGO"
+    JOGO_LIVRE = "JOGO_LIVRE"
     OUTRO = "OUTRO"
 
 

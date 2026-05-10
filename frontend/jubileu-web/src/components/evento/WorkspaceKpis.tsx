@@ -1,7 +1,7 @@
-import type { WorkspaceAulaKpis } from "../../types/workspaceAula";
+import type { WorkspaceEventoKpis } from "../../types/workspaceEvento";
 
 type Props = {
-  kpis: WorkspaceAulaKpis;
+  kpis: WorkspaceEventoKpis;
 };
 
 export default function WorkspaceKpis({ kpis }: Props) {

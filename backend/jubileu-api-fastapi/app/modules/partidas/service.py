@@ -7,45 +7,45 @@ from typing import Iterable, Optional
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     EstatisticaJogadorPartida as EstatisticaModel,
-    JogadorAula as JogadorAulaModel,
+    JogadorEvento as JogadorEventoModel,
     Partida as PartidaModel,
     TeamConfig as TeamConfigModel,
-    TimeAula as TimeAulaModel,
+    TimeEvento as TimeEventoModel,
 )
 
 
-def validar_times_na_aula(db: Session, aula_id: int, time_a_id: int, time_b_id: int) -> None:
+def validar_times_na_evento(db: Session, evento_id: int, time_a_id: int, time_b_id: int) -> None:
     if time_a_id == time_b_id:
         raise HTTPException(status_code=400, detail="time_a_id e time_b_id devem ser diferentes")
 
     times = (
-        db.query(TimeAulaModel)
+        db.query(TimeEventoModel)
         .filter(
-            TimeAulaModel.aula_id == aula_id,
-            TimeAulaModel.id.in_([time_a_id, time_b_id]),
+            TimeEventoModel.evento_id == evento_id,
+            TimeEventoModel.id.in_([time_a_id, time_b_id]),
         )
         .all()
     )
     if len(times) != 2:
-        raise HTTPException(status_code=400, detail="Times informados nao pertencem a aula")
+        raise HTTPException(status_code=400, detail="Times informados nao pertencem a evento")
 
 
-def mapear_jogadores_da_aula(
+def mapear_jogadores_da_evento(
     db: Session,
-    aula_id: int,
+    evento_id: int,
     jogador_ids: list[int],
-) -> dict[int, JogadorAulaModel]:
+) -> dict[int, JogadorEventoModel]:
     if not jogador_ids:
         return {}
 
     jogadores = (
-        db.query(JogadorAulaModel)
+        db.query(JogadorEventoModel)
         .filter(
-            JogadorAulaModel.aula_id == aula_id,
-            JogadorAulaModel.id.in_(jogador_ids),
+            JogadorEventoModel.evento_id == evento_id,
+            JogadorEventoModel.id.in_(jogador_ids),
         )
         .all()
     )
@@ -56,7 +56,7 @@ def mapear_jogadores_da_aula(
         faltantes_str = ", ".join(str(jid) for jid in sorted(faltantes))
         raise HTTPException(
             status_code=400,
-            detail=f"Jogador(es) nao encontrado(s) na aula: {faltantes_str}",
+            detail=f"Jogador(es) nao encontrado(s) na evento: {faltantes_str}",
         )
 
     return {j.id: j for j in jogadores}
@@ -64,7 +64,7 @@ def mapear_jogadores_da_aula(
 
 def calcular_placar(
     estatisticas: Iterable[EstatisticaModel],
-    jogadores_por_id: dict[int, JogadorAulaModel],
+    jogadores_por_id: dict[int, JogadorEventoModel],
     time_a_id: int,
     time_b_id: int,
 ) -> tuple[int, int]:
@@ -72,17 +72,17 @@ def calcular_placar(
     gols_b = 0
 
     for estat in estatisticas:
-        jogador = jogadores_por_id.get(estat.jogador_aula_id)
+        jogador = jogadores_por_id.get(estat.jogador_evento_id)
         if not jogador:
             raise HTTPException(
                 status_code=400,
-                detail=f"Jogador {estat.jogador_aula_id} nao pertence a aula",
+                detail=f"Jogador {estat.jogador_evento_id} nao pertence a evento",
             )
 
         if jogador.time_id is None:
             raise HTTPException(
                 status_code=400,
-                detail=f"Jogador {jogador.id} nao possui time na aula",
+                detail=f"Jogador {jogador.id} nao possui time na evento",
             )
 
         if jogador.time_id == time_a_id:
@@ -98,10 +98,10 @@ def calcular_placar(
     return gols_a, gols_b
 
 
-def calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
+def calcular_version_atual(db: Session, evento: EventoModel) -> Optional[int]:
     team_config = (
         db.query(TeamConfigModel)
-        .filter(TeamConfigModel.aula_id == aula.id, TeamConfigModel.is_active.is_(True))
+        .filter(TeamConfigModel.evento_id == evento.id, TeamConfigModel.is_active.is_(True))
         .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
         .first()
     )
@@ -110,7 +110,7 @@ def calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
     partidas_db = (
         db.query(PartidaModel)
         .options(selectinload(PartidaModel.estatisticas))
-        .filter(PartidaModel.aula_id == aula.id)
+        .filter(PartidaModel.evento_id == evento.id)
         .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
         .all()
     )
@@ -125,7 +125,7 @@ def calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
                 partida.time_b_id,
                 [
                     [
-                        estat.jogador_aula_id,
+                        estat.jogador_evento_id,
                         estat.gols,
                         estat.assistencias,
                         estat.chiliques,
@@ -133,7 +133,7 @@ def calcular_version_atual(db: Session, aula: AulaModel) -> Optional[int]:
                     ]
                     for estat in sorted(
                         partida.estatisticas,
-                        key=lambda e: (e.id or 0, e.jogador_aula_id),
+                        key=lambda e: (e.id or 0, e.jogador_evento_id),
                     )
                 ],
             ]

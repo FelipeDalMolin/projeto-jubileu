@@ -17,11 +17,11 @@ async function safeText(resp: Response) {
 
 async function executarAcao(
   dataIso: string,
-  aulaId: number,
+  eventoId: number,
   action: "start" | "finish",
 ) {
   const resp = await fetch(
-    buildUrl(`/dias/${dataIso}/aulas/${aulaId}/${action}`),
+    buildUrl(`/dias/${dataIso}/eventos/${eventoId}/${action}`),
     {
       method: "POST",
     },
@@ -29,15 +29,15 @@ async function executarAcao(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao ${action === "start" ? "iniciar" : "encerrar"} aula: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao ${action === "start" ? "iniciar" : "encerrar"} evento: ${resp.status} ${await safeText(resp)}`,
     );
   }
 }
 
-export async function iniciarAula(dataIso: string, aulaId: number) {
-  await executarAcao(dataIso, aulaId, "start");
+export async function iniciarEvento(dataIso: string, eventoId: number) {
+  await executarAcao(dataIso, eventoId, "start");
 }
 
-export async function encerrarAula(dataIso: string, aulaId: number) {
-  await executarAcao(dataIso, aulaId, "finish");
+export async function encerrarEvento(dataIso: string, eventoId: number) {
+  await executarAcao(dataIso, eventoId, "finish");
 }

@@ -16,14 +16,15 @@ export function EventoHeader({
 }: {
   meta: WorkspaceEventoMeta;
   header: WorkspaceEventoHeader;
-  source: "evento" | "aula_legacy";
+  source: "evento";
 }) {
+  void source;
   return (
     <Card className="mb-4 overflow-hidden bg-gradient-to-r from-slate-900 via-slate-800 to-blue-900 text-white">
       <CardHeader className="pb-2">
         <div className="mb-2 flex items-center justify-between">
           <Badge variant="outline" className="border-slate-300/40 bg-slate-900/30 text-slate-100">
-            {source === "aula_legacy" ? "LEGACY /aulas" : "EVENTO CANONICO"}
+            EVENTO CANONICO
           </Badge>
           <Badge variant={statusVariant(meta.status)}>{meta.status}</Badge>
         </div>

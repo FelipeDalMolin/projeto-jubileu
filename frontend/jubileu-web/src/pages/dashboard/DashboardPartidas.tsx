@@ -27,6 +27,10 @@ function parsePeriodFromSearch(search: URLSearchParams): number {
   return ALLOWED_PERIODS.has(raw) ? raw : 30;
 }
 
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export default function DashboardPartidas() {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -64,8 +68,8 @@ export default function DashboardPartidas() {
         ]);
         setResumo(resumoResp);
         setSerie(serieResp.items ?? []);
-      } catch (err: any) {
-        setError(err?.message ?? "Erro ao carregar partidas.");
+      } catch (err: unknown) {
+        setError(errorMessage(err, "Erro ao carregar partidas."));
       } finally {
         setLoading(false);
       }

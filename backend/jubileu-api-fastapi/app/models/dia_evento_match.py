@@ -8,14 +8,14 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.dia_aula_enums import PartidaStatusEnum
+from app.models.dia_evento_enums import PartidaStatusEnum
 
 
 class Partida(Base):
     __tablename__ = "partidas"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    aula_id: Mapped[int] = mapped_column(ForeignKey("aulas.id"), nullable=False)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False)
     ordem: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     status: Mapped[PartidaStatusEnum] = mapped_column(
         SAEnum(PartidaStatusEnum),
@@ -25,12 +25,12 @@ class Partida(Base):
     )
     inicio_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     fim_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    time_a_id: Mapped[int] = mapped_column(Integer, ForeignKey("times_aula.id"), nullable=False)
-    time_b_id: Mapped[int] = mapped_column(Integer, ForeignKey("times_aula.id"), nullable=False)
+    time_a_id: Mapped[int] = mapped_column(Integer, ForeignKey("times_evento.id"), nullable=False)
+    time_b_id: Mapped[int] = mapped_column(Integer, ForeignKey("times_evento.id"), nullable=False)
     gols_time_a: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     gols_time_b: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    aula: Mapped["Aula"] = relationship("Aula", back_populates="partidas")
+    evento: Mapped["Evento"] = relationship("Evento", back_populates="partidas")
     estatisticas: Mapped[List["EstatisticaJogadorPartida"]] = relationship(
         "EstatisticaJogadorPartida",
         back_populates="partida",
@@ -50,7 +50,7 @@ class EstatisticaJogadorPartida(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     partida_id: Mapped[int] = mapped_column(ForeignKey("partidas.id"), nullable=False)
-    jogador_aula_id: Mapped[int] = mapped_column(ForeignKey("jogadores_aula.id"), nullable=False)
+    jogador_evento_id: Mapped[int] = mapped_column(ForeignKey("jogadores_evento.id"), nullable=False)
     gols: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     assistencias: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     chiliques: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -58,4 +58,4 @@ class EstatisticaJogadorPartida(Base):
     nota: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     partida: Mapped["Partida"] = relationship("Partida", back_populates="estatisticas")
-    jogador_aula: Mapped["JogadorAula"] = relationship("JogadorAula")
+    jogador_evento: Mapped["JogadorEvento"] = relationship("JogadorEvento")

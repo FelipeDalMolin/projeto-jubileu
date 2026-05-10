@@ -4,11 +4,11 @@ from typing import List
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.dia_aula import (
-    JogadorAula,
+from app.models.dia_evento import (
+    JogadorEvento,
     EstatisticaJogadorPartida,
     Partida,
-    Aula,
+    Evento,
     Dia,
 )
 from app.models.jogador_turma import Jogador, Turma
@@ -32,19 +32,19 @@ def get_resumo(db: Session) -> JogadoresResumoOut:
     total_jogadores = db.query(func.count(Jogador.id)).scalar() or 0
 
     presentes = (
-        db.query(func.count(JogadorAula.id))
-        .join(Aula, JogadorAula.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
+        db.query(func.count(JogadorEvento.id))
+        .join(Evento, JogadorEvento.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
         .filter(_date_filter(365))
-        .filter(JogadorAula.status.in_(PRESENT_STATUSES))
+        .filter(JogadorEvento.status.in_(PRESENT_STATUSES))
         .scalar()
         or 0
     )
 
     total_registros = (
-        db.query(func.count(JogadorAula.id))
-        .join(Aula, JogadorAula.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
+        db.query(func.count(JogadorEvento.id))
+        .join(Evento, JogadorEvento.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
         .filter(_date_filter(365))
         .scalar()
         or 0
@@ -55,8 +55,8 @@ def get_resumo(db: Session) -> JogadoresResumoOut:
     total_gols = (
         db.query(func.coalesce(func.sum(EstatisticaJogadorPartida.gols), 0))
         .join(Partida, EstatisticaJogadorPartida.partida_id == Partida.id)
-        .join(Aula, Partida.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
+        .join(Evento, Partida.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
         .filter(_date_filter(365))
         .scalar()
         or 0
@@ -75,40 +75,40 @@ def ranking(db: Session, periodo: int, turma_id: int | None) -> JogadoresRanking
 
     base_query = (
         db.query(
-            JogadorAula.id.label("ja_id"),
-            JogadorAula.nome.label("nome"),
-            JogadorAula.jogador_id.label("jogador_id"),
-            JogadorAula.status.label("status"),
-            Aula.turma_id.label("turma_id"),
-            func.coalesce(Aula.turma_nome, Turma.nome).label("turma_nome"),
+            JogadorEvento.id.label("ja_id"),
+            JogadorEvento.nome.label("nome"),
+            JogadorEvento.jogador_id.label("jogador_id"),
+            JogadorEvento.status.label("status"),
+            Evento.turma_id.label("turma_id"),
+            func.coalesce(Evento.turma_nome, Turma.nome).label("turma_nome"),
         )
-        .join(Aula, JogadorAula.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
-        .outerjoin(Turma, Aula.turma_id == Turma.id)
+        .join(Evento, JogadorEvento.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
+        .outerjoin(Turma, Evento.turma_id == Turma.id)
         .filter(filtro_periodo)
     )
 
     if turma_id is not None:
-        base_query = base_query.filter(Aula.turma_id == turma_id)
+        base_query = base_query.filter(Evento.turma_id == turma_id)
 
     jogadores_rows = base_query.all()
 
     stats_rows = (
         db.query(
-            EstatisticaJogadorPartida.jogador_aula_id.label("ja_id"),
+            EstatisticaJogadorPartida.jogador_evento_id.label("ja_id"),
             func.coalesce(func.sum(EstatisticaJogadorPartida.gols), 0).label("gols"),
             func.coalesce(func.sum(EstatisticaJogadorPartida.assistencias), 0).label("assistencias"),
         )
         .join(Partida, EstatisticaJogadorPartida.partida_id == Partida.id)
-        .join(Aula, Partida.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
+        .join(Evento, Partida.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
         .filter(filtro_periodo)
     )
 
     if turma_id is not None:
-        stats_rows = stats_rows.filter(Aula.turma_id == turma_id)
+        stats_rows = stats_rows.filter(Evento.turma_id == turma_id)
 
-    stats_rows = stats_rows.group_by(EstatisticaJogadorPartida.jogador_aula_id).all()
+    stats_rows = stats_rows.group_by(EstatisticaJogadorPartida.jogador_evento_id).all()
 
     stats_map = {row.ja_id: row for row in stats_rows}
 

@@ -1,11 +1,11 @@
 import { addDays, parseISO, isAfter, isEqual } from "date-fns";
-import type { RegistroAula } from "./trofeuTypes";
+import type { RegistroEvento } from "./trofeuTypes";
 
 export function filtrarPorPeriodo(
-  registros: RegistroAula[],
+  registros: RegistroEvento[],
   periodoDias: number,
   hoje: Date = new Date(),
-): RegistroAula[] {
+): RegistroEvento[] {
   const limite = addDays(hoje, -periodoDias);
   return registros.filter((r) => {
     const data = parseISO(r.dataIso);
@@ -13,11 +13,11 @@ export function filtrarPorPeriodo(
   });
 }
 
-export function filtrarPorTurma(registros: RegistroAula[], turmaId?: number | null): RegistroAula[] {
+export function filtrarPorTurma(registros: RegistroEvento[], turmaId?: number | null): RegistroEvento[] {
   if (turmaId === undefined || turmaId === null) return registros;
   return registros.filter((r) => r.turmaId === turmaId);
 }
 
-export function totalAulas(registros: RegistroAula[]): number {
+export function totalEventos(registros: RegistroEvento[]): number {
   return registros.length;
 }

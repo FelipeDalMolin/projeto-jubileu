@@ -2,29 +2,21 @@
 
 ## Direction
 
-Jubileu evolves as a compatibility-first modular monolith.
-
-The canonical domain direction is:
+Jubileu now uses `Evento` as the canonical operational entity:
 
 `Usuarios -> Jogadores -> Dias -> Eventos -> Times -> Partidas -> Estatisticas`
 
-Persistence may remain Aula-centered while the product model converges toward Evento.
+`AULA` remains only as an event mode (`Evento.tipo = AULA`). New work must not introduce public models, routes or payload fields based on an Aula entity.
 
 ## Current Milestone
 
-The current milestone is execution stability:
+The active milestone is the canonical Evento cut:
 
-- align documentation with actual code
-- preserve existing backend/frontend contracts
-- close the operational Evento happy path
-- stabilize polling and auth fallback behavior
-- prepare runtime/deploy documentation for MVP use
-
-Immediate operational priority:
-
-- stabilize `AULA` live semantics and match lifecycle before expanding event types
-- then execute `JOGO_LIVRE` end-to-end as the next operational event mode
-- keep `OUTRO` as modeling-prep only in this cycle
+- persisted tables and FKs use event naming
+- APIs expose `/eventos` surfaces only
+- frontend routes, services and workspace types use Evento
+- `/usuario` shows persisted profile, linked jogador and participated events
+- Dashboard, Jogadores, Turmas and session surfaces are kept operational and scan-friendly
 
 ## Execution Tracks
 
@@ -32,52 +24,55 @@ Immediate operational priority:
 
 Focus:
 
-- event API contract hardening
-- WorkspaceEvento read-model preparation
-- auth/session operational hardening
+- canonical Evento models and Alembic migration
+- persisted Usuario entity
+- `auth/me` backed by persisted users
+- `usuarios/me` profile and event history endpoint
+- event-only tests for workspace, lifecycle, lances, rotation and user profile
 
 ### Frontend
 
 Focus:
 
-- canonical event contract alignment
-- WorkspaceEvento adapter
-- RSVP/check-in self actions
-- live polling stability
-- user/jogador session clarity
+- event-only routes and services
+- WorkspaceEvento without adapter indirection
+- Usuario page with profile and event history
+- Dashboard home using backend data instead of mocks
+- Jogadores status values aligned with backend
 
 ### Infra
 
 Focus:
 
-- local runtime clarity
-- PostgreSQL/Alembic validation
-- NGINX gateway assumptions
-- MVP deploy hardening
+- PostgreSQL migration validation
+- release notes for breaking route changes
+- local smoke for login, Usuario, AULA-mode event and JOGO_LIVRE
 
-## Delivery Order
+## Current Closure Window
 
-1. Documentation consolidation.
-2. Backend contract hardening.
-3. Frontend contract alignment.
-4. WorkspaceEvento adapter.
-5. Self actions and check-in flow.
-6. Polling and auth stability.
-7. Operational session hardening.
-8. Infra/deploy MVP.
+| DEV | Status | Notes |
+|---|---|---|
+| DEV-33 | Completed in repo | API, roadmap, releases and validation docs updated for canonical Evento. |
+| Proposed DEV-37 / Linear DEV-34 | Implemented in repo | Evento canonical migration decision and checklist. |
+| Proposed DEV-38 / Linear DEV-35 | Implemented in repo | Alembic migration renames persistence to Evento and adds Usuario. |
+| Proposed DEV-39 / Linear DEV-36 | Implemented in repo | Backend APIs and auth use Evento/Usuario contracts. |
+| Proposed DEV-40 / Linear DEV-37 | Implemented in repo | Frontend removed Aula route/types/services and uses Evento-only workspace. |
+| Proposed DEV-41 / Linear DEV-38 | Implemented in repo | Persisted Usuario and `/api/usuarios/me`. |
+| Proposed DEV-42 / Linear DEV-39 | Implemented in repo | `/usuario` profile and participated events. |
+| Proposed DEV-43 / Linear DEV-40 | Partially implemented | Dashboard home now reads backend data; Jogadores status options aligned. |
+| Proposed DEV-44 / Linear DEV-41 | In progress | Final migration smoke and release validation. |
 
 ## Compatibility Rules
 
-- Keep legacy routes during transition.
 - Keep `/api` gateway assumptions.
 - Keep backend authorization as source of truth.
-- Keep persistence names until a dedicated migration exists.
-- Do not break frontend payload expectations without a bridge.
+- Do not reintroduce `/aulas`, `aulaId`, `aula_id` or `WorkspaceAula`.
+- Historical migrations may retain old names; active models and public contracts must not.
+- `OUTRO` remains modeling-prep unless a dedicated operational flow is added.
 
 ## Deferred Work
 
-- Full Aula to Evento persistence rename.
 - Pure `/eventos/:eventoId` deep-link without Dia context.
 - WebSocket/MQTT real-time flow.
-- Removal of legacy auth compatibility.
-- Removal of legacy Aula routes.
+- Removal of legacy header auth compatibility.
+- Full visual redesign of Turmas and Turma detail beyond the current operational cleanup.

@@ -12,7 +12,7 @@ export type EquipeView = {
 
 export type EstadoEquipesDia = {
   /**
-   * Chave da aula/dia na API. No nosso caso estamos usando aula.id.
+   * Chave da evento/dia na API. No nosso caso estamos usando evento.id.
    */
   diaId: string;
   jogadores: JogadorEquipeView[];

@@ -63,24 +63,24 @@ def test_fluxo_mvp(client: TestClient):
     dia = resp.json()
     assert dia["data_iso"] == data_iso
 
-    # cria aula no dia usando turma_id int
+    # cria evento no dia usando turma_id int
     resp = client.post(
-        f"/dias/{data_iso}/aulas",
+        f"/dias/{data_iso}/eventos",
         json={
             "turma_id": turma_id,
             "turma_nome": "ignorado",
-            "numero_aula_na_turma": 1,
+            "numero_evento_na_turma": 1,
             "tipo": "AULA",
             "horario_inicio": "19:00",
             "horario_fim": "20:00",
-            "status": "PLANEJADA",
+            "status": "PLANEJADO",
         },
     )
     assert resp.status_code == 201, resp.text
-    aula = resp.json()
-    aula_id = aula["id"]
-    assert aula["turma_id"] == turma_id
-    assert aula["turma_nome"] == "Turma Teste"
+    evento = resp.json()
+    evento_id = evento["id"]
+    assert evento["turma_id"] == turma_id
+    assert evento["turma_nome"] == "Turma Teste"
 
     # salva estado de equipes
     payload_estado = {
@@ -109,16 +109,47 @@ def test_fluxo_mvp(client: TestClient):
         ],
     }
     resp = client.put(
-        f"/dias/{data_iso}/aulas/{aula_id}/estado-equipes",
+        f"/dias/{data_iso}/eventos/{evento_id}/estado-equipes",
         json=payload_estado,
     )
     assert resp.status_code == 200, resp.text
 
     # lê estado-equipes e valida estrutura
-    resp = client.get(f"/dias/{data_iso}/aulas/{aula_id}/estado-equipes")
+    resp = client.get(f"/dias/{data_iso}/eventos/{evento_id}/estado-equipes")
     assert resp.status_code == 200, resp.text
     estado = resp.json()
-    assert estado["aula_id"] == aula_id
+    assert estado["evento_id"] == evento_id
     assert len(estado["jogadores"]) == 1
     assert len(estado["times"]) == 1
     assert estado["times"][0]["jogadoresIds"] == [jogador_id]
+
+
+def test_criacao_evento_condiciona_turma_por_tipo(client: TestClient):
+    data_iso = "2026-05-09"
+
+    resp = client.post(
+        f"/dias/{data_iso}/eventos",
+        json={
+            "tipo": "JOGO_LIVRE",
+            "horario_inicio": "19:00",
+            "horario_fim": "20:00",
+            "status": "PLANEJADO",
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    evento = resp.json()
+    assert evento["tipo"] == "JOGO_LIVRE"
+    assert evento["turma_id"] is None
+    assert evento["turma_nome"] is None
+    assert evento["numero_evento_na_turma"] is None
+
+    resp = client.post(
+        f"/dias/{data_iso}/eventos",
+        json={
+            "tipo": "AULA",
+            "horario_inicio": "20:00",
+            "horario_fim": "21:00",
+            "status": "PLANEJADO",
+        },
+    )
+    assert resp.status_code == 422

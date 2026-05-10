@@ -4,27 +4,27 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.dia_aula import (
-    Aula as AulaModel,
-    JogadorAula as JogadorAulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
+    JogadorEvento as JogadorEventoModel,
     TeamConfig as TeamConfigModel,
-    TimeAula as TimeAulaModel,
+    TimeEvento as TimeEventoModel,
 )
 
 
-def _next_team_config_version(db: Session, aula_id: int) -> int:
+def _next_team_config_version(db: Session, evento_id: int) -> int:
     last_version = (
         db.query(func.max(TeamConfigModel.version))
-        .filter(TeamConfigModel.aula_id == aula_id)
+        .filter(TeamConfigModel.evento_id == evento_id)
         .scalar()
     )
     return int(last_version or 0) + 1
 
 
-def _deactivate_team_configs(db: Session, aula_id: int) -> None:
+def _deactivate_team_configs(db: Session, evento_id: int) -> None:
     (
         db.query(TeamConfigModel)
-        .filter(TeamConfigModel.aula_id == aula_id)
+        .filter(TeamConfigModel.evento_id == evento_id)
         .filter(TeamConfigModel.is_active.is_(True))
         .update({TeamConfigModel.is_active: False})
     )
@@ -32,14 +32,14 @@ def _deactivate_team_configs(db: Session, aula_id: int) -> None:
 
 def create_team_config(
     db: Session,
-    aula: AulaModel,
+    evento: EventoModel,
     estado: dict,
 ) -> TeamConfigModel:
-    version = _next_team_config_version(db, aula.id)
-    _deactivate_team_configs(db, aula.id)
+    version = _next_team_config_version(db, evento.id)
+    _deactivate_team_configs(db, evento.id)
 
     config = TeamConfigModel(
-        aula_id=aula.id,
+        evento_id=evento.id,
         estado=estado,
         version=version,
         is_active=True,
@@ -49,14 +49,14 @@ def create_team_config(
     return config
 
 
-def rebuild_estado_equipes(db: Session, aula: AulaModel) -> TeamConfigModel:
+def rebuild_estado_equipes(db: Session, evento: EventoModel) -> TeamConfigModel:
     """
     Reconstrói o snapshot de equipes a partir do estado atual de jogadores e times.
     Incrementa a versão sempre que reconstruído e atualiza o updated_at.
     """
     # Snapshot de jogadores
     jogadores_snapshot = []
-    for jog in aula.jogadores:
+    for jog in evento.jogadores:
         jogadores_snapshot.append(
             {
                 "jogadorId": jog.id,
@@ -74,8 +74,8 @@ def rebuild_estado_equipes(db: Session, aula: AulaModel) -> TeamConfigModel:
 
     # Snapshot de times
     times_snapshot = []
-    for t in aula.times:
-        jogadores_ids = [j.id for j in aula.jogadores if j.time_id == t.id]
+    for t in evento.times:
+        jogadores_ids = [j.id for j in evento.jogadores if j.time_id == t.id]
         times_snapshot.append(
             {
                 "id": str(t.id),
@@ -88,4 +88,4 @@ def rebuild_estado_equipes(db: Session, aula: AulaModel) -> TeamConfigModel:
 
     estado = {"jogadores": jogadores_snapshot, "times": times_snapshot}
 
-    return create_team_config(db, aula, estado)
+    return create_team_config(db, evento, estado)

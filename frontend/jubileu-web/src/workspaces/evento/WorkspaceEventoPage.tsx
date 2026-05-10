@@ -3,10 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "../../components/ui/button";
-import WorkspaceEquipesPanel from "../../components/aula/WorkspaceEquipesPanel";
-import WorkspacePartidasPanel from "../../components/aula/WorkspacePartidasPanel";
+import WorkspaceEquipesPanel from "../../components/evento/WorkspaceEquipesPanel";
+import WorkspacePartidasPanel from "../../components/evento/WorkspacePartidasPanel";
 import { useAuthSession } from "../../hooks/useAuthSession";
-import { criarPartidaNaAula, encerrarPartidaNaAula, iniciarPartidaNaAula } from "../../services/diasService";
+import { criarPartidaNoEvento, encerrarPartidaNoEvento, iniciarPartidaNoEvento } from "../../services/diasService";
 import {
   listarLancesEvento,
   listarParticipantesEvento,
@@ -18,9 +18,9 @@ import {
   confirmarSorteioRotacaoEvento,
   type AuthHeaders,
 } from "../../services/eventosService";
-import { obterWorkspaceAula } from "../../services/workspaceAulaService";
+import { obterWorkspaceEvento } from "../../services/workspaceEventoService";
 import type { RotacaoPreview } from "../../types/rotacao";
-import type { WorkspaceAula } from "../../types/workspaceAula";
+import type { WorkspaceEvento } from "../../types/workspaceEvento";
 import { EventoBottomTabs } from "./components/EventoBottomTabs";
 import { EventoContextBar } from "./components/EventoContextBar";
 import { EventoHeader } from "./components/EventoHeader";
@@ -35,12 +35,11 @@ import { TimesPanel } from "./components/TimesPanel";
 import { EventoStatusActions } from "./components/EventoStatusActions";
 import { RotacaoFilaPanel } from "./components/RotacaoFilaPanel";
 import { resolveEventoCapabilities } from "./capabilities";
-import { toWorkspaceEvento } from "./workspaceEventoAdapter";
 
 type Props = {
   dataIso?: string;
   eventoId?: string;
-  source: "evento" | "aula_legacy";
+  source: "evento";
 };
 
 function toEventoIdNumberOrNull(eventoId?: string): number | null {
@@ -69,14 +68,14 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
   const [selectedHistoryPartidaId, setSelectedHistoryPartidaId] = useState<number | null>(null);
   const requestAuth = toRequestAuth(auth.getRequestAuth);
   const eventoIdNum = toEventoIdNumberOrNull(eventoId);
-  const workspaceCacheRef = useRef<WorkspaceAula | null>(null);
+  const workspaceCacheRef = useRef<WorkspaceEvento | null>(null);
 
   const workspaceQuery = useQuery({
     queryKey: ["workspace-evento", dataIso, eventoIdNum],
     enabled: Boolean(dataIso && eventoIdNum !== null),
     queryFn: async () => {
       if (!dataIso || eventoIdNum === null) return null;
-      const resp = await obterWorkspaceAula(
+      const resp = await obterWorkspaceEvento(
         dataIso,
         eventoIdNum,
         workspaceCacheRef.current?.meta.version,
@@ -90,11 +89,8 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     refetchInterval: () => (document.hidden ? false : 4000),
   });
 
-  const workspaceLegacy = workspaceQuery.data ?? null;
-  const workspace = useMemo(
-    () => (workspaceLegacy ? toWorkspaceEvento(workspaceLegacy) : null),
-    [workspaceLegacy],
-  );
+  const workspace = workspaceQuery.data ?? null;
+  const workspaceLegacy = workspace;
 
   const caps = useMemo(() => {
     if (!workspace || !auth.user) return null;
@@ -222,7 +218,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
   const startPartidaMutation = useMutation({
     mutationFn: async ({ partidaId }: { partidaId: number }) => {
       if (!dataIso || eventoIdNum === null) throw new Error("Evento invalido");
-      return await iniciarPartidaNaAula(dataIso, eventoIdNum, partidaId);
+      return await iniciarPartidaNoEvento(dataIso, eventoIdNum, partidaId);
     },
     onSuccess: async () => {
       await Promise.all([workspaceQuery.refetch(), timelineQuery.refetch()]);
@@ -232,7 +228,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
   const endPartidaMutation = useMutation({
     mutationFn: async ({ partidaId }: { partidaId: number }) => {
       if (!dataIso || eventoIdNum === null) throw new Error("Evento invalido");
-      return await encerrarPartidaNaAula(dataIso, eventoIdNum, partidaId);
+      return await encerrarPartidaNoEvento(dataIso, eventoIdNum, partidaId);
     },
     onSuccess: async () => {
       await Promise.all([workspaceQuery.refetch(), timelineQuery.refetch(), rotacaoQuery.refetch()]);
@@ -266,11 +262,11 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
         throw new Error("Monte ao menos 2 equipes antes de criar partida.");
       }
 
-      const partida = await criarPartidaNaAula(dataIso, eventoIdNum, {
+      const partida = await criarPartidaNoEvento(dataIso, eventoIdNum, {
         timeAId: timesOrdenados[0].id,
         timeBId: timesOrdenados[1].id,
       });
-      await iniciarPartidaNaAula(dataIso, eventoIdNum, partida.id);
+      await iniciarPartidaNoEvento(dataIso, eventoIdNum, partida.id);
       return partida;
     },
     onSuccess: async () => {
@@ -410,7 +406,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
 
           <WorkspaceEquipesPanel
             dataIso={workspaceLegacy.meta.data_iso}
-            aulaId={eventoIdNum}
+            eventoId={eventoIdNum}
             meta={workspaceLegacy.meta}
             equipes={workspaceLegacy.equipes}
             showEventStatusCard={false}
@@ -599,7 +595,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
           ) : null}
           <WorkspacePartidasPanel
             dataIso={workspaceLegacy.meta.data_iso}
-            aulaId={eventoIdNum}
+            eventoId={eventoIdNum}
             equipes={workspaceLegacy.equipes}
             partidas={partidasParaPainel}
             mode={partidasPanelMode}
@@ -655,9 +651,6 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
         <Button variant="ghost" onClick={() => navigate(`/dias/${dataIso}`)}>
           Voltar para o dia
         </Button>
-        {source === "aula_legacy" ? (
-          <span className="text-xs text-muted-foreground">Compat mode: /aulas</span>
-        ) : null}
       </div>
 
       <EventoHeader meta={workspace.meta} header={workspace.header} source={source} />

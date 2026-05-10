@@ -1,6 +1,6 @@
 import type {
   EstatisticaJogadorPartida,
-  PartidaAula,
+  PartidaEvento,
 } from "../types/dia";
 
 const API_BASE_URL =
@@ -20,27 +20,44 @@ async function safeText(resp: Response) {
   }
 }
 
-function mapEstatistica(api: any): EstatisticaJogadorPartida {
+type ApiRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): ApiRecord {
+  return typeof value === "object" && value !== null ? (value as ApiRecord) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function mapEstatistica(raw: unknown): EstatisticaJogadorPartida {
+  const api = asRecord(raw);
   return {
-    id: api.id,
-    jogadorAulaId: Number(api.jogador_aula_id ?? api.jogadorAulaId ?? api.jogadorId ?? 0),
-    gols: Number(api.gols ?? 0),
-    assistencias: Number(api.assistencias ?? 0),
-    chiliques: Number(api.chiliques ?? 0),
-    faltas: Number(api.faltas ?? 0),
-    nota: api.nota != null ? Number(api.nota) : undefined,
+    id: api.id != null ? asNumber(api.id) : undefined,
+    jogadorEventoId: asNumber(api.jogador_evento_id ?? api.jogadorEventoId ?? api.jogadorId),
+    gols: asNumber(api.gols),
+    assistencias: asNumber(api.assistencias),
+    chiliques: asNumber(api.chiliques),
+    faltas: asNumber(api.faltas),
+    nota: api.nota != null ? asNumber(api.nota) : undefined,
   };
 }
 
-function mapPartida(api: any): PartidaAula {
+function mapPartida(raw: unknown): PartidaEvento {
+  const api = asRecord(raw);
   return {
-    id: Number(api.id),
-    ordem: Number(api.ordem ?? 0),
+    id: asNumber(api.id),
+    ordem: asNumber(api.ordem),
     timeAId: String(api.time_a_id ?? api.timeAId ?? ""),
     timeBId: String(api.time_b_id ?? api.timeBId ?? ""),
-    golsTimeA: Number(api.gols_time_a ?? api.golsTimeA ?? 0),
-    golsTimeB: Number(api.gols_time_b ?? api.golsTimeB ?? 0),
-    estatisticas: (api.estatisticas ?? []).map(mapEstatistica),
+    golsTimeA: asNumber(api.gols_time_a ?? api.golsTimeA),
+    golsTimeB: asNumber(api.gols_time_b ?? api.golsTimeB),
+    estatisticas: asArray(api.estatisticas).map(mapEstatistica),
   };
 }
 
@@ -62,7 +79,7 @@ function toPayload(input: PartidaInput) {
     time_a_id: parseTimeId(input.timeAId),
     time_b_id: parseTimeId(input.timeBId),
     estatisticas: (input.estatisticas ?? []).map((e) => ({
-      jogador_aula_id: e.jogadorAulaId,
+      jogador_evento_id: e.jogadorEventoId,
       gols: e.gols ?? 0,
       assistencias: e.assistencias ?? 0,
       chiliques: e.chiliques ?? 0,
@@ -74,9 +91,9 @@ function toPayload(input: PartidaInput) {
 
 export async function listarPartidas(
   dataIso: string,
-  aulaId: string,
-): Promise<PartidaAula[]> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas`));
+  eventoId: string,
+): Promise<PartidaEvento[]> {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/partidas`));
   if (!resp.ok) {
     throw new Error(
       `Erro ao listar partidas: ${resp.status} ${await safeText(resp)}`,
@@ -88,10 +105,10 @@ export async function listarPartidas(
 
 export async function criarPartida(
   dataIso: string,
-  aulaId: string,
+  eventoId: string,
   input: PartidaInput,
-): Promise<PartidaAula> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas`), {
+): Promise<PartidaEvento> {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/partidas`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(toPayload(input)),
@@ -108,12 +125,12 @@ export async function criarPartida(
 
 export async function atualizarPartida(
   dataIso: string,
-  aulaId: string,
+  eventoId: string,
   partidaId: string,
   input: PartidaInput,
-): Promise<PartidaAula> {
+): Promise<PartidaEvento> {
   const resp = await fetch(
-    url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}`),
+    url(`/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}`),
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -132,11 +149,11 @@ export async function atualizarPartida(
 
 export async function deletarPartida(
   dataIso: string,
-  aulaId: string,
+  eventoId: string,
   partidaId: string,
 ): Promise<void> {
   const resp = await fetch(
-    url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}`),
+    url(`/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}`),
     { method: "DELETE" },
   );
 

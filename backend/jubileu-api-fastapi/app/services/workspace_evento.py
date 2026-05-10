@@ -7,41 +7,41 @@ from typing import Any, List, Optional, Tuple
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     Dia as DiaModel,
-    JogadorAula as JogadorAulaModel,
+    JogadorEvento as JogadorEventoModel,
     Lance as LanceModel,
     Partida as PartidaModel,
     StatusPresencaEnum,
     TeamConfig as TeamConfigModel,
 )
-from app.schemas.dia_aula import PartidaEstadoOut, PresencaJogadorDiaOut, TimeAulaOut
+from app.schemas.dia_evento import PartidaEstadoOut, PresencaJogadorDiaOut, TimeEventoOut
 from app.schemas.workspace import (
-    WorkspaceAulaEquipesOut,
-    WorkspaceAulaHeaderOut,
-    WorkspaceAulaKpisOut,
-    WorkspaceAulaMetaOut,
-    WorkspaceAulaOut,
-    WorkspaceAulaWarningOut,
+    WorkspaceEventoEquipesOut,
+    WorkspaceEventoHeaderOut,
+    WorkspaceEventoKpisOut,
+    WorkspaceEventoMetaOut,
+    WorkspaceEventoOut,
+    WorkspaceEventoWarningOut,
 )
 from app.services.estado_equipes import rebuild_estado_equipes
 
 
 def _carregar_snapshot_equipes(
     db: Session,
-    aula: AulaModel,
-) -> tuple[List[PresencaJogadorDiaOut], List[TimeAulaOut], int]:
+    evento: EventoModel,
+) -> tuple[List[PresencaJogadorDiaOut], List[TimeEventoOut], int]:
     team_config = (
         db.query(TeamConfigModel)
-        .filter(TeamConfigModel.aula_id == aula.id, TeamConfigModel.is_active.is_(True))
+        .filter(TeamConfigModel.evento_id == evento.id, TeamConfigModel.is_active.is_(True))
         .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
         .first()
     )
 
     if not team_config:
-        db.refresh(aula, attribute_names=["jogadores", "times"])
-        team_config = rebuild_estado_equipes(db, aula)
+        db.refresh(evento, attribute_names=["jogadores", "times"])
+        team_config = rebuild_estado_equipes(db, evento)
         db.flush()
 
     base_version = int(team_config.version) if team_config and team_config.version is not None else 0
@@ -51,7 +51,7 @@ def _carregar_snapshot_equipes(
         jogadores_raw = estado_dict.get("jogadores", []) or []
         times_raw = estado_dict.get("times", []) or []
         jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]
-        times = [TimeAulaOut.model_validate(t) for t in times_raw]
+        times = [TimeEventoOut.model_validate(t) for t in times_raw]
     else:
         jogadores = []
         times = []
@@ -61,7 +61,7 @@ def _carregar_snapshot_equipes(
 
 def _carregar_partidas(
     db: Session,
-    aula: AulaModel,
+    evento: EventoModel,
 ) -> tuple[List[PartidaEstadoOut], int]:
     partidas_db = (
         db.query(PartidaModel)
@@ -69,28 +69,28 @@ def _carregar_partidas(
             selectinload(PartidaModel.estatisticas),
             selectinload(PartidaModel.lances),
         )
-        .filter(PartidaModel.aula_id == aula.id)
+        .filter(PartidaModel.evento_id == evento.id)
         .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
         .all()
     )
 
     estat_ids = [
-        estat.jogador_aula_id
+        estat.jogador_evento_id
         for partida in partidas_db
         for estat in partida.estatisticas
     ]
 
-    jogador_aula_rows = (
-        db.query(JogadorAulaModel.id, JogadorAulaModel.jogador_id, JogadorAulaModel.time_id)
-        .filter(JogadorAulaModel.aula_id == aula.id)
+    jogador_evento_rows = (
+        db.query(JogadorEventoModel.id, JogadorEventoModel.jogador_id, JogadorEventoModel.time_id)
+        .filter(JogadorEventoModel.evento_id == evento.id)
         .all()
     )
     jogadores_time_map: dict[int, Optional[int]] = {
-        int(row.id): row.time_id for row in jogador_aula_rows
+        int(row.id): row.time_id for row in jogador_evento_rows
     }
     jogadores_global_time_map: dict[int, Optional[int]] = {
         int(row.jogador_id): row.time_id
-        for row in jogador_aula_rows
+        for row in jogador_evento_rows
         if row.jogador_id is not None
     }
 
@@ -101,7 +101,7 @@ def _carregar_partidas(
         gols_a_stats = 0
         gols_b_stats = 0
         for estat in partida.estatisticas:
-            time_id = jogadores_time_map.get(estat.jogador_aula_id)
+            time_id = jogadores_time_map.get(estat.jogador_evento_id)
             if time_id == partida.time_a_id:
                 gols_a_stats += estat.gols
             elif time_id == partida.time_b_id:
@@ -165,7 +165,7 @@ def _carregar_partidas(
                 gols_b,
                 [
                     [
-                        estat.jogador_aula_id,
+                        estat.jogador_evento_id,
                         estat.gols,
                         estat.assistencias,
                         estat.chiliques,
@@ -173,7 +173,7 @@ def _carregar_partidas(
                     ]
                     for estat in sorted(
                         partida.estatisticas,
-                        key=lambda e: (e.id or 0, e.jogador_aula_id),
+                        key=lambda e: (e.id or 0, e.jogador_evento_id),
                     )
                 ],
                 [
@@ -202,36 +202,40 @@ def _carregar_partidas(
     return partidas_out, partidas_crc32
 
 
-def _montar_header(aula: AulaModel) -> WorkspaceAulaHeaderOut:
-    titulo = f"Aula #{aula.numero_aula_na_turma} - {aula.turma_nome}"
-    return WorkspaceAulaHeaderOut(
+def _montar_header(evento: EventoModel) -> WorkspaceEventoHeaderOut:
+    if evento.turma_nome:
+        titulo = f"Evento #{evento.numero_evento_na_turma} - {evento.turma_nome}"
+    else:
+        tipo = evento.tipo.value if hasattr(evento.tipo, "value") else str(evento.tipo)
+        titulo = f"Evento #{evento.id} - {tipo.replace('_', ' ').title()}"
+    return WorkspaceEventoHeaderOut(
         titulo=titulo,
-        horario_inicio=aula.horario_inicio,
-        horario_fim=aula.horario_fim,
+        horario_inicio=evento.horario_inicio,
+        horario_fim=evento.horario_fim,
     )
 
 
-def _calcular_kpis(db: Session, aula: AulaModel) -> WorkspaceAulaKpisOut:
+def _calcular_kpis(db: Session, evento: EventoModel) -> WorkspaceEventoKpisOut:
     total_jogadores = (
-        db.query(func.count(JogadorAulaModel.id))
-        .filter(JogadorAulaModel.aula_id == aula.id)
+        db.query(func.count(JogadorEventoModel.id))
+        .filter(JogadorEventoModel.evento_id == evento.id)
         .scalar()
     )
 
     presentes = (
-        db.query(func.count(JogadorAulaModel.id))
-        .filter(JogadorAulaModel.aula_id == aula.id)
-        .filter(JogadorAulaModel.status == StatusPresencaEnum.presente)
+        db.query(func.count(JogadorEventoModel.id))
+        .filter(JogadorEventoModel.evento_id == evento.id)
+        .filter(JogadorEventoModel.status == StatusPresencaEnum.presente)
         .scalar()
     )
 
     gols_total = (
         db.query(func.coalesce(func.sum(PartidaModel.gols_time_a + PartidaModel.gols_time_b), 0))
-        .filter(PartidaModel.aula_id == aula.id)
+        .filter(PartidaModel.evento_id == evento.id)
         .scalar()
     )
 
-    return WorkspaceAulaKpisOut(
+    return WorkspaceEventoKpisOut(
         presentes=int(presentes or 0),
         total_jogadores=int(total_jogadores or 0),
         gols_total=int(gols_total or 0),
@@ -240,16 +244,16 @@ def _calcular_kpis(db: Session, aula: AulaModel) -> WorkspaceAulaKpisOut:
 
 def _montar_warnings(
     jogadores: List[PresencaJogadorDiaOut],
-    times: List[TimeAulaOut],
+    times: List[TimeEventoOut],
     partidas: List[PartidaEstadoOut],
-) -> List[WorkspaceAulaWarningOut]:
-    warnings: List[WorkspaceAulaWarningOut] = []
+) -> List[WorkspaceEventoWarningOut]:
+    warnings: List[WorkspaceEventoWarningOut] = []
 
     presentes = [j for j in jogadores if j.status == StatusPresencaEnum.presente]
 
     if any(j.timeId is None for j in presentes):
         warnings.append(
-            WorkspaceAulaWarningOut(
+            WorkspaceEventoWarningOut(
                 code="PLAYER_WITHOUT_TEAM",
                 message="Ha jogadores presentes sem time.",
                 severity="warning",
@@ -261,7 +265,7 @@ def _montar_warnings(
         if tamanhos:
             if max(tamanhos) - min(tamanhos) > 1:
                 warnings.append(
-                    WorkspaceAulaWarningOut(
+                    WorkspaceEventoWarningOut(
                         code="UNBALANCED_TEAMS",
                         message="Times desbalanceados.",
                         severity="warning",
@@ -270,7 +274,7 @@ def _montar_warnings(
 
     if not presentes:
         warnings.append(
-            WorkspaceAulaWarningOut(
+            WorkspaceEventoWarningOut(
                 code="NO_PLAYERS_PRESENT",
                 message="Nenhum jogador presente.",
                 severity="info",
@@ -279,9 +283,9 @@ def _montar_warnings(
 
     if not partidas:
         warnings.append(
-            WorkspaceAulaWarningOut(
+            WorkspaceEventoWarningOut(
                 code="NO_MATCHES",
-                message="Aula sem partidas.",
+                message="Evento sem partidas.",
                 severity="info",
             )
         )
@@ -289,21 +293,21 @@ def _montar_warnings(
     return warnings
 
 
-def build_workspace_aula(db: Session, aula: AulaModel) -> WorkspaceAulaOut:
+def build_workspace_evento(db: Session, evento: EventoModel) -> WorkspaceEventoOut:
     dia = (
         db.query(DiaModel)
-        .filter(DiaModel.id == aula.dia_id)
+        .filter(DiaModel.id == evento.dia_id)
         .first()
     )
     data_iso = dia.data_iso if dia else ""
 
-    jogadores, times, base_version = _carregar_snapshot_equipes(db, aula)
-    partidas_out, partidas_crc32 = _carregar_partidas(db, aula)
+    jogadores, times, base_version = _carregar_snapshot_equipes(db, evento)
+    partidas_out, partidas_crc32 = _carregar_partidas(db, evento)
     event_meta_payload = [
-        aula.status.value if hasattr(aula.status, "value") else str(aula.status),
-        aula.tipo.value if hasattr(aula.tipo, "value") else str(aula.tipo),
-        aula.horario_inicio,
-        aula.horario_fim,
+        evento.status.value if hasattr(evento.status, "value") else str(evento.status),
+        evento.tipo.value if hasattr(evento.tipo, "value") else str(evento.tipo),
+        evento.horario_inicio,
+        evento.horario_fim,
     ]
     event_meta_crc32 = zlib.crc32(
         json.dumps(event_meta_payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -313,20 +317,20 @@ def build_workspace_aula(db: Session, aula: AulaModel) -> WorkspaceAulaOut:
     ) & 0xFFFFFFFF
     current_version = (base_version << 32) | content_crc32
 
-    meta = WorkspaceAulaMetaOut(
-        id=aula.id,
+    meta = WorkspaceEventoMetaOut(
+        id=evento.id,
         data_iso=data_iso,
-        turma_id=aula.turma_id,
-        status=aula.status,
-        tipo=aula.tipo,
+        turma_id=evento.turma_id,
+        status=evento.status,
+        tipo=evento.tipo,
         version=current_version,
     )
 
-    return WorkspaceAulaOut(
+    return WorkspaceEventoOut(
         meta=meta,
-        header=_montar_header(aula),
-        kpis=_calcular_kpis(db, aula),
-        equipes=WorkspaceAulaEquipesOut(
+        header=_montar_header(evento),
+        kpis=_calcular_kpis(db, evento),
+        equipes=WorkspaceEventoEquipesOut(
             jogadores=jogadores,
             times=times,
         ),

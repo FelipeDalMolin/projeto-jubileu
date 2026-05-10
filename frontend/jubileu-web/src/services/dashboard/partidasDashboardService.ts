@@ -2,7 +2,7 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 type CacheEntry<T> = { ts: number; data: T };
-const cache = new Map<string, CacheEntry<any>>();
+const cache = new Map<string, CacheEntry<unknown>>();
 const TTL = 30 * 1000;
 
 export type ResumoPartidas = {

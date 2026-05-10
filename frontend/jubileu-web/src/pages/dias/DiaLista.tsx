@@ -77,7 +77,7 @@ export default function DiaLista() {
     return map;
   }, [dias]);
 
-  // Dias do mês atual que têm aulas/eventos
+  // Dias do mês atual que têm eventos/eventos
   const diasDoMesAtual = useMemo(() => {
     return dias.filter((dia) => {
       const dt = parseISO(dia.dataIso);
@@ -113,7 +113,7 @@ export default function DiaLista() {
     <div style={{ padding: 24 }}>
       <h1>Agenda de dias</h1>
       <p style={{ marginBottom: 16 }}>
-        Use o calendário para navegar e selecione um dia para ver as aulas.
+        Use o calendário para navegar e selecione um dia para ver as eventos.
       </p>
 
       <div
@@ -210,15 +210,15 @@ export default function DiaLista() {
           />
         </section>
 
-        {/* Coluna direita: lista de dias do mês com aulas/eventos */}
+        {/* Coluna direita: lista de dias do mês com eventos/eventos */}
         <section>
           <h2 style={{ marginTop: 0, fontSize: 16 }}>
-            Dias com aulas / eventos no mês
+            Dias com eventos / eventos no mês
           </h2>
 
           {diasDoMesAtual.length === 0 ? (
             <p style={{ fontSize: 13, color: "#555" }}>
-              Nenhuma aula ou evento cadastrado para este mês ainda.
+              Nenhuma evento ou evento cadastrado para este mês ainda.
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -226,7 +226,7 @@ export default function DiaLista() {
                 const dateObj = parseISO(dia.dataIso);
                 const titulo = format(dateObj, "dd/MM/yyyy", { locale: ptBR });
                 const semana = format(dateObj, "EEEE", { locale: ptBR });
-                const totalAulas = dia.aulas.length;
+                const totalEventos = dia.eventos.length;
 
                 return (
                   <button
@@ -261,9 +261,9 @@ export default function DiaLista() {
                       {semana}
                     </div>
                     <div style={{ fontSize: 11, marginTop: 2 }}>
-                      {totalAulas === 0
-                        ? "Nenhuma aula planejada"
-                        : `${totalAulas} aula(s) / evento(s)`}
+                      {totalEventos === 0
+                        ? "Nenhuma evento planejada"
+                        : `${totalEventos} evento(s) / evento(s)`}
                     </div>
                   </button>
                 );
@@ -346,8 +346,8 @@ function CalendarGrid({
           style={{ ...baseStyle, width: "100%" }}
           title={
             diaAgenda
-              ? "Clique para ver as aulas deste dia"
-              : "Clique para abrir o dia (aulas ainda não cadastradas)"
+              ? "Clique para ver as eventos deste dia"
+              : "Clique para abrir o dia (eventos ainda não cadastradas)"
           }
         >
           {format(cloneDay, "d")}

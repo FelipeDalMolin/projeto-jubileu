@@ -1,11 +1,12 @@
 // src/services/diasService.ts
 import type {
   Dia,
-  AulaDia,
+  EventoDia,
   PresencaJogadorDia,
   TimeDia,
-  StatusAula,
-  TipoEventoAula,
+  StatusEvento,
+  TipoEventoModo,
+  FeriadoInfo,
 } from "../types/dia";
 import type { EstatisticaJogadorPartida } from "../types/dia";
 
@@ -32,59 +33,156 @@ async function safeText(resp: Response) {
   }
 }
 
+type ApiRecord = Record<string, unknown>;
+
+type BackendPresenca = {
+  jogadorId: number;
+  nome: string;
+  status: string;
+  timeId: string | null;
+  atributos: {
+    gols: number;
+    assistencias: number;
+    chiliques: number;
+    faltas: number;
+  };
+};
+
+type BackendTime = {
+  id: string;
+  nome: string;
+  jogadoresIds: number[];
+  caracteristica: string | null;
+  corCamisa: string | null;
+};
+
+function asRecord(value: unknown): ApiRecord {
+  return typeof value === "object" && value !== null ? (value as ApiRecord) : {};
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function asString(value: unknown, fallback = ""): string {
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return fallback;
+}
+
+function asOptionalString(value: unknown): string | undefined {
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return undefined;
+}
+
+function mapStatusPresenca(value: unknown): PresencaJogadorDia["status"] {
+  if (
+    value === "presente" ||
+    value === "faltou" ||
+    value === "atestado" ||
+    value === "coringa" ||
+    value === "so_treino"
+  ) {
+    return value;
+  }
+  return "presente";
+}
+
+function mapStatusEvento(value: unknown): StatusEvento {
+  if (value === "EM_ANDAMENTO" || value === "ENCERRADO" || value === "CANCELADO") return value;
+  return "PLANEJADO";
+}
+
+function mapTipoEventoModo(value: unknown): TipoEventoModo {
+  if (value === "JOGO_LIVRE" || value === "OUTRO") return value;
+  return "AULA";
+}
+
+function mapFeriadoTipo(value: unknown): FeriadoInfo["tipo"] | null {
+  if (value === "NACIONAL" || value === "ESTADUAL" || value === "MUNICIPAL" || value === "CLUBE") {
+    return value;
+  }
+  return null;
+}
+
+function mapPartidaStatus(value: unknown): PartidaPersistida["status"] {
+  if (value === "EM_ANDAMENTO" || value === "ENCERRADA") return value;
+  return "PLANEJADA";
+}
+
+function mapEstatisticaJogadorPartida(raw: unknown): EstatisticaJogadorPartida {
+  const e = asRecord(raw);
+  return {
+    id: e.id != null ? asNumber(e.id) : undefined,
+    jogadorEventoId: asNumber(e.jogador_evento_id ?? e.jogadorEventoId),
+    gols: asNumber(e.gols),
+    assistencias: asNumber(e.assistencias),
+    chiliques: asNumber(e.chiliques),
+    faltas: asNumber(e.faltas),
+    nota: e.nota != null ? asNumber(e.nota) : undefined,
+  };
+}
+
 // -------------------------
 // MAPPERS (backend -> frontend)
 // -------------------------
 
-function mapPresencaJogador(j: any): PresencaJogadorDia {
+function mapPresencaJogador(raw: unknown): PresencaJogadorDia {
+  const j = asRecord(raw);
   const jogadorId = j.jogadorId ?? j.jogador_id ?? j.id;
   return {
-    jogadorId: jogadorId != null ? Number(jogadorId) : 0,
-    nome: j.nome ?? "",
-    status: j.status,
-    timeId: j.timeId ?? (j.time_id != null ? String(j.time_id) : undefined),
+    jogadorId: jogadorId != null ? asNumber(jogadorId) : 0,
+    nome: asString(j.nome),
+    status: mapStatusPresenca(j.status),
+    timeId: asOptionalString(j.timeId) ?? (j.time_id != null ? String(j.time_id) : undefined),
   };
 }
 
-function mapTime(t: any): TimeDia {
+function mapTime(raw: unknown): TimeDia {
+  const t = asRecord(raw);
   const jogadoresIdsRaw = t.jogadoresIds ?? t.jogadores_ids ?? [];
   return {
     id: String(t.id),
-    nome: t.nome ?? "",
-    jogadoresIds: (jogadoresIdsRaw ?? []).map((id: any) => Number(id)),
-    caracteristica: t.caracteristica ?? undefined,
-    corCamisa: t.corCamisa ?? t.cor_camisa ?? undefined,
+    nome: asString(t.nome),
+    jogadoresIds: asArray(jogadoresIdsRaw).map((id) => Number(id)),
+    caracteristica: asOptionalString(t.caracteristica),
+    corCamisa: asOptionalString(t.corCamisa) ?? asOptionalString(t.cor_camisa),
   };
 }
 
-function mapAula(aula: any): AulaDia {
-  const jogadores: PresencaJogadorDia[] = (aula.jogadores ?? []).map(
-    mapPresencaJogador,
-  );
-  const times: TimeDia[] = (aula.times ?? []).map(mapTime);
+function mapEvento(raw: unknown): EventoDia {
+  const evento = asRecord(raw);
+  const jogadores: PresencaJogadorDia[] = asArray(evento.jogadores).map(mapPresencaJogador);
+  const times: TimeDia[] = asArray(evento.times).map(mapTime);
 
   return {
-    id: String(aula.id),
-    // backend agora: turma_id é int
-    turmaId: aula.turma_id != null ? Number(aula.turma_id) : 0,
-    turmaNome: aula.turma_nome ?? aula.turma?.nome ?? "",
-    numeroAulaNaTurma: aula.numero_aula_na_turma ?? 1,
-    tipo: aula.tipo,
-    horarioInicio: aula.horario_inicio,
-    horarioFim: aula.horario_fim,
-    status: aula.status,
+    id: String(evento.id),
+    turmaId: evento.turma_id != null ? asNumber(evento.turma_id) : null,
+    turmaNome: evento.turma_nome != null ? asString(evento.turma_nome) : null,
+    numeroEventoNaTurma:
+      evento.numero_evento_na_turma != null ? asNumber(evento.numero_evento_na_turma) : null,
+    tipo: mapTipoEventoModo(evento.tipo),
+    horarioInicio: asString(evento.horario_inicio),
+    horarioFim: asString(evento.horario_fim),
+    status: mapStatusEvento(evento.status),
     jogadores,
     times,
-    partidasCount: (aula.partidas ?? []).length,
+    partidasCount: asArray(evento.partidas).length,
   };
 }
 
-function mapDia(data: any): Dia {
-  const feriadoNome = data.feriado_nome ?? data.feriado?.nome;
-  const feriadoTipo = data.feriado_tipo ?? data.feriado?.tipo;
+function mapDia(raw: unknown): Dia {
+  const data = asRecord(raw);
+  const feriado = asRecord(data.feriado);
+  const feriadoNome = asOptionalString(data.feriado_nome ?? feriado.nome);
+  const feriadoTipo = mapFeriadoTipo(data.feriado_tipo ?? feriado.tipo);
   return {
-    dataIso: data.data_iso,
-    aulas: (data.aulas ?? []).map(mapAula),
+    dataIso: asString(data.data_iso),
+    eventos: asArray(data.eventos).map(mapEvento),
     feriado:
       feriadoNome && feriadoTipo
         ? { nome: feriadoNome, tipo: feriadoTipo }
@@ -96,7 +194,7 @@ function mapDia(data: any): Dia {
 // MAPPERS (frontend -> backend)
 // -------------------------
 
-function toBackendPresenca(j: PresencaJogadorDia): any {
+function toBackendPresenca(j: PresencaJogadorDia): BackendPresenca {
   return {
     jogadorId: j.jogadorId,
     nome: j.nome,
@@ -111,7 +209,7 @@ function toBackendPresenca(j: PresencaJogadorDia): any {
   };
 }
 
-function toBackendTime(t: TimeDia): any {
+function toBackendTime(t: TimeDia): BackendTime {
   return {
     id: t.id,
     nome: t.nome,
@@ -125,8 +223,8 @@ function toBackendTime(t: TimeDia): any {
 // HELPERS
 // -------------------------
 
-export function ordenarAulasPorHorario(aulas: AulaDia[]): AulaDia[] {
-  return [...aulas].sort((a, b) =>
+export function ordenarEventosPorHorario(eventos: EventoDia[]): EventoDia[] {
+  return [...eventos].sort((a, b) =>
     (a.horarioInicio ?? "").localeCompare(b.horarioInicio ?? ""),
   );
 }
@@ -160,30 +258,30 @@ export async function obterDiaPorData(dataIso: string): Promise<Dia> {
 // -------------------------
 
 /**
- * Input do front. Repare que turmaId é number.
- * (turmaNome é opcional; idealmente o backend resolve pelo FK)
+ * Input do front. turmaId e obrigatorio somente para eventos AULA.
  */
-export type NovaAulaInput = {
-  turmaId: number;
-  tipo?: TipoEventoAula;
+export type NovaEventoInput = {
+  turmaId?: number | null;
+  tipo?: TipoEventoModo;
   horarioInicio: string;
   horarioFim: string;
-  status?: StatusAula;
+  status?: StatusEvento;
 };
 
-export async function criarAulaNoDia(
+export async function criarEventoNoDia(
   dataIso: string,
-  nova: NovaAulaInput,
-): Promise<AulaDia> {
+  nova: NovaEventoInput,
+): Promise<EventoDia> {
+  const tipo = nova.tipo ?? "AULA";
   const payload = {
-    turma_id: nova.turmaId, // <<<<< INT
-    tipo: nova.tipo ?? "AULA",
+    ...(tipo === "AULA" ? { turma_id: nova.turmaId } : {}),
+    tipo,
     horario_inicio: nova.horarioInicio,
     horario_fim: nova.horarioFim,
-    status: nova.status ?? "PLANEJADA",
+    status: nova.status ?? "PLANEJADO",
   };
 
-  const resp = await fetch(url(`/dias/${dataIso}/aulas`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -191,21 +289,21 @@ export async function criarAulaNoDia(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao criar aula em ${dataIso}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao criar evento em ${dataIso}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
-  return mapAula(await resp.json());
+  return mapEvento(await resp.json());
 }
 
-export async function deletarAulaNoDia(dataIso: string, aulaId: string): Promise<void> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}`), {
+export async function deletarEventoNoDia(dataIso: string, eventoId: string): Promise<void> {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}`), {
     method: "DELETE",
   });
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao excluir aula ${aulaId} em ${dataIso}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao excluir evento ${eventoId} em ${dataIso}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 }
@@ -220,9 +318,9 @@ export type NovoTimeInput = {
   corCamisa?: string;
 };
 
-export async function criarTimeNaAula(
+export async function criarTimeNoEvento(
   dataIso: string,
-  aulaId: string,
+  eventoId: string,
   novo: NovoTimeInput,
 ): Promise<TimeDia> {
   const payload = {
@@ -231,7 +329,7 @@ export async function criarTimeNaAula(
     cor_camisa: novo.corCamisa ?? null,
   };
 
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/times`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/times`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -239,7 +337,7 @@ export async function criarTimeNaAula(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao criar time na aula ${aulaId} do dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao criar time na evento ${eventoId} do dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
@@ -273,10 +371,10 @@ export type PartidaPersistida = {
   estatisticas?: EstatisticaJogadorPartida[];
 };
 
-export async function moverJogadorNaAula(
+export async function moverJogadorNoEvento(
   dataIso: string,
-  aulaId: string | number,
-  jogadorAulaId: number,
+  eventoId: string | number,
+  jogadorEventoId: number,
   novoTimeId: string | null,
 ): Promise<{ version?: number }> {
   const payload = {
@@ -284,7 +382,7 @@ export async function moverJogadorNaAula(
   };
 
   const resp = await fetch(
-    url(`/dias/${dataIso}/aulas/${aulaId}/jogadores/${jogadorAulaId}/time`),
+    url(`/dias/${dataIso}/eventos/${eventoId}/jogadores/${jogadorEventoId}/time`),
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -294,7 +392,7 @@ export async function moverJogadorNaAula(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao mover jogador ${jogadorAulaId} na aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao mover jogador ${jogadorEventoId} na evento ${eventoId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
@@ -302,16 +400,16 @@ export async function moverJogadorNaAula(
   return { version: data?.version };
 }
 
-export async function atualizarStatusJogadorNaAula(
+export async function atualizarStatusJogadorNoEvento(
   dataIso: string,
-  aulaId: string | number,
-  jogadorAulaId: number,
+  eventoId: string | number,
+  jogadorEventoId: number,
   status: string,
 ): Promise<{ version?: number }> {
   const payload = { status };
 
   const resp = await fetch(
-    url(`/dias/${dataIso}/aulas/${aulaId}/jogadores/${jogadorAulaId}/status`),
+    url(`/dias/${dataIso}/eventos/${eventoId}/jogadores/${jogadorEventoId}/status`),
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -321,7 +419,7 @@ export async function atualizarStatusJogadorNaAula(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao atualizar status do jogador ${jogadorAulaId} na aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao atualizar status do jogador ${jogadorEventoId} na evento ${eventoId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
@@ -329,25 +427,25 @@ export async function atualizarStatusJogadorNaAula(
   return { version: data?.version };
 }
 
-export async function deletarTimeNaAula(
+export async function deletarTimeNoEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   timeId: string | number,
 ): Promise<void> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/times/${timeId}`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/times/${timeId}`), {
     method: "DELETE",
   });
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao deletar time ${timeId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao deletar time ${timeId} da evento ${eventoId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 }
 
-export async function criarPartidaNaAula(
+export async function criarPartidaNoEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   payload: { ordem?: number; timeAId: string | number; timeBId: string | number },
 ): Promise<PartidaPersistida> {
   const body = {
@@ -356,7 +454,7 @@ export async function criarPartidaNaAula(
     timeBId: Number(payload.timeBId),
   };
 
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/partidas`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -364,43 +462,35 @@ export async function criarPartidaNaAula(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao criar partida na aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao criar partida na evento ${eventoId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
-  const json = await resp.json();
+  const json = asRecord(await resp.json());
   return {
     id: String(json.id),
-    ordem: json.ordem ?? 0,
-    status: json.status ?? "PLANEJADA",
+    ordem: asNumber(json.ordem),
+    status: mapPartidaStatus(json.status),
     timeAId: String(json.timeAId ?? json.time_a_id),
     timeBId: String(json.timeBId ?? json.time_b_id),
-    golsTimeA: json.golsTimeA ?? json.gols_time_a ?? 0,
-    golsTimeB: json.golsTimeB ?? json.gols_time_b ?? 0,
-    estatisticas: (json.estatisticas ?? []).map((e: any) => ({
-      id: e.id,
-      jogadorAulaId: e.jogador_aula_id ?? e.jogadorAulaId,
-      gols: e.gols ?? 0,
-      assistencias: e.assistencias ?? 0,
-      chiliques: e.chiliques ?? 0,
-      faltas: e.faltas ?? 0,
-      nota: e.nota ?? undefined,
-    })),
+    golsTimeA: asNumber(json.golsTimeA ?? json.gols_time_a),
+    golsTimeB: asNumber(json.golsTimeB ?? json.gols_time_b),
+    estatisticas: asArray(json.estatisticas).map(mapEstatisticaJogadorPartida),
   };
 }
 
-export async function iniciarPartidaNaAula(
+export async function iniciarPartidaNoEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   partidaId: string | number,
 ): Promise<{ version?: number }> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}/start`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/start`), {
     method: "PUT",
   });
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao iniciar partida ${partidaId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao iniciar partida ${partidaId} da evento ${eventoId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
@@ -408,18 +498,18 @@ export async function iniciarPartidaNaAula(
   return { version: data?.version };
 }
 
-export async function encerrarPartidaNaAula(
+export async function encerrarPartidaNoEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   partidaId: string | number,
 ): Promise<{ version?: number }> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}/end`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/end`), {
     method: "PUT",
   });
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao encerrar partida ${partidaId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao encerrar partida ${partidaId} da evento ${eventoId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
@@ -427,32 +517,32 @@ export async function encerrarPartidaNaAula(
   return { version: data?.version };
 }
 
-export async function removerPartidaDaAula(
+export async function removerPartidaDoEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   partidaId: string | number,
 ): Promise<void> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}`), {
     method: "DELETE",
   });
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao remover partida ${partidaId} da aula ${aulaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao remover partida ${partidaId} da evento ${eventoId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 }
 
 export async function atualizarStatsJogadorPartida(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   partidaId: string | number,
-  jogadorAulaId: number,
+  jogadorEventoId: number,
   stats: { gols: number; assistencias: number; chiliques: number; faltas: number },
 ): Promise<{ version?: number }> {
   const resp = await fetch(
     url(
-      `/dias/${dataIso}/aulas/${aulaId}/partidas/${partidaId}/jogadores/${jogadorAulaId}/stats`,
+      `/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/jogadores/${jogadorEventoId}/stats`,
     ),
     {
       method: "PUT",
@@ -463,7 +553,7 @@ export async function atualizarStatsJogadorPartida(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao atualizar stats do jogador ${jogadorAulaId} na partida ${partidaId}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao atualizar stats do jogador ${jogadorEventoId} na partida ${partidaId}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
@@ -471,16 +561,16 @@ export async function atualizarStatsJogadorPartida(
   return { version: data?.version };
 }
 
-export async function carregarEstadoEquipesAula(
+export async function carregarEstadoEquipesEvento(
   dataIso: string,
-  aulaId: string,
+  eventoId: string,
 ): Promise<EstadoEquipesSnapshot | null> {
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/estado-equipes`));
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/estado-equipes`));
 
   if (!resp.ok) {
     if (resp.status === 404) return null;
     throw new Error(
-      `Erro ao carregar estado de equipes da aula ${aulaId} do dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao carregar estado de equipes da evento ${eventoId} do dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 
@@ -491,9 +581,9 @@ export async function carregarEstadoEquipesAula(
   };
 }
 
-export async function salvarEstadoEquipesAula(
+export async function salvarEstadoEquipesEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   jogadores: PresencaJogadorDia[],
   times: TimeDia[],
 ): Promise<void> {
@@ -502,7 +592,7 @@ export async function salvarEstadoEquipesAula(
     times: times.map(toBackendTime),
   };
 
-  const resp = await fetch(url(`/dias/${dataIso}/aulas/${aulaId}/estado-equipes`), {
+  const resp = await fetch(url(`/dias/${dataIso}/eventos/${eventoId}/estado-equipes`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -511,7 +601,7 @@ export async function salvarEstadoEquipesAula(
 
   if (!resp.ok) {
     throw new Error(
-      `Erro ao salvar estado de equipes da aula ${aulaId} do dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
+      `Erro ao salvar estado de equipes da evento ${eventoId} do dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
     );
   }
 }

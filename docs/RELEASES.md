@@ -28,6 +28,7 @@ During refactor execution, use internal milestone tags when useful:
 - `v0.2.0-dev.frontend-14` (DEV-31 stream)
 - `v0.2.0-dev.frontend-15` (DEV-32 stream)
 - `v0.2.0-dev.docs-33` (DEV-33 closure)
+- `v0.3.0-dev.evento-canonical` (canonical Evento breaking cut)
 
 ## Release Checklist
 
@@ -49,6 +50,66 @@ Every slice delivery should include:
 | Backend contracts | Backend 06-08 | event API, read-model and auth/session hardening plan |
 | Frontend Evento | Frontend 08-12 | event UI behavior, adapter, polling and session plan |
 | Infra MVP | Infra 00-03 | runtime, gateway and deploy documentation |
+| Evento MVP closure | DEV-28-33 | AULA stabilization, JOGO_LIVRE E2E, polling/auth hardening and validation matrix |
+| Evento canonical cut | DEV-37-44 | Evento persistence/API/frontend migration, Usuario profile and release validation |
+
+## v0.3.0-dev.evento-canonical Notes
+
+Status: implemented in working tree.
+
+Breaking changes:
+
+- removed public Aula entity routes and frontend route `/dias/:dataIso/aulas/:aulaId`.
+- canonical contextual route is `/dias/:dataIso/eventos/:eventoId`.
+- event status values are `PLANEJADO`, `EM_ANDAMENTO`, `ENCERRADO`, `CANCELADO`.
+- event type values are `AULA`, `JOGO_LIVRE`, `OUTRO`.
+
+Included:
+
+- Alembic migration `0013_eventos_canonicos_usuarios`.
+- backend models and FKs renamed to Evento naming.
+- persisted `Usuario` model and `/api/usuarios/me`.
+- `auth/me` returns persisted profile fields where available.
+- frontend services, hooks, types and workspace migrated to Evento naming.
+- `/usuario` page shows profile, linked jogador and participated events.
+- Dashboard home reads backend dashboard endpoints instead of mocks.
+- Jogadores status options match backend values.
+
+Validation:
+
+- backend: `.venv\Scripts\python.exe -m pytest` passed on 2026-05-09.
+- frontend: `npm run build` passed on 2026-05-09.
+- frontend: `npm run lint` passed on 2026-05-09.
+
+Migration note:
+
+- historical migrations still contain old names because they are part of the schema history.
+- `0013` upgrades existing data from old event table/column names to canonical Evento names and creates `usuarios`.
+
+## v0.2.0-dev.docs-33 Notes
+
+Status: in milestone closure.
+
+Included:
+
+- AULA live semantics fixed around partida `EM_ANDAMENTO`.
+- explicit partida start/end lifecycle and `/api` aliases.
+- AULA lances gated by event and partida status.
+- JOGO_LIVRE operational path for RSVP, check-in, seed and lances.
+- Evento polling consolidated on TanStack Query; unused page-local polling hooks removed.
+- release validation matrix added at `docs/refactors/evento-validation-matrix.md`.
+
+Validation gate:
+
+- backend: `.venv\Scripts\python.exe -m pytest` passed on 2026-05-09.
+- frontend: `npm run lint` passed on 2026-05-09.
+- frontend: `npm run build` passed on 2026-05-09.
+- local PostgreSQL API smoke passed for login/profile with `jogadorId`, AULA lifecycle/lance gates and JOGO_LIVRE RSVP/check-in/seed/lance.
+- browser-level visual smoke remains pending.
+
+PostgreSQL note:
+
+- The 2026-05-09 smoke caught `SELECT max(...) FOR UPDATE` in the JOGO_LIVRE arrival queue path. The implementation now locks the event/AULA row before computing the next arrival sequence.
 
 ## Compatibility Windows
 

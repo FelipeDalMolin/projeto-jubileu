@@ -11,36 +11,37 @@ from app.models.jogador_turma import (
     Turma as TurmaModel,
     TurmaJogador as TurmaJogadorModel,
 )
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     Dia as DiaModel,
-    JogadorAula as JogadorAulaModel,
+    JogadorEvento as JogadorEventoModel,
     Partida as PartidaModel,
     PartidaStatusEnum,
-    StatusAulaEnum,
+    StatusEventoEnum,
     StatusPresencaEnum,
-    TimeAula as TimeAulaModel,
+    TimeEvento as TimeEventoModel,
+    TipoEventoEnum,
 )
 from app.modules.dias import service as dias_service
-from app.schemas.dia_aula import (
+from app.schemas.dia_evento import (
     AtualizarStatusJogadorIn,
-    AulaCreate,
-    AulaEstadoOut,
-    AulaOut,
+    EventoCreate,
+    EventoEstadoOut,
+    EventoDiaOut,
     CommandOkOut,
     ConfirmarPresencasIn,
     DiaListOut,
     DiaOut,
-    EstadoEquipesAulaIn,
-    EstadoEquipesAulaOut,
+    EstadoEquipesEventoIn,
+    EstadoEquipesEventoOut,
     MoverJogadorTimeIn,
     PresencaJogadorDiaOut,
-    TimeAulaCreate,
-    TimeAulaOut,
+    TimeEventoCreate,
+    TimeEventoOut,
 )
-from app.schemas.workspace import WorkspaceAulaOut
+from app.schemas.workspace import WorkspaceEventoOut
 from app.services.estado_equipes import create_team_config, rebuild_estado_equipes
-from app.services.workspace_aula import build_workspace_aula
+from app.services.workspace_evento import build_workspace_evento
 
 router = APIRouter(prefix="/dias", tags=["Dias"])
 
@@ -55,7 +56,7 @@ def listar_dias(db: Session = Depends(get_db)) -> List[DiaListOut]:
 def obter_dia_por_data(data_iso: str, db: Session = Depends(get_db)) -> DiaOut:
     dia = (
         db.query(DiaModel)
-        .options(selectinload(DiaModel.aulas).selectinload(AulaModel.jogadores))
+        .options(selectinload(DiaModel.eventos).selectinload(EventoModel.jogadores))
         .filter(DiaModel.data_iso == data_iso)
         .first()
     )
@@ -68,131 +69,139 @@ def obter_dia_por_data(data_iso: str, db: Session = Depends(get_db)) -> DiaOut:
 
 
 @router.post(
-    "/{data_iso}/aulas",
-    response_model=AulaOut,
+    "/{data_iso}/eventos",
+    response_model=EventoDiaOut,
     status_code=status.HTTP_201_CREATED,
 )
-def criar_aula_no_dia(
+def criar_evento_no_dia(
     data_iso: str,
-    payload: AulaCreate,
+    payload: EventoCreate,
     db: Session = Depends(get_db),
-) -> AulaOut:
+) -> EventoDiaOut:
     dia = dias_service.get_or_create_dia(db, data_iso)
 
-    turma = db.query(TurmaModel).filter(TurmaModel.id == payload.turma_id).first()
-    if not turma:
-        raise HTTPException(status_code=404, detail="Turma nao encontrada")
+    turma = None
+    novo_numero = None
+    if payload.tipo == TipoEventoEnum.AULA:
+        if payload.turma_id is None:
+            raise HTTPException(status_code=422, detail="turma_id e obrigatorio para evento do tipo AULA")
+        turma = db.query(TurmaModel).filter(TurmaModel.id == payload.turma_id).first()
+        if not turma:
+            raise HTTPException(status_code=404, detail="Turma nao encontrada")
 
-    ultima_aula = (
-        db.query(AulaModel)
-        .filter(AulaModel.turma_id == payload.turma_id)
-        .order_by(AulaModel.numero_aula_na_turma.desc())
-        .first()
-    )
-    novo_numero = (ultima_aula.numero_aula_na_turma or 0) + 1 if ultima_aula else 1
+        ultima_evento = (
+            db.query(EventoModel)
+            .filter(EventoModel.turma_id == payload.turma_id)
+            .order_by(EventoModel.numero_evento_na_turma.desc())
+            .first()
+        )
+        novo_numero = (ultima_evento.numero_evento_na_turma or 0) + 1 if ultima_evento else 1
+    elif payload.turma_id is not None:
+        raise HTTPException(status_code=422, detail="turma_id so e aceito para evento do tipo AULA")
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
-        turma_id=payload.turma_id,
-        turma_nome=turma.nome,
-        numero_aula_na_turma=novo_numero,
+        turma_id=payload.turma_id if turma else None,
+        turma_nome=turma.nome if turma else None,
+        numero_evento_na_turma=novo_numero,
         tipo=payload.tipo,
         horario_inicio=payload.horario_inicio,
         horario_fim=payload.horario_fim,
         status=payload.status,
     )
-    db.add(aula)
+    db.add(evento)
     db.flush()
 
-    jogadores_ativos = (
-        db.query(TurmaJogadorModel)
-        .join(JogadorModel, TurmaJogadorModel.jogador)
-        .filter(TurmaJogadorModel.turma_id == payload.turma_id)
-        .filter(TurmaJogadorModel.ativo.is_(True))
-        .all()
-    )
+    if turma:
+        jogadores_ativos = (
+            db.query(TurmaJogadorModel)
+            .join(JogadorModel, TurmaJogadorModel.jogador)
+            .filter(TurmaJogadorModel.turma_id == payload.turma_id)
+            .filter(TurmaJogadorModel.ativo.is_(True))
+            .all()
+        )
 
-    for rel in jogadores_ativos:
-        jogador_nome = rel.jogador.nome if rel.jogador else ""
-        jogador_id = rel.jogador.id if rel.jogador else rel.jogador_id
-        db.add(
-            JogadorAulaModel(
-                aula_id=aula.id,
-                jogador_id=jogador_id,
-                nome=jogador_nome or f"Jogador {jogador_id}",
-                status=StatusPresencaEnum.so_treino,
+        for rel in jogadores_ativos:
+            jogador_nome = rel.jogador.nome if rel.jogador else ""
+            jogador_id = rel.jogador.id if rel.jogador else rel.jogador_id
+            db.add(
+                JogadorEventoModel(
+                    evento_id=evento.id,
+                    jogador_id=jogador_id,
+                    nome=jogador_nome or f"Jogador {jogador_id}",
+                    status=StatusPresencaEnum.so_treino,
+                )
             )
-        )
 
     db.commit()
-    db.refresh(aula, attribute_names=["jogadores"])
-    return aula
+    db.refresh(evento, attribute_names=["jogadores"])
+    return evento
 
 
-@router.get("/{data_iso}/aulas/{aula_id}", response_model=AulaOut)
-def obter_aula_no_dia(
+@router.get("/{data_iso}/eventos/{evento_id}", response_model=EventoDiaOut)
+def obter_evento_no_dia(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     db: Session = Depends(get_db),
-) -> AulaOut:
-    return dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id, eager_jogadores=True)
+) -> EventoDiaOut:
+    return dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id, eager_jogadores=True)
 
 
-@router.put("/{data_iso}/aulas/{aula_id}/start", response_model=AulaOut)
-def iniciar_aula(
+@router.put("/{data_iso}/eventos/{evento_id}/start", response_model=EventoDiaOut)
+def iniciar_evento(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     db: Session = Depends(get_db),
-) -> AulaOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id, eager_jogadores=True)
+) -> EventoDiaOut:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id, eager_jogadores=True)
 
-    if aula.status != StatusAulaEnum.PLANEJADA:
+    if evento.status != StatusEventoEnum.PLANEJADO:
         raise HTTPException(
             status_code=400,
-            detail="Aula nao pode ser iniciada: status atual diferente de PLANEJADA",
+            detail="Evento nao pode ser iniciado: status atual diferente de PLANEJADO",
         )
 
-    db.query(JogadorAulaModel).filter(
-        JogadorAulaModel.aula_id == aula.id,
-        JogadorAulaModel.status != StatusPresencaEnum.presente,
-    ).update({JogadorAulaModel.status: StatusPresencaEnum.faltou})
+    db.query(JogadorEventoModel).filter(
+        JogadorEventoModel.evento_id == evento.id,
+        JogadorEventoModel.status != StatusPresencaEnum.presente,
+    ).update({JogadorEventoModel.status: StatusPresencaEnum.faltou})
 
-    aula.status = StatusAulaEnum.EM_ANDAMENTO
-    db.add(aula)
+    evento.status = StatusEventoEnum.EM_ANDAMENTO
+    db.add(evento)
     db.flush()
-    rebuild_estado_equipes(db, aula)
+    rebuild_estado_equipes(db, evento)
     db.commit()
-    db.refresh(aula, attribute_names=["jogadores"])
-    return aula
+    db.refresh(evento, attribute_names=["jogadores"])
+    return evento
 
 
-@router.post("/{data_iso}/aulas/{aula_id}/start", response_model=AulaOut)
-def iniciar_aula_post(
+@router.post("/{data_iso}/eventos/{evento_id}/start", response_model=EventoDiaOut)
+def iniciar_evento_post(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     db: Session = Depends(get_db),
-) -> AulaOut:
-    return iniciar_aula(data_iso=data_iso, aula_id=aula_id, db=db)
+) -> EventoDiaOut:
+    return iniciar_evento(data_iso=data_iso, evento_id=evento_id, db=db)
 
 
-@router.put("/{data_iso}/aulas/{aula_id}/finish", response_model=AulaOut)
-def finalizar_aula(
+@router.put("/{data_iso}/eventos/{evento_id}/finish", response_model=EventoDiaOut)
+def finalizar_evento(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     db: Session = Depends(get_db),
-) -> AulaOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id, eager_jogadores=True)
+) -> EventoDiaOut:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id, eager_jogadores=True)
 
-    if aula.status != StatusAulaEnum.EM_ANDAMENTO:
+    if evento.status != StatusEventoEnum.EM_ANDAMENTO:
         raise HTTPException(
             status_code=400,
-            detail="Aula nao pode ser finalizada: status atual diferente de EM_ANDAMENTO",
+            detail="Evento nao pode ser finalizado: status atual diferente de EM_ANDAMENTO",
         )
 
     partida_ativa = (
         db.query(PartidaModel.id)
         .filter(
-            PartidaModel.aula_id == aula.id,
+            PartidaModel.evento_id == evento.id,
             PartidaModel.status == PartidaStatusEnum.EM_ANDAMENTO,
         )
         .first()
@@ -200,42 +209,42 @@ def finalizar_aula(
     if partida_ativa:
         raise HTTPException(
             status_code=409,
-            detail="Encerre a partida em andamento antes de encerrar a aula",
+            detail="Encerre a partida em andamento antes de encerrar o evento",
         )
 
-    aula.status = StatusAulaEnum.CONCLUIDA
-    db.add(aula)
+    evento.status = StatusEventoEnum.ENCERRADO
+    db.add(evento)
     db.commit()
-    db.refresh(aula, attribute_names=["jogadores"])
-    return aula
+    db.refresh(evento, attribute_names=["jogadores"])
+    return evento
 
 
-@router.post("/{data_iso}/aulas/{aula_id}/finish", response_model=AulaOut)
-def finalizar_aula_post(
+@router.post("/{data_iso}/eventos/{evento_id}/finish", response_model=EventoDiaOut)
+def finalizar_evento_post(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     db: Session = Depends(get_db),
-) -> AulaOut:
-    return finalizar_aula(data_iso=data_iso, aula_id=aula_id, db=db)
+) -> EventoDiaOut:
+    return finalizar_evento(data_iso=data_iso, evento_id=evento_id, db=db)
 
 
-@router.put("/{data_iso}/aulas/{aula_id}/confirmar-presencas", response_model=CommandOkOut)
+@router.put("/{data_iso}/eventos/{evento_id}/confirmar-presencas", response_model=CommandOkOut)
 def confirmar_presencas(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     payload: ConfirmarPresencasIn,
     db: Session = Depends(get_db),
 ) -> CommandOkOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    dias_service.assert_aula_editavel(aula)
-    if aula.status != StatusAulaEnum.PLANEJADA:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    dias_service.assert_evento_editavel(evento)
+    if evento.status != StatusEventoEnum.PLANEJADO:
         raise HTTPException(
             status_code=400,
-            detail="Presencas so podem ser confirmadas com aula planejada",
+            detail="Presencas so podem ser confirmadas com evento planejado",
         )
 
     presentes_ids = set(payload.presentes_ids or [])
-    jogadores = db.query(JogadorAulaModel).filter(JogadorAulaModel.aula_id == aula.id).all()
+    jogadores = db.query(JogadorEventoModel).filter(JogadorEventoModel.evento_id == evento.id).all()
 
     for jogador in jogadores:
         jogador.status = (
@@ -245,41 +254,41 @@ def confirmar_presencas(
         )
 
     db.flush()
-    team_config = rebuild_estado_equipes(db, aula)
+    team_config = rebuild_estado_equipes(db, evento)
     db.commit()
 
     version = int(team_config.version) if team_config.version is not None else None
     return CommandOkOut(status="ok", version=version)
 
 
-@router.delete("/{data_iso}/aulas/{aula_id}", status_code=status.HTTP_204_NO_CONTENT)
-def deletar_aula_no_dia(
+@router.delete("/{data_iso}/eventos/{evento_id}", status_code=status.HTTP_204_NO_CONTENT)
+def deletar_evento_no_dia(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     db: Session = Depends(get_db),
 ) -> Response:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    db.delete(aula)
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    db.delete(evento)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post(
-    "/{data_iso}/aulas/{aula_id}/times",
-    response_model=TimeAulaOut,
+    "/{data_iso}/eventos/{evento_id}/times",
+    response_model=TimeEventoOut,
     status_code=status.HTTP_201_CREATED,
 )
-def criar_time_na_aula(
+def criar_time_na_evento(
     data_iso: str,
-    aula_id: int,
-    payload: TimeAulaCreate,
+    evento_id: int,
+    payload: TimeEventoCreate,
     db: Session = Depends(get_db),
-) -> TimeAulaOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    dias_service.assert_aula_editavel(aula)
+) -> TimeEventoOut:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    dias_service.assert_evento_editavel(evento)
 
-    novo_time = TimeAulaModel(
-        aula_id=aula.id,
+    novo_time = TimeEventoModel(
+        evento_id=evento.id,
         nome=payload.nome,
         caracteristica=payload.caracteristica,
         cor_camisa=payload.cor_camisa,
@@ -288,11 +297,11 @@ def criar_time_na_aula(
     db.commit()
     db.refresh(novo_time)
 
-    db.refresh(aula, attribute_names=["times", "jogadores"])
-    rebuild_estado_equipes(db, aula)
+    db.refresh(evento, attribute_names=["times", "jogadores"])
+    rebuild_estado_equipes(db, evento)
     db.commit()
 
-    return TimeAulaOut(
+    return TimeEventoOut(
         id=str(novo_time.id),
         nome=novo_time.nome,
         jogadoresIds=[],
@@ -302,42 +311,42 @@ def criar_time_na_aula(
 
 
 @router.put(
-    "/{data_iso}/aulas/{aula_id}/jogadores/{jogador_aula_id}/time",
+    "/{data_iso}/eventos/{evento_id}/jogadores/{jogador_evento_id}/time",
     response_model=CommandOkOut,
 )
 def mover_jogador_para_time(
     data_iso: str,
-    aula_id: int,
-    jogador_aula_id: int,
+    evento_id: int,
+    jogador_evento_id: int,
     payload: MoverJogadorTimeIn,
     db: Session = Depends(get_db),
 ) -> CommandOkOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    dias_service.assert_aula_editavel(aula)
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    dias_service.assert_evento_editavel(evento)
 
     jogador = (
-        db.query(JogadorAulaModel)
-        .filter(JogadorAulaModel.id == jogador_aula_id, JogadorAulaModel.aula_id == aula.id)
+        db.query(JogadorEventoModel)
+        .filter(JogadorEventoModel.id == jogador_evento_id, JogadorEventoModel.evento_id == evento.id)
         .first()
     )
     if not jogador:
-        raise HTTPException(status_code=404, detail="Jogador nao encontrado na aula")
+        raise HTTPException(status_code=404, detail="Jogador nao encontrado na evento")
 
     novo_time_id = payload.time_id
     if novo_time_id is not None:
         time = (
-            db.query(TimeAulaModel)
-            .filter(TimeAulaModel.id == novo_time_id, TimeAulaModel.aula_id == aula.id)
+            db.query(TimeEventoModel)
+            .filter(TimeEventoModel.id == novo_time_id, TimeEventoModel.evento_id == evento.id)
             .first()
         )
         if not time:
-            raise HTTPException(status_code=400, detail="Time informado nao pertence a aula")
+            raise HTTPException(status_code=400, detail="Time informado nao pertence a evento")
 
     jogador.time_id = novo_time_id
     db.commit()
 
-    db.refresh(aula, attribute_names=["times", "jogadores"])
-    team_config = rebuild_estado_equipes(db, aula)
+    db.refresh(evento, attribute_names=["times", "jogadores"])
+    team_config = rebuild_estado_equipes(db, evento)
     db.commit()
     db.refresh(team_config, attribute_names=["version"])
 
@@ -346,32 +355,32 @@ def mover_jogador_para_time(
 
 
 @router.put(
-    "/{data_iso}/aulas/{aula_id}/jogadores/{jogador_aula_id}/status",
+    "/{data_iso}/eventos/{evento_id}/jogadores/{jogador_evento_id}/status",
     response_model=CommandOkOut,
 )
 def atualizar_status_jogador(
     data_iso: str,
-    aula_id: int,
-    jogador_aula_id: int,
+    evento_id: int,
+    jogador_evento_id: int,
     payload: AtualizarStatusJogadorIn,
     db: Session = Depends(get_db),
 ) -> CommandOkOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    dias_service.assert_aula_editavel(aula)
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    dias_service.assert_evento_editavel(evento)
 
     jogador = (
-        db.query(JogadorAulaModel)
-        .filter(JogadorAulaModel.id == jogador_aula_id, JogadorAulaModel.aula_id == aula.id)
+        db.query(JogadorEventoModel)
+        .filter(JogadorEventoModel.id == jogador_evento_id, JogadorEventoModel.evento_id == evento.id)
         .first()
     )
     if not jogador:
-        raise HTTPException(status_code=404, detail="Jogador nao encontrado na aula")
+        raise HTTPException(status_code=404, detail="Jogador nao encontrado na evento")
 
     jogador.status = payload.status
     db.commit()
 
-    db.refresh(aula, attribute_names=["times", "jogadores"])
-    team_config = rebuild_estado_equipes(db, aula)
+    db.refresh(evento, attribute_names=["times", "jogadores"])
+    team_config = rebuild_estado_equipes(db, evento)
     db.commit()
     db.refresh(team_config, attribute_names=["version"])
 
@@ -379,113 +388,113 @@ def atualizar_status_jogador(
     return CommandOkOut(status="ok", version=version)
 
 
-@router.delete("/{data_iso}/aulas/{aula_id}/times/{time_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{data_iso}/eventos/{evento_id}/times/{time_id}", status_code=status.HTTP_204_NO_CONTENT)
 def deletar_time(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     time_id: int,
     db: Session = Depends(get_db),
 ) -> Response:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    dias_service.assert_aula_editavel(aula)
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    dias_service.assert_evento_editavel(evento)
 
     time = (
-        db.query(TimeAulaModel)
-        .filter(TimeAulaModel.id == time_id, TimeAulaModel.aula_id == aula.id)
+        db.query(TimeEventoModel)
+        .filter(TimeEventoModel.id == time_id, TimeEventoModel.evento_id == evento.id)
         .first()
     )
     if not time:
         raise HTTPException(status_code=404, detail="Time nao encontrado")
 
-    db.query(JogadorAulaModel).filter(
-        JogadorAulaModel.aula_id == aula.id,
-        JogadorAulaModel.time_id == time.id,
-    ).update({JogadorAulaModel.time_id: None})
+    db.query(JogadorEventoModel).filter(
+        JogadorEventoModel.evento_id == evento.id,
+        JogadorEventoModel.time_id == time.id,
+    ).update({JogadorEventoModel.time_id: None})
 
     db.delete(time)
     db.commit()
 
-    db.refresh(aula, attribute_names=["times", "jogadores"])
-    rebuild_estado_equipes(db, aula)
+    db.refresh(evento, attribute_names=["times", "jogadores"])
+    rebuild_estado_equipes(db, evento)
     db.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/{data_iso}/aulas/{aula_id}/estado-equipes", response_model=EstadoEquipesAulaOut)
-def obter_estado_equipes_aula(
+@router.get("/{data_iso}/eventos/{evento_id}/estado-equipes", response_model=EstadoEquipesEventoOut)
+def obter_estado_equipes_evento(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     db: Session = Depends(get_db),
-) -> EstadoEquipesAulaOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    team_config = dias_service.ensure_active_team_config(db, aula)
+) -> EstadoEquipesEventoOut:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    team_config = dias_service.ensure_active_team_config(db, evento)
 
     if not team_config:
-        return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=[], times=[])
+        return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=[], times=[])
 
     estado_dict: dict[str, Any] = team_config.estado or {}
     jogadores_raw = estado_dict.get("jogadores", []) or []
     times_raw = estado_dict.get("times", []) or []
 
     jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]
-    times = [TimeAulaOut.model_validate(t) for t in times_raw]
+    times = [TimeEventoOut.model_validate(t) for t in times_raw]
 
-    return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=jogadores, times=times)
+    return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=jogadores, times=times)
 
 
-@router.put("/{data_iso}/aulas/{aula_id}/estado-equipes", response_model=EstadoEquipesAulaOut)
-def salvar_estado_equipes_aula(
+@router.put("/{data_iso}/eventos/{evento_id}/estado-equipes", response_model=EstadoEquipesEventoOut)
+def salvar_estado_equipes_evento(
     data_iso: str,
-    aula_id: int,
-    payload: EstadoEquipesAulaIn,
+    evento_id: int,
+    payload: EstadoEquipesEventoIn,
     db: Session = Depends(get_db),
-) -> EstadoEquipesAulaOut:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    dias_service.assert_aula_editavel(aula)
+) -> EstadoEquipesEventoOut:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    dias_service.assert_evento_editavel(evento)
 
     estado_dict: dict[str, Any] = {
         "jogadores": [j.model_dump() for j in payload.jogadores],
         "times": [t.model_dump() for t in payload.times],
     }
 
-    team_config = create_team_config(db, aula, estado_dict)
+    team_config = create_team_config(db, evento, estado_dict)
     db.commit()
     db.refresh(team_config)
 
     jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in estado_dict["jogadores"]]
-    times = [TimeAulaOut.model_validate(t) for t in estado_dict["times"]]
+    times = [TimeEventoOut.model_validate(t) for t in estado_dict["times"]]
 
-    return EstadoEquipesAulaOut(aula_id=aula.id, jogadores=jogadores, times=times)
+    return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=jogadores, times=times)
 
 
-@router.get("/{data_iso}/aulas/{aula_id}/estado", response_model=AulaEstadoOut)
-def obter_estado_aula(
+@router.get("/{data_iso}/eventos/{evento_id}/estado", response_model=EventoEstadoOut)
+def obter_estado_evento(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     since_version: int | None = None,
     include_stats: bool = False,
     db: Session = Depends(get_db),
-) -> AulaEstadoOut | Response:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    return dias_service.build_estado_aula_response(
+) -> EventoEstadoOut | Response:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    return dias_service.build_estado_evento_response(
         db,
         data_iso,
-        aula,
+        evento,
         since_version=since_version,
         include_stats=include_stats,
     )
 
 
-@router.get("/{data_iso}/aulas/{aula_id}/workspace", response_model=WorkspaceAulaOut)
-def obter_workspace_aula(
+@router.get("/{data_iso}/eventos/{evento_id}/workspace", response_model=WorkspaceEventoOut)
+def obter_workspace_evento(
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     since_version: int | None = None,
     db: Session = Depends(get_db),
-) -> WorkspaceAulaOut | Response:
-    aula = dias_service.get_aula_no_dia_or_404(db, data_iso, aula_id)
-    workspace = build_workspace_aula(db, aula)
+) -> WorkspaceEventoOut | Response:
+    evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+    workspace = build_workspace_evento(db, evento)
     if since_version is not None and since_version == workspace.meta.version:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     return workspace

@@ -1,20 +1,20 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useMemo, useState, type ChangeEvent } from "react";
 
 import {
   atualizarStatsJogadorPartida,
-  criarPartidaNaAula,
-  encerrarPartidaNaAula,
-  iniciarPartidaNaAula,
-  removerPartidaDaAula,
+  criarPartidaNoEvento,
+  encerrarPartidaNoEvento,
+  iniciarPartidaNoEvento,
+  removerPartidaDoEvento,
 } from "../../services/diasService";
 
 import type { PresencaJogadorDia } from "../../types/dia";
 import type {
-  WorkspaceAulaEquipes,
-  WorkspaceAulaPartida,
-} from "../../types/workspaceAula";
+  WorkspaceEventoEquipes,
+  WorkspaceEventoPartida,
+} from "../../types/workspaceEvento";
 
-type PartidaAula = {
+type PartidaEvento = {
   id: string;
   ordem: number;
   status: "PLANEJADA" | "EM_ANDAMENTO" | "ENCERRADA";
@@ -42,9 +42,9 @@ const DEFAULT_STATS: StatsJogador = {
 
 type Props = {
   dataIso: string;
-  aulaId: number;
-  equipes: WorkspaceAulaEquipes;
-  partidas: WorkspaceAulaPartida[];
+  eventoId: number;
+  equipes: WorkspaceEventoEquipes;
+  partidas: WorkspaceEventoPartida[];
   onRefresh: () => Promise<void>;
   mode?: "full" | "history";
   title?: string;
@@ -52,7 +52,7 @@ type Props = {
 
 export default function WorkspacePartidasPanel({
   dataIso,
-  aulaId,
+  eventoId,
   equipes,
   partidas,
   onRefresh,
@@ -63,28 +63,18 @@ export default function WorkspacePartidasPanel({
   const [novoTimeAId, setNovoTimeAId] = useState<string>("");
   const [novoTimeBId, setNovoTimeBId] = useState<string>("");
 
-  const times = equipes.times ?? [];
+  const times = useMemo(() => equipes.times ?? [], [equipes.times]);
   const jogadores = equipes.jogadores ?? [];
   const isReadOnly = mode === "history";
 
-  useEffect(() => {
-    if (isReadOnly) return;
-    if (times.length < 2) {
-      setNovoTimeAId("");
-      setNovoTimeBId("");
-      return;
-    }
+  const timeIds = useMemo(() => times.map((t) => t.id), [times]);
+  const selectedTimeAId = timeIds.includes(novoTimeAId) ? novoTimeAId : timeIds[0] ?? "";
+  const selectedTimeBId =
+    timeIds.includes(novoTimeBId) && novoTimeBId !== selectedTimeAId
+      ? novoTimeBId
+      : timeIds.find((id) => id !== selectedTimeAId) ?? "";
 
-    const ids = times.map((t) => t.id);
-    setNovoTimeAId((prev) => (ids.includes(prev) ? prev : ids[0]));
-    setNovoTimeBId((prev) => {
-      if (ids.length < 2) return "";
-      if (ids.includes(prev) && prev !== ids[0]) return prev;
-      return ids.find((id) => id !== ids[0]) ?? "";
-    });
-  }, [isReadOnly, times]);
-
-  const partidasUi = useMemo<PartidaAula[]>(
+  const partidasUi = useMemo<PartidaEvento[]>(
     () =>
       (partidas ?? []).map((p) => ({
         id: String(p.id),
@@ -104,14 +94,14 @@ export default function WorkspacePartidasPanel({
   const handleAdicionarPartida = () => {
     if (isReadOnly) return;
     if (times.length < 2) return;
-    if (!novoTimeAId || !novoTimeBId) return;
-    if (novoTimeAId === novoTimeBId) return;
+    if (!selectedTimeAId || !selectedTimeBId) return;
+    if (selectedTimeAId === selectedTimeBId) return;
 
     const criar = async () => {
       try {
-        await criarPartidaNaAula(dataIso, aulaId, {
-          timeAId: novoTimeAId,
-          timeBId: novoTimeBId,
+        await criarPartidaNoEvento(dataIso, eventoId, {
+          timeAId: selectedTimeAId,
+          timeBId: selectedTimeBId,
         });
         setNovoTimeAId("");
         setNovoTimeBId("");
@@ -130,7 +120,7 @@ export default function WorkspacePartidasPanel({
     if (isReadOnly) return;
     const remover = async () => {
       try {
-        await removerPartidaDaAula(dataIso, aulaId, partidaId);
+        await removerPartidaDoEvento(dataIso, eventoId, partidaId);
         await onRefresh();
       } catch (err) {
         console.error(err);
@@ -145,7 +135,7 @@ export default function WorkspacePartidasPanel({
     if (isReadOnly) return;
     const iniciar = async () => {
       try {
-        await iniciarPartidaNaAula(dataIso, aulaId, partidaId);
+        await iniciarPartidaNoEvento(dataIso, eventoId, partidaId);
         await onRefresh();
       } catch (err) {
         console.error(err);
@@ -160,7 +150,7 @@ export default function WorkspacePartidasPanel({
     if (isReadOnly) return;
     const encerrar = async () => {
       try {
-        await encerrarPartidaNaAula(dataIso, aulaId, partidaId);
+        await encerrarPartidaNoEvento(dataIso, eventoId, partidaId);
         await onRefresh();
       } catch (err) {
         console.error(err);
@@ -203,7 +193,7 @@ export default function WorkspacePartidasPanel({
       try {
         await atualizarStatsJogadorPartida(
           dataIso,
-          aulaId,
+          eventoId,
           partidaId,
           jogadorId,
           payload,
@@ -243,7 +233,7 @@ export default function WorkspacePartidasPanel({
             <select
               className="form-select form-select-sm"
               style={{ maxWidth: 160 }}
-              value={novoTimeAId}
+              value={selectedTimeAId}
               onChange={(e) => setNovoTimeAId(e.target.value)}
             >
               <option value="">Time A</option>
@@ -259,7 +249,7 @@ export default function WorkspacePartidasPanel({
             <select
               className="form-select form-select-sm"
               style={{ maxWidth: 160 }}
-              value={novoTimeBId}
+              value={selectedTimeBId}
               onChange={(e) => setNovoTimeBId(e.target.value)}
             >
               <option value="">Time B</option>

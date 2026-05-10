@@ -1,16 +1,16 @@
 from fastapi.testclient import TestClient
 
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     Dia as DiaModel,
     EventoRotacaoEstado as EventoRotacaoEstadoModel,
-    JogadorAula as JogadorAulaModel,
+    JogadorEvento as JogadorEventoModel,
     Partida as PartidaModel,
     PartidaStatusEnum,
-    StatusAulaEnum,
+    StatusEventoEnum,
     StatusPresencaEnum,
-    TimeAula as TimeAulaModel,
-    TipoEventoAulaEnum,
+    TimeEvento as TimeEventoModel,
+    TipoEventoEnum,
 )
 from app.models.jogador_turma import Jogador as JogadorModel, Turma as TurmaModel
 
@@ -23,29 +23,29 @@ def _criar_evento_jogo_livre(db_session):
     db_session.add_all([dia, turma, jogador_1, jogador_2])
     db_session.flush()
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
         turma_id=turma.id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=1,
-        tipo=TipoEventoAulaEnum.JOGO,
+        numero_evento_na_turma=1,
+        tipo=TipoEventoEnum.JOGO_LIVRE,
         horario_inicio="19:00",
         horario_fim="20:00",
-        status=StatusAulaEnum.PLANEJADA,
+        status=StatusEventoEnum.PLANEJADO,
     )
-    db_session.add(aula)
+    db_session.add(evento)
     db_session.flush()
 
     db_session.add_all(
         [
-            JogadorAulaModel(
-                aula_id=aula.id,
+            JogadorEventoModel(
+                evento_id=evento.id,
                 jogador_id=jogador_1.id,
                 nome=jogador_1.nome,
                 status=StatusPresencaEnum.presente,
             ),
-            JogadorAulaModel(
-                aula_id=aula.id,
+            JogadorEventoModel(
+                evento_id=evento.id,
                 jogador_id=jogador_2.id,
                 nome=jogador_2.nome,
                 status=StatusPresencaEnum.presente,
@@ -53,53 +53,53 @@ def _criar_evento_jogo_livre(db_session):
         ]
     )
     db_session.commit()
-    return aula.id, jogador_1.id, jogador_2.id
+    return evento.id, jogador_1.id, jogador_2.id
 
 
-def _criar_evento_aula_com_partida_para_lance(db_session):
+def _criar_evento_evento_com_partida_para_lance(db_session):
     dia = DiaModel(data_iso="2026-03-02")
-    turma = TurmaModel(nome="Turma Aula Lance")
+    turma = TurmaModel(nome="Turma Evento Lance")
     jogador_global = JogadorModel(nome="Jogador Global", status="ativo", ativo=True)
     db_session.add_all([dia, turma, jogador_global])
     db_session.flush()
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
         turma_id=turma.id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=1,
-        tipo=TipoEventoAulaEnum.AULA,
+        numero_evento_na_turma=1,
+        tipo=TipoEventoEnum.AULA,
         horario_inicio="20:00",
         horario_fim="21:00",
-        status=StatusAulaEnum.EM_ANDAMENTO,
+        status=StatusEventoEnum.EM_ANDAMENTO,
     )
-    db_session.add(aula)
+    db_session.add(evento)
     db_session.flush()
 
-    time_a = TimeAulaModel(aula_id=aula.id, nome="Time A")
-    time_b = TimeAulaModel(aula_id=aula.id, nome="Time B")
+    time_a = TimeEventoModel(evento_id=evento.id, nome="Time A")
+    time_b = TimeEventoModel(evento_id=evento.id, nome="Time B")
     db_session.add_all([time_a, time_b])
     db_session.flush()
 
-    jogador_aula_com_global = JogadorAulaModel(
-        aula_id=aula.id,
+    jogador_evento_com_global = JogadorEventoModel(
+        evento_id=evento.id,
         jogador_id=jogador_global.id,
         nome=jogador_global.nome,
         status=StatusPresencaEnum.presente,
         time_id=time_a.id,
     )
-    jogador_aula_sem_global = JogadorAulaModel(
-        aula_id=aula.id,
+    jogador_evento_sem_global = JogadorEventoModel(
+        evento_id=evento.id,
         jogador_id=None,
         nome="Sem Global",
         status=StatusPresencaEnum.presente,
         time_id=time_b.id,
     )
-    db_session.add_all([jogador_aula_com_global, jogador_aula_sem_global])
+    db_session.add_all([jogador_evento_com_global, jogador_evento_sem_global])
     db_session.flush()
 
     partida = PartidaModel(
-        aula_id=aula.id,
+        evento_id=evento.id,
         ordem=1,
         status=PartidaStatusEnum.EM_ANDAMENTO,
         time_a_id=time_a.id,
@@ -108,42 +108,42 @@ def _criar_evento_aula_com_partida_para_lance(db_session):
     db_session.add(partida)
     db_session.commit()
     return {
-        "evento_id": aula.id,
+        "evento_id": evento.id,
         "partida_id": partida.id,
         "jogador_global_id": jogador_global.id,
-        "jogador_aula_id_com_global": jogador_aula_com_global.id,
-        "jogador_aula_id_sem_global": jogador_aula_sem_global.id,
+        "jogador_evento_id_com_global": jogador_evento_com_global.id,
+        "jogador_evento_id_sem_global": jogador_evento_sem_global.id,
     }
 
 
-def _criar_evento_aula_sem_presentes(db_session) -> int:
+def _criar_evento_evento_sem_presentes(db_session) -> int:
     dia = DiaModel(data_iso="2026-03-03")
     turma = TurmaModel(nome="Turma Sem Presentes")
     db_session.add_all([dia, turma])
     db_session.flush()
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
         turma_id=turma.id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=1,
-        tipo=TipoEventoAulaEnum.AULA,
+        numero_evento_na_turma=1,
+        tipo=TipoEventoEnum.AULA,
         horario_inicio="18:00",
         horario_fim="19:00",
-        status=StatusAulaEnum.PLANEJADA,
+        status=StatusEventoEnum.PLANEJADO,
     )
-    db_session.add(aula)
+    db_session.add(evento)
     db_session.flush()
     db_session.add_all(
         [
-            JogadorAulaModel(
-                aula_id=aula.id,
+            JogadorEventoModel(
+                evento_id=evento.id,
                 jogador_id=None,
                 nome="J1",
                 status=StatusPresencaEnum.so_treino,
             ),
-            JogadorAulaModel(
-                aula_id=aula.id,
+            JogadorEventoModel(
+                evento_id=evento.id,
                 jogador_id=None,
                 nome="J2",
                 status=StatusPresencaEnum.faltou,
@@ -151,10 +151,10 @@ def _criar_evento_aula_sem_presentes(db_session) -> int:
         ]
     )
     db_session.commit()
-    return aula.id
+    return evento.id
 
 
-def _criar_evento_aula_para_rotacao_update(db_session):
+def _criar_evento_evento_para_rotacao_update(db_session):
     dia = DiaModel(data_iso="2026-03-04")
     turma = TurmaModel(nome="Turma Rotacao")
     jogadores = [
@@ -166,35 +166,35 @@ def _criar_evento_aula_para_rotacao_update(db_session):
     db_session.add_all([dia, turma, *jogadores])
     db_session.flush()
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
         turma_id=turma.id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=1,
-        tipo=TipoEventoAulaEnum.AULA,
+        numero_evento_na_turma=1,
+        tipo=TipoEventoEnum.AULA,
         horario_inicio="17:00",
         horario_fim="18:00",
-        status=StatusAulaEnum.PLANEJADA,
+        status=StatusEventoEnum.PLANEJADO,
     )
-    db_session.add(aula)
+    db_session.add(evento)
     db_session.flush()
 
-    jogadores_aula = []
+    jogadores_evento = []
     for jogador in jogadores:
-        jogadores_aula.append(
-            JogadorAulaModel(
-                aula_id=aula.id,
+        jogadores_evento.append(
+            JogadorEventoModel(
+                evento_id=evento.id,
                 jogador_id=jogador.id,
                 nome=jogador.nome,
                 status=StatusPresencaEnum.presente,
             )
         )
-    db_session.add_all(jogadores_aula)
+    db_session.add_all(jogadores_evento)
     db_session.commit()
-    return aula.id, [ja.id for ja in jogadores_aula]
+    return evento.id, [ja.id for ja in jogadores_evento]
 
 
-def _criar_evento_aula_para_preview_rotacao(db_session):
+def _criar_evento_evento_para_preview_rotacao(db_session):
     dia = DiaModel(data_iso="2026-03-05")
     turma = TurmaModel(nome="Turma Rotacao Preview")
     jogadores = [
@@ -206,33 +206,33 @@ def _criar_evento_aula_para_preview_rotacao(db_session):
     db_session.add_all([dia, turma, *jogadores])
     db_session.flush()
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
         turma_id=turma.id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=1,
-        tipo=TipoEventoAulaEnum.AULA,
+        numero_evento_na_turma=1,
+        tipo=TipoEventoEnum.AULA,
         horario_inicio="19:00",
         horario_fim="20:00",
-        status=StatusAulaEnum.EM_ANDAMENTO,
+        status=StatusEventoEnum.EM_ANDAMENTO,
     )
-    db_session.add(aula)
+    db_session.add(evento)
     db_session.flush()
 
-    time_a = TimeAulaModel(aula_id=aula.id, nome="Time A")
-    time_b = TimeAulaModel(aula_id=aula.id, nome="Time B")
+    time_a = TimeEventoModel(evento_id=evento.id, nome="Time A")
+    time_b = TimeEventoModel(evento_id=evento.id, nome="Time B")
     db_session.add_all([time_a, time_b])
     db_session.flush()
 
-    ja1 = JogadorAulaModel(aula_id=aula.id, jogador_id=jogadores[0].id, nome="P1", status=StatusPresencaEnum.presente, time_id=time_a.id)
-    ja2 = JogadorAulaModel(aula_id=aula.id, jogador_id=jogadores[1].id, nome="P2", status=StatusPresencaEnum.presente, time_id=time_b.id)
-    ja3 = JogadorAulaModel(aula_id=aula.id, jogador_id=jogadores[2].id, nome="P3", status=StatusPresencaEnum.presente, time_id=None)
-    ja4 = JogadorAulaModel(aula_id=aula.id, jogador_id=jogadores[3].id, nome="P4", status=StatusPresencaEnum.presente, time_id=None)
+    ja1 = JogadorEventoModel(evento_id=evento.id, jogador_id=jogadores[0].id, nome="P1", status=StatusPresencaEnum.presente, time_id=time_a.id)
+    ja2 = JogadorEventoModel(evento_id=evento.id, jogador_id=jogadores[1].id, nome="P2", status=StatusPresencaEnum.presente, time_id=time_b.id)
+    ja3 = JogadorEventoModel(evento_id=evento.id, jogador_id=jogadores[2].id, nome="P3", status=StatusPresencaEnum.presente, time_id=None)
+    ja4 = JogadorEventoModel(evento_id=evento.id, jogador_id=jogadores[3].id, nome="P4", status=StatusPresencaEnum.presente, time_id=None)
     db_session.add_all([ja1, ja2, ja3, ja4])
     db_session.flush()
 
     partida = PartidaModel(
-        aula_id=aula.id,
+        evento_id=evento.id,
         ordem=1,
         status=PartidaStatusEnum.EM_ANDAMENTO,
         time_a_id=time_a.id,
@@ -243,7 +243,7 @@ def _criar_evento_aula_para_preview_rotacao(db_session):
 
     db_session.add(
         EventoRotacaoEstadoModel(
-            aula_id=aula.id,
+            evento_id=evento.id,
             team_size_ref=2,
             fila_jogadores_ids=[ja1.id, ja2.id, ja3.id, ja4.id],
             proximos_times=[{"grupo_id": "grupo-1", "jogadores_ids": [ja3.id]}],
@@ -251,7 +251,7 @@ def _criar_evento_aula_para_preview_rotacao(db_session):
         )
     )
     db_session.commit()
-    return aula.id, {ja1.id, ja2.id}
+    return evento.id, {ja1.id, ja2.id}
 
 
 def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
@@ -404,15 +404,15 @@ def test_eventos_lances_limit_fora_da_faixa_retorna_422(client: TestClient, db_s
     assert resp.status_code == 422, resp.text
 
 
-def test_lance_aceita_jogador_aula_id_convertendo_para_jogador_global(client: TestClient, db_session):
-    ctx = _criar_evento_aula_com_partida_para_lance(db_session)
+def test_lance_aceita_jogador_evento_id_convertendo_para_jogador_global(client: TestClient, db_session):
+    ctx = _criar_evento_evento_com_partida_para_lance(db_session)
 
     resp = client.post(
         f"/api/partidas/{ctx['partida_id']}/lances",
         json={
             "tipo": "GOL",
             "payload": {"minute": 5, "time_id": 1},
-            "jogador_id": ctx["jogador_aula_id_com_global"],
+            "jogador_id": ctx["jogador_evento_id_com_global"],
         },
         headers={"X-User-Id": "coach", "X-Role": "treinador"},
     )
@@ -421,15 +421,15 @@ def test_lance_aceita_jogador_aula_id_convertendo_para_jogador_global(client: Te
     assert lance["jogador_id"] == ctx["jogador_global_id"]
 
 
-def test_lance_rejeita_jogador_aula_sem_vinculo_global(client: TestClient, db_session):
-    ctx = _criar_evento_aula_com_partida_para_lance(db_session)
+def test_lance_rejeita_jogador_evento_sem_vinculo_global(client: TestClient, db_session):
+    ctx = _criar_evento_evento_com_partida_para_lance(db_session)
 
     resp = client.post(
         f"/api/partidas/{ctx['partida_id']}/lances",
         json={
             "tipo": "GOL",
             "payload": {"minute": 8},
-            "jogador_id": ctx["jogador_aula_id_sem_global"],
+            "jogador_id": ctx["jogador_evento_id_sem_global"],
         },
         headers={"X-User-Id": "coach", "X-Role": "treinador"},
     )
@@ -438,7 +438,7 @@ def test_lance_rejeita_jogador_aula_sem_vinculo_global(client: TestClient, db_se
 
 
 def test_end_evento_bloqueia_com_partida_em_andamento(client: TestClient, db_session):
-    ctx = _criar_evento_aula_com_partida_para_lance(db_session)
+    ctx = _criar_evento_evento_com_partida_para_lance(db_session)
     resp = client.post(
         f"/api/eventos/{ctx['evento_id']}/end",
         headers={"X-User-Id": "coach", "X-Role": "treinador"},
@@ -448,7 +448,7 @@ def test_end_evento_bloqueia_com_partida_em_andamento(client: TestClient, db_ses
 
 
 def test_start_evento_permite_sem_jogadores_presentes(client: TestClient, db_session):
-    evento_id = _criar_evento_aula_sem_presentes(db_session)
+    evento_id = _criar_evento_evento_sem_presentes(db_session)
     resp = client.post(
         f"/api/eventos/{evento_id}/start",
         headers={"X-User-Id": "coach", "X-Role": "treinador"},
@@ -458,30 +458,30 @@ def test_start_evento_permite_sem_jogadores_presentes(client: TestClient, db_ses
 
 
 def test_update_rotacao_estado_aceita_filas_de_jogadores_e_times(client: TestClient, db_session):
-    evento_id, jogador_aula_ids = _criar_evento_aula_para_rotacao_update(db_session)
+    evento_id, jogador_evento_ids = _criar_evento_evento_para_rotacao_update(db_session)
     headers = {"X-User-Id": "coach", "X-Role": "treinador"}
 
     resp = client.patch(
         f"/api/eventos/{evento_id}/rotacao/estado",
         headers=headers,
         json={
-            "fila_jogadores_ids": list(reversed(jogador_aula_ids)),
+            "fila_jogadores_ids": list(reversed(jogador_evento_ids)),
             "proximos_times": [
-                {"grupo_id": "time:manual-1", "jogadores_ids": [jogador_aula_ids[0], jogador_aula_ids[1]]},
-                {"grupo_id": "time:manual-2", "jogadores_ids": [jogador_aula_ids[2], jogador_aula_ids[3]]},
+                {"grupo_id": "time:manual-1", "jogadores_ids": [jogador_evento_ids[0], jogador_evento_ids[1]]},
+                {"grupo_id": "time:manual-2", "jogadores_ids": [jogador_evento_ids[2], jogador_evento_ids[3]]},
             ],
         },
     )
     assert resp.status_code == 200, resp.text
     body = resp.json()
-    assert body["fila_jogadores_ids"] == list(reversed(jogador_aula_ids))
+    assert body["fila_jogadores_ids"] == list(reversed(jogador_evento_ids))
     assert len(body["proximos_times"]) >= 2
     assert body["proximos_times"][0]["grupo_id"] == "time:manual-1"
     assert body["proximos_times"][1]["grupo_id"] == "time:manual-2"
 
 
 def test_preview_rotacao_exclui_jogadores_em_campo(client: TestClient, db_session):
-    evento_id, ids_em_campo = _criar_evento_aula_para_preview_rotacao(db_session)
+    evento_id, ids_em_campo = _criar_evento_evento_para_preview_rotacao(db_session)
     headers = {"X-User-Id": "coach", "X-Role": "treinador"}
 
     resp = client.post(

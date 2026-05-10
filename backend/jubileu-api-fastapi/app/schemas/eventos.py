@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.dia_aula import EventoParticipanteStatusEnum, PartidaStatusEnum, RotacaoSorteioStatusEnum
+from app.models.dia_evento import EventoParticipanteStatusEnum, PartidaStatusEnum, RotacaoSorteioStatusEnum
 
 
 EventoTipoCanonical = Literal["AULA", "JOGO_LIVRE"]

@@ -19,8 +19,8 @@ export type EquipesEstado = {
   times: TimeDia[];
 };
 
-export type AulaEstadoDTO = {
-  aula_id: number;
+export type EventoEstadoDTO = {
+  evento_id: number;
   data_iso: string;
   version: number;
   updated_at: string;
@@ -28,6 +28,6 @@ export type AulaEstadoDTO = {
   partidas: PartidaEstado[];
 };
 
-export type AulaEstadoResponse =
+export type EventoEstadoResponse =
   | { status: 204; data?: undefined }
-  | { status: 200; data: AulaEstadoDTO };
+  | { status: 200; data: EventoEstadoDTO };

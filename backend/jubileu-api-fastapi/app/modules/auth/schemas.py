@@ -18,5 +18,8 @@ class AuthTokenOut(BaseModel):
 
 class AuthMeOut(BaseModel):
     user_id: str
+    username: Optional[str] = None
+    display_name: Optional[str] = None
+    email: Optional[str] = None
     role: str
     jogador_id: Optional[int] = None

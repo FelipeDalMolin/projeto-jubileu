@@ -89,6 +89,7 @@ The execution tracks are supported by:
 - `docs/DECISIONS.md`
 - `docs/refactors/linear-core-dev-map.md`
 - `docs/refactors/execution-plan-roadmap.md`
+- `docs/refactors/evento-validation-matrix.md`
 
 ## Execution Rules
 

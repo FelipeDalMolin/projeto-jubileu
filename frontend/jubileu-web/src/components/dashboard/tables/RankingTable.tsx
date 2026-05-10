@@ -17,7 +17,17 @@ type Props<T> = {
 
 type SortDirection = "asc" | "desc";
 
-export default function RankingTable<T extends Record<string, any>>({
+function readValue<T extends Record<string, unknown>>(row: T, key: keyof T | string): unknown {
+  return row[key as keyof T];
+}
+
+function renderValue(value: unknown): ReactNode {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string" || typeof value === "number") return value;
+  return String(value);
+}
+
+export default function RankingTable<T extends Record<string, unknown>>({
   columns,
   data,
   onRowClick,
@@ -32,8 +42,8 @@ export default function RankingTable<T extends Record<string, any>>({
     if (!col) return data;
 
     const sortedCopy = [...data].sort((a, b) => {
-      const av = (a as any)[col.key];
-      const bv = (b as any)[col.key];
+      const av = readValue(a, col.key);
+      const bv = readValue(b, col.key);
 
       if (typeof av === "number" && typeof bv === "number") {
         return av - bv;
@@ -98,7 +108,7 @@ export default function RankingTable<T extends Record<string, any>>({
                       isActive ? "table-active" : ""
                     }`}
                   >
-                    {col.render ? col.render(row) : (row as any)[col.key]}
+                    {col.render ? col.render(row) : renderValue(readValue(row, col.key))}
                   </td>
                 ))}
               </tr>

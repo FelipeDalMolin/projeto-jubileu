@@ -4,7 +4,6 @@ import PrivateRoute from "./PrivateRoute";
 
 import DiaLista from "../pages/dias/DiaLista";
 import DiaDetalhe from "../pages/dias/DiaDetalhe";
-import AulaPage from "../pages/dias/AulaPage";
 import EventoPage from "../pages/eventos/EventoPage";
 
 import LoginPage from "../pages/auth/LoginPage";
@@ -28,7 +27,6 @@ export default function AppRoutes() {
         <Route path="/dias" element={<DiaLista />} />
         <Route path="/dias/:dataIso" element={<DiaDetalhe />} />
         <Route path="/dias/:dataIso/eventos/:eventoId" element={<EventoPage />} />
-        <Route path="/dias/:dataIso/aulas/:aulaId" element={<AulaPage />} />
 
         <Route path="/turmas" element={<TurmasPage />} />
         <Route path="/turmas/nova" element={<TurmaDetalhe />} />

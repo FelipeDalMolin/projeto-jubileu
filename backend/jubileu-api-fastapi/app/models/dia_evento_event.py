@@ -8,15 +8,15 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.dia_aula_enums import EventoParticipanteStatusEnum
+from app.models.dia_evento_enums import EventoParticipanteStatusEnum
 
 
 class EventoParticipante(Base):
     __tablename__ = "evento_participantes"
-    __table_args__ = (UniqueConstraint("aula_id", "jogador_id", name="uq_evento_participante"),)
+    __table_args__ = (UniqueConstraint("evento_id", "jogador_id", name="uq_evento_participante"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    aula_id: Mapped[int] = mapped_column(ForeignKey("aulas.id"), nullable=False, index=True)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False, index=True)
     jogador_id: Mapped[int] = mapped_column(ForeignKey("jogadores.id"), nullable=False, index=True)
     status: Mapped[EventoParticipanteStatusEnum] = mapped_column(
         SAEnum(EventoParticipanteStatusEnum),
@@ -42,7 +42,7 @@ class EventoParticipante(Base):
         onupdate=func.now(),
     )
 
-    aula: Mapped["Aula"] = relationship("Aula", back_populates="participantes")
+    evento: Mapped["Evento"] = relationship("Evento", back_populates="participantes")
 
 
 class Lance(Base):
@@ -50,7 +50,7 @@ class Lance(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     partida_id: Mapped[int] = mapped_column(ForeignKey("partidas.id"), nullable=False, index=True)
-    aula_id: Mapped[int] = mapped_column(ForeignKey("aulas.id"), nullable=False, index=True)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False, index=True)
     jogador_id: Mapped[Optional[int]] = mapped_column(ForeignKey("jogadores.id"), nullable=True, index=True)
     tipo: Mapped[str] = mapped_column(String, nullable=False)
     payload: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
@@ -73,4 +73,4 @@ class Lance(Base):
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     partida: Mapped["Partida"] = relationship("Partida", back_populates="lances")
-    aula: Mapped["Aula"] = relationship("Aula", back_populates="lances")
+    evento: Mapped["Evento"] = relationship("Evento", back_populates="lances")

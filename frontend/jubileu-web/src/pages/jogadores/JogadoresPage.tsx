@@ -17,6 +17,10 @@ type FormState = {
   status: string;
 };
 
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
 export default function JogadoresPage() {
   const navigate = useNavigate();
 
@@ -45,9 +49,9 @@ export default function JogadoresPage() {
         setErro(null);
         const dados = await listarJogadores();
         setJogadores(dados);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(err);
-        setErro(err?.message ?? "Erro ao carregar jogadores.");
+        setErro(errorMessage(err, "Erro ao carregar jogadores."));
       } finally {
         setLoading(false);
       }
@@ -56,7 +60,7 @@ export default function JogadoresPage() {
     carregar();
   }, []);
 
-  // --------- Helpers de formulário ---------
+  // --------- Helpers de formulario ---------
 
   const resetForm = () => {
     setModo("create");
@@ -109,9 +113,9 @@ export default function JogadoresPage() {
         );
         resetForm();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErro(err?.message ?? "Erro ao salvar jogador.");
+      setErro(errorMessage(err, "Erro ao salvar jogador."));
     } finally {
       setSalvando(false);
     }
@@ -139,9 +143,9 @@ export default function JogadoresPage() {
       if (jogadorEditando?.id === j.id) {
         resetForm();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setErro(err?.message ?? "Erro ao excluir jogador.");
+      setErro(errorMessage(err, "Erro ao excluir jogador."));
     }
   };
 
@@ -150,7 +154,7 @@ export default function JogadoresPage() {
   return (
     <main className="container py-3">
       <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/")}>
-        ← Voltar para o dashboard
+        Voltar para o dashboard
       </button>
 
       <div className="d-flex justify-content-between align-items-center mb-3">
@@ -209,7 +213,8 @@ export default function JogadoresPage() {
                   >
                     <option value="ativo">Ativo</option>
                     <option value="inativo">Inativo</option>
-                    <option value="suspenso">Suspenso</option>
+                    <option value="lesionado">Lesionado</option>
+                    <option value="afastado">Afastado</option>
                   </select>
                 </div>
 
@@ -223,7 +228,7 @@ export default function JogadoresPage() {
                       ? "Salvando..."
                       : modo === "create"
                       ? "Adicionar"
-                      : "Salvar alterações"}
+                      : "Salvar alteracoes"}
                   </button>
                   {modo === "edit" && (
                     <button
@@ -231,7 +236,7 @@ export default function JogadoresPage() {
                       className="btn btn-sm btn-outline-secondary"
                       onClick={resetForm}
                     >
-                      Cancelar edição
+                      Cancelar edicao
                     </button>
                   )}
                 </div>
@@ -260,7 +265,7 @@ export default function JogadoresPage() {
                         <th>Nome</th>
                         <th>Apelido</th>
                         <th>Status</th>
-                        <th style={{ width: 140 }}>Ações</th>
+                        <th style={{ width: 140 }}>Acoes</th>
                       </tr>
                     </thead>
                     <tbody>

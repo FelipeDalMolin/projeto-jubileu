@@ -26,7 +26,7 @@ export type JogadorDia = {
 // Estatistica de um jogador dentro de UMA partida
 export type EstatisticaJogadorPartida = {
   id?: number;
-  jogadorAulaId: number;
+  jogadorEventoId: number;
   gols: number;
   assistencias: number;
   chiliques: number;
@@ -34,8 +34,8 @@ export type EstatisticaJogadorPartida = {
   nota?: number;
 };
 
-// Partida da aula
-export type PartidaAula = {
+// Partida da evento
+export type PartidaEvento = {
   id: number;
   ordem: number;
   timeAId: string;
@@ -46,16 +46,16 @@ export type PartidaAula = {
 };
 
 // --------------------------------------------------------------
-// NOVOS TIPOS para a arquitetura de Agenda do Dia / Aula
+// NOVOS TIPOS para a arquitetura de Agenda do Dia / Evento
 // --------------------------------------------------------------
 
-export type StatusAula =
-  | "PLANEJADA"
+export type StatusEvento =
+  | "PLANEJADO"
   | "EM_ANDAMENTO"
-  | "CONCLUIDA"
-  | "CANCELADA";
+  | "ENCERRADO"
+  | "CANCELADO";
 
-// Atributos agregados de um jogador ao longo da AULA (nao de uma partida especifica)
+// Atributos agregados de um jogador ao longo do evento (nao de uma partida especifica)
 export type AtributosJogadorDia = {
   gols: number;
   assistencias: number;
@@ -63,7 +63,7 @@ export type AtributosJogadorDia = {
   faltas: number;
 };
 
-// Presenca + atributos de um jogador dentro da AULA
+// Presenca + atributos de um jogador dentro do evento
 export interface PresencaJogadorDia {
   jogadorId: number;
   nome: string;
@@ -75,7 +75,7 @@ export interface PresencaJogadorDia {
   podeJogar?: boolean;
 }
 
-// Time dentro de uma AULA
+// Time dentro de um evento
 export type TimeDia = {
   id: string;
   nome: string; // "Time 1", "Time Azul" etc.
@@ -84,26 +84,26 @@ export type TimeDia = {
   corCamisa?: string;
 };
 
-export type TipoEventoAula = "AULA" | "JOGO" | "OUTRO";
+export type TipoEventoModo = "AULA" | "JOGO_LIVRE" | "OUTRO";
 
-// Aula / evento em um determinado dia
-export type AulaDia = {
+// Evento / evento em um determinado dia
+export type EventoDia = {
   id: string;
-  turmaId: number;
-  turmaNome: string;
+  turmaId?: number | null;
+  turmaNome?: string | null;
   /**
-   * Numero sequencial da aula da turma (ex.: Aula #12 da turma Sub-11).
+   * Numero sequencial da evento da turma (ex.: Evento #12 da turma Sub-11).
    */
-  numeroAulaNaTurma: number;
-  tipo: TipoEventoAula;
+  numeroEventoNaTurma?: number | null;
+  tipo: TipoEventoModo;
   horarioInicio: string; // "19:00"
   horarioFim: string; // "20:00"
-  status: StatusAula;
+  status: StatusEvento;
   jogadores: PresencaJogadorDia[];
   times: TimeDia[];
   /**
-   * Quantidade de partidas ja configuradas para esta aula.
-   * Depois voce pode trocar por um array de PartidaAula especifico da aula.
+   * Quantidade de partidas ja configuradas para esta evento.
+   * Depois voce pode trocar por um array de PartidaEvento especifico da evento.
    */
   partidasCount: number;
 };
@@ -122,7 +122,7 @@ export type Dia = {
    * Tambem e usada na URL: /dias/:dataIso
    */
   dataIso: string;
-  aulas: AulaDia[];
+  eventos: EventoDia[];
   /**
    * Informacoes de feriado, se houver.
    * Pode vir de API externa + feriados cadastrados do clube.

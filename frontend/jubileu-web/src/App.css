@@ -73,8 +73,8 @@ a:hover {
   color: #64748b;
 }
 
-/* Layout usado na AulaPage (coluna esquerda + direita) */
-.aula-layout {
+/* Layout usado na EventoPage (coluna esquerda + direita) */
+.evento-layout {
   display: grid;
   gap: 16px;
   grid-template-columns: 1fr; /* mobile: uma coluna */
@@ -82,7 +82,7 @@ a:hover {
 
 /* A partir de ~900px, vira 2 colunas */
 @media (min-width: 900px) {
-  .aula-layout {
+  .evento-layout {
     grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
     gap: 24px;
   }

@@ -1,4 +1,4 @@
-export type EventoTipo = "AULA" | "JOGO_LIVRE";
+export type EventoTipo = "AULA" | "JOGO_LIVRE" | "OUTRO";
 export type EventoStatus = "PLANEJADO" | "EM_ANDAMENTO" | "ENCERRADO" | "CANCELADO";
 export type EventoParticipanteStatus =
   | "RSVP"
@@ -76,6 +76,7 @@ export type Lance = {
 
 export function normalizeEventoTipo(raw: string | null | undefined): EventoTipo {
   if (raw === "JOGO" || raw === "JOGO_LIVRE") return "JOGO_LIVRE";
+  if (raw === "OUTRO") return "OUTRO";
   return "AULA";
 }
 

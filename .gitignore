@@ -112,6 +112,7 @@ docs/refactors/*
 !docs/refactors/EXECUTION_INDEX.md
 !docs/refactors/linear-core-dev-map.md
 !docs/refactors/execution-plan-roadmap.md
+!docs/refactors/evento-validation-matrix.md
 projeto-jubileu/
 projeto-jubileu-clean.zip
 print.txt

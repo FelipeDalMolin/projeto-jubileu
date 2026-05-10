@@ -8,30 +8,30 @@ from typing import Any, Optional
 from fastapi import HTTPException, Response, status
 from sqlalchemy.orm import Session, selectinload
 
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     Dia as DiaModel,
-    JogadorAula as JogadorAulaModel,
+    JogadorEvento as JogadorEventoModel,
     Partida as PartidaModel,
-    StatusAulaEnum,
+    StatusEventoEnum,
     TeamConfig as TeamConfigModel,
 )
-from app.schemas.dia_aula import (
-    AulaEstadoOut,
+from app.schemas.dia_evento import (
+    EventoEstadoOut,
     EquipesEstadoOut,
     EstatisticaJogadorPartidaOut,
     PartidaEstadoOut,
     PresencaJogadorDiaOut,
-    TimeAulaOut,
+    TimeEventoOut,
 )
 from app.services.estado_equipes import rebuild_estado_equipes
 
 
-def assert_aula_editavel(aula: AulaModel) -> None:
-    if aula.status == StatusAulaEnum.CONCLUIDA:
+def assert_evento_editavel(evento: EventoModel) -> None:
+    if evento.status == StatusEventoEnum.ENCERRADO:
         raise HTTPException(
             status_code=409,
-            detail="Aula concluida: alteracoes nao permitidas",
+            detail="Evento encerrado: alteracoes nao permitidas",
         )
 
 
@@ -54,56 +54,56 @@ def get_or_create_dia(db: Session, data_iso: str) -> DiaModel:
     return dia
 
 
-def get_aula_no_dia_or_404(
+def get_evento_no_dia_or_404(
     db: Session,
     data_iso: str,
-    aula_id: int,
+    evento_id: int,
     *,
     eager_jogadores: bool = False,
-) -> AulaModel:
+) -> EventoModel:
     dia = get_dia_or_404(db, data_iso)
 
-    query = db.query(AulaModel)
+    query = db.query(EventoModel)
     if eager_jogadores:
-        query = query.options(selectinload(AulaModel.jogadores))
+        query = query.options(selectinload(EventoModel.jogadores))
 
-    aula = query.filter(AulaModel.id == aula_id, AulaModel.dia_id == dia.id).first()
-    if not aula:
-        raise HTTPException(status_code=404, detail="Aula nao encontrada para este dia")
-    return aula
+    evento = query.filter(EventoModel.id == evento_id, EventoModel.dia_id == dia.id).first()
+    if not evento:
+        raise HTTPException(status_code=404, detail="Evento nao encontrado para este dia")
+    return evento
 
 
-def get_active_team_config(db: Session, aula_id: int) -> TeamConfigModel | None:
+def get_active_team_config(db: Session, evento_id: int) -> TeamConfigModel | None:
     return (
         db.query(TeamConfigModel)
-        .filter(TeamConfigModel.aula_id == aula_id, TeamConfigModel.is_active.is_(True))
+        .filter(TeamConfigModel.evento_id == evento_id, TeamConfigModel.is_active.is_(True))
         .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
         .first()
     )
 
 
-def ensure_active_team_config(db: Session, aula: AulaModel) -> TeamConfigModel | None:
-    team_config = get_active_team_config(db, aula.id)
+def ensure_active_team_config(db: Session, evento: EventoModel) -> TeamConfigModel | None:
+    team_config = get_active_team_config(db, evento.id)
     if team_config:
         return team_config
 
-    db.refresh(aula, attribute_names=["jogadores", "times"])
-    team_config = rebuild_estado_equipes(db, aula)
+    db.refresh(evento, attribute_names=["jogadores", "times"])
+    team_config = rebuild_estado_equipes(db, evento)
     db.commit()
     if team_config:
         db.refresh(team_config)
     return team_config
 
 
-def build_estado_aula_response(
+def build_estado_evento_response(
     db: Session,
     data_iso: str,
-    aula: AulaModel,
+    evento: EventoModel,
     *,
     since_version: int | None,
     include_stats: bool,
-) -> AulaEstadoOut | Response:
-    team_config = ensure_active_team_config(db, aula)
+) -> EventoEstadoOut | Response:
+    team_config = ensure_active_team_config(db, evento)
     base_version = int(team_config.version) if team_config and team_config.version is not None else 0
 
     if team_config:
@@ -111,7 +111,7 @@ def build_estado_aula_response(
         jogadores_raw = estado_dict.get("jogadores", []) or []
         times_raw = estado_dict.get("times", []) or []
         jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]
-        times = [TimeAulaOut.model_validate(t) for t in times_raw]
+        times = [TimeEventoOut.model_validate(t) for t in times_raw]
         updated_at = team_config.created_at or datetime.fromtimestamp(0, timezone.utc)
     else:
         jogadores = []
@@ -121,13 +121,13 @@ def build_estado_aula_response(
     partidas_db = (
         db.query(PartidaModel)
         .options(selectinload(PartidaModel.estatisticas))
-        .filter(PartidaModel.aula_id == aula.id)
+        .filter(PartidaModel.evento_id == evento.id)
         .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
         .all()
     )
 
     estat_ids = [
-        estat.jogador_aula_id
+        estat.jogador_evento_id
         for partida in partidas_db
         for estat in partida.estatisticas
     ]
@@ -135,9 +135,9 @@ def build_estado_aula_response(
     jogadores_time_map: dict[int, Optional[int]] = {}
     if estat_ids:
         rows = (
-            db.query(JogadorAulaModel.id, JogadorAulaModel.time_id)
-            .filter(JogadorAulaModel.aula_id == aula.id)
-            .filter(JogadorAulaModel.id.in_(estat_ids))
+            db.query(JogadorEventoModel.id, JogadorEventoModel.time_id)
+            .filter(JogadorEventoModel.evento_id == evento.id)
+            .filter(JogadorEventoModel.id.in_(estat_ids))
             .all()
         )
         jogadores_time_map = {row.id: row.time_id for row in rows}
@@ -149,7 +149,7 @@ def build_estado_aula_response(
         gols_a = 0
         gols_b = 0
         for estat in partida.estatisticas:
-            time_id = jogadores_time_map.get(estat.jogador_aula_id)
+            time_id = jogadores_time_map.get(estat.jogador_evento_id)
             if time_id == partida.time_a_id:
                 gols_a += estat.gols
             elif time_id == partida.time_b_id:
@@ -183,7 +183,7 @@ def build_estado_aula_response(
                 gols_b,
                 [
                     [
-                        estat.jogador_aula_id,
+                        estat.jogador_evento_id,
                         estat.gols,
                         estat.assistencias,
                         estat.chiliques,
@@ -191,7 +191,7 @@ def build_estado_aula_response(
                     ]
                     for estat in sorted(
                         partida.estatisticas,
-                        key=lambda e: (e.id or 0, e.jogador_aula_id),
+                        key=lambda e: (e.id or 0, e.jogador_evento_id),
                     )
                 ],
             ]
@@ -209,8 +209,8 @@ def build_estado_aula_response(
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
     dia = get_dia_or_404(db, data_iso)
-    return AulaEstadoOut(
-        aula_id=aula.id,
+    return EventoEstadoOut(
+        evento_id=evento.id,
         data_iso=dia.data_iso,
         version=current_version,
         updated_at=updated_at,

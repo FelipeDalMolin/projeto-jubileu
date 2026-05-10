@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
-import type { WorkspaceAulaEquipes } from "../../../types/workspaceAula";
+import type { WorkspaceEventoEquipes } from "../../../types/workspaceEvento";
 
-export function TimesPanel({ equipes }: { equipes: WorkspaceAulaEquipes }) {
+export function TimesPanel({ equipes }: { equipes: WorkspaceEventoEquipes }) {
   return (
     <Card>
       <CardHeader className="pb-2">

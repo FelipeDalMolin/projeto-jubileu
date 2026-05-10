@@ -15,13 +15,13 @@ async function safeText(resp: Response) {
   }
 }
 
-export async function confirmarPresencasAula(
+export async function confirmarPresencasEvento(
   dataIso: string,
-  aulaId: string | number,
+  eventoId: string | number,
   presentesIds: number[],
 ): Promise<{ version?: number }> {
   const resp = await fetch(
-    buildUrl(`/dias/${dataIso}/aulas/${aulaId}/confirmar-presencas`),
+    buildUrl(`/dias/${dataIso}/eventos/${eventoId}/confirmar-presencas`),
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

@@ -10,6 +10,9 @@ export type AuthTokenResponse = {
 
 export type AuthMeResponse = {
   user_id: string;
+  username?: string | null;
+  display_name?: string | null;
+  email?: string | null;
   role: UserRole;
   jogador_id: number | null;
 };

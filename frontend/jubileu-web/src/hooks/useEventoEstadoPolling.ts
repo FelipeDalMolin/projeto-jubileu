@@ -1,21 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { AulaEstadoDTO } from "../types/aulaEstado";
-import { obterEstadoAula } from "../services/aulaEstadoService";
+import type { EventoEstadoDTO } from "../types/eventoEstado";
+import { obterEstadoEvento } from "../services/eventoEstadoService";
 
 type Params = {
   dataIso: string;
-  aulaId: number;
+  eventoId: number;
   enabled: boolean;
   intervalMs?: number;
 };
 
-export function useAulaEstadoPolling({
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
+
+export function useEventoEstadoPolling({
   dataIso,
-  aulaId,
+  eventoId,
   enabled,
   intervalMs = 2000,
 }: Params) {
-  const [estado, setEstado] = useState<AulaEstadoDTO | null>(null);
+  const [estado, setEstado] = useState<EventoEstadoDTO | null>(null);
   const [lastVersion, setLastVersion] = useState<number | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +41,7 @@ export function useAulaEstadoPolling({
     setLastVersion(null);
     setError(null);
     setFailStreak(0);
-  }, [dataIso, aulaId]);
+  }, [dataIso, eventoId]);
 
   const tick = useCallback(async () => {
     if (!enabled || !mountedRef.current) return;
@@ -53,9 +57,9 @@ export function useAulaEstadoPolling({
     let nextFailStreak = failStreak;
 
     try {
-      const resp = await obterEstadoAula(
+      const resp = await obterEstadoEvento(
         dataIso,
-        aulaId,
+        eventoId,
         lastVersion ?? undefined,
         true,
       );
@@ -66,8 +70,8 @@ export function useAulaEstadoPolling({
         setError(null);
         nextFailStreak = 0;
       }
-    } catch (err: any) {
-      const msg = err?.message ?? "Erro ao carregar estado da aula";
+    } catch (err: unknown) {
+      const msg = errorMessage(err, "Erro ao carregar estado da evento");
       setError(msg);
       nextFailStreak = failStreak + 1;
     } finally {
@@ -82,7 +86,7 @@ export function useAulaEstadoPolling({
       }
     }
   }, [
-    aulaId,
+    eventoId,
     dataIso,
     enabled,
     intervalMs,

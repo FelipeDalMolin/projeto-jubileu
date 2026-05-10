@@ -1,10 +1,9 @@
-import { filtrarPorPeriodo, filtrarPorTurma, totalAulas } from "./trofeuSelectors";
+import { filtrarPorPeriodo, filtrarPorTurma, totalEventos } from "./trofeuSelectors";
 import type {
-  RegistroAula,
+  RegistroEvento,
   Jogador,
   RankingInput,
   RankingItem,
-  ResultadoPartida,
 } from "./trofeuTypes";
 import { startOfWeek, parseISO, addDays, isAfter, isEqual } from "date-fns";
 
@@ -33,24 +32,18 @@ function novoAcumulador(): Acumulador {
   return { jogos: 0, v: 0, e: 0, d: 0, gols: 0, cartoes2min: 0, chilique: 0 };
 }
 
-function pontosBrutos(res: ResultadoPartida): number {
-  if (res === "V") return 3;
-  if (res === "E") return 1;
-  return 0;
-}
-
 export function calcularRanking(input: RankingInput): RankingItem[] {
   const { registros, jogadores, periodoDias, turmaId, incluirZeroJogos = false, busca } = input;
 
-  const registrosFiltradosTurma: RegistroAula[] = filtrarPorTurma(registros, turmaId);
-  const registrosNoPeriodo: RegistroAula[] = filtrarPorPeriodo(registrosFiltradosTurma, periodoDias);
-  const aulasPeriodo = totalAulas(registrosNoPeriodo);
+  const registrosFiltradosTurma: RegistroEvento[] = filtrarPorTurma(registros, turmaId);
+  const registrosNoPeriodo: RegistroEvento[] = filtrarPorPeriodo(registrosFiltradosTurma, periodoDias);
+  const eventosPeriodo = totalEventos(registrosNoPeriodo);
 
   const baseJogadores = new Map<number, Jogador>();
   jogadores.forEach((j) => baseJogadores.set(j.id, j));
 
   const acc = new Map<number, Acumulador>();
-  const presencas = new Map<number, number>(); // aulas em que esteve presente
+  const presencas = new Map<number, number>(); // eventos em que esteve presente
 
   registrosNoPeriodo.forEach((registro) => {
     registro.presencas.forEach((p) => {
@@ -78,8 +71,8 @@ export function calcularRanking(input: RankingInput): RankingItem[] {
 
   baseJogadores.forEach((jogador) => {
     const stats = acc.get(jogador.id) ?? novoAcumulador();
-    const aulasJogador = presencas.get(jogador.id) ?? 0;
-    const presencaRatio = aulasPeriodo > 0 ? Math.min(1, aulasJogador / aulasPeriodo) : 0;
+    const eventosJogador = presencas.get(jogador.id) ?? 0;
+    const presencaRatio = eventosPeriodo > 0 ? Math.min(1, eventosJogador / eventosPeriodo) : 0;
     if (!incluirZeroJogos && stats.jogos === 0) return;
 
     const pontos = stats.v * 3 + stats.e;
@@ -121,7 +114,7 @@ export function calcularRanking(input: RankingInput): RankingItem[] {
 }
 
 export function getRankingTimeline(params: {
-  registros: RegistroAula[];
+  registros: RegistroEvento[];
   jogadores: Jogador[];
   turmaId?: number | null;
   periodoDias: number;

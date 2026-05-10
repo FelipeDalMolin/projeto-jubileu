@@ -6,12 +6,46 @@ import { ptBR } from "date-fns/locale";
 
 import {
   obterDiaPorData,
-  ordenarAulasPorHorario,
-  criarAulaNoDia,
-  deletarAulaNoDia,
+  ordenarEventosPorHorario,
+  criarEventoNoDia,
+  deletarEventoNoDia,
 } from "../../services/diasService";
 import { listarTurmas, type Turma } from "../../services/turmasService";
-import type { Dia, AulaDia } from "../../types/dia";
+import type { Dia, EventoDia, TipoEventoModo } from "../../types/dia";
+
+const EVENTO_MODO_OPTIONS: Array<{ value: TipoEventoModo; label: string; hint: string }> = [
+  {
+    value: "AULA",
+    label: "Aula",
+    hint: "Treino regular com turma.",
+  },
+  {
+    value: "JOGO_LIVRE",
+    label: "Jogo livre",
+    hint: "Evento aberto com RSVP, check-in e fila.",
+  },
+  {
+    value: "OUTRO",
+    label: "Outro",
+    hint: "Uso administrativo ou modo futuro.",
+  },
+];
+
+function eventoModoLabel(tipo: TipoEventoModo) {
+  return EVENTO_MODO_OPTIONS.find((option) => option.value === tipo)?.label ?? tipo;
+}
+
+function eventoTitulo(evento: EventoDia) {
+  if (evento.turmaNome) {
+    const numero = evento.numeroEventoNaTurma ? ` #${evento.numeroEventoNaTurma}` : "";
+    return `${evento.turmaNome} - Evento${numero}`;
+  }
+  return `${eventoModoLabel(evento.tipo)} - Evento #${evento.id}`;
+}
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
 
 export default function DiaDetalhe() {
   const { dataIso } = useParams<{ dataIso: string }>();
@@ -22,11 +56,13 @@ export default function DiaDetalhe() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
-  // form nova aula
+  // form novo evento
   const [novaTurmaId, setNovaTurmaId] = useState<number | "">("");
+  const [novaTipo, setNovaTipo] = useState<TipoEventoModo>("AULA");
   const [novaHorarioInicio, setNovaHorarioInicio] = useState("19:00");
   const [novaHorarioFim, setNovaHorarioFim] = useState("20:00");
-  const [criandoAula, setCriandoAula] = useState(false);
+  const [criandoEvento, setCriandoEvento] = useState(false);
+  const exigeTurma = novaTipo === "AULA";
 
   const tituloData = useMemo(() => {
     if (!dataIso) return "Dia invalido";
@@ -41,16 +77,16 @@ export default function DiaDetalhe() {
       const [d, t] = await Promise.all([obterDiaPorData(iso), listarTurmas()]);
       setTurmas(t);
 
-      const ordenadas = ordenarAulasPorHorario(d.aulas ?? []);
-      setDia({ ...d, aulas: ordenadas });
+      const ordenadas = ordenarEventosPorHorario(d.eventos ?? []);
+      setDia({ ...d, eventos: ordenadas });
 
       // define default turma no select
       if (t.length > 0 && novaTurmaId === "") {
         setNovaTurmaId(t[0].id);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setErro(e?.message ?? "Erro ao carregar informacoes do dia.");
+      setErro(errorMessage(e, "Erro ao carregar informacoes do dia."));
       setDia(null);
     } finally {
       setLoading(false);
@@ -67,63 +103,62 @@ export default function DiaDetalhe() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataIso]);
 
-  const handleSubmitNovaAula = async (e: FormEvent) => {
+  const handleSubmitNovaEvento = async (e: FormEvent) => {
     e.preventDefault();
     if (!dataIso) return;
     if (!dia) return;
 
-    if (novaTurmaId === "") {
+    if (exigeTurma && novaTurmaId === "") {
       alert("Selecione uma turma.");
       return;
     }
 
     try {
-      setCriandoAula(true);
+      setCriandoEvento(true);
 
-      const nova = await criarAulaNoDia(dataIso, {
-        turmaId: Number(novaTurmaId),
+      const nova = await criarEventoNoDia(dataIso, {
+        turmaId: exigeTurma ? Number(novaTurmaId) : null,
+        tipo: novaTipo,
         horarioInicio: novaHorarioInicio,
         horarioFim: novaHorarioFim,
       });
 
       setDia((prev) => {
         if (!prev) return prev;
-        const novasAulas = ordenarAulasPorHorario([...prev.aulas, nova]);
-        return { ...prev, aulas: novasAulas };
+        const novasEventos = ordenarEventosPorHorario([...prev.eventos, nova]);
+        return { ...prev, eventos: novasEventos };
       });
 
-      // mantem turma selecionada e reseta horarios (opcional)
+      // mantem turma e modo selecionados; reseta somente horarios.
       setNovaHorarioInicio("19:00");
       setNovaHorarioFim("20:00");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err?.message ?? "Erro ao criar aula. Veja o console.");
+      alert(errorMessage(err, "Erro ao criar evento. Veja o console."));
     } finally {
-      setCriandoAula(false);
+      setCriandoEvento(false);
     }
   };
 
-  const irParaEvento = (aula: AulaDia) => {
-    navigate(`/dias/${dataIso}/eventos/${aula.id}`);
+  const irParaEvento = (evento: EventoDia) => {
+    navigate(`/dias/${dataIso}/eventos/${evento.id}`);
   };
 
-  const handleExcluirAula = async (aula: AulaDia) => {
+  const handleExcluirEvento = async (evento: EventoDia) => {
     if (!dataIso) return;
-    const confirmar = window.confirm(
-      `Excluir a Aula #${aula.numeroAulaNaTurma} da turma ${aula.turmaNome}?`,
-    );
+    const confirmar = window.confirm(`Excluir ${eventoTitulo(evento)}?`);
     if (!confirmar) return;
 
     try {
-      await deletarAulaNoDia(dataIso, aula.id);
+      await deletarEventoNoDia(dataIso, evento.id);
       setDia((prev) => {
         if (!prev) return prev;
-        const filtradas = prev.aulas.filter((a) => a.id !== aula.id);
-        return { ...prev, aulas: filtradas };
+        const filtradas = prev.eventos.filter((a) => a.id !== evento.id);
+        return { ...prev, eventos: filtradas };
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err?.message ?? "Erro ao excluir aula. Veja o console.");
+      alert(errorMessage(err, "Erro ao excluir evento. Veja o console."));
     }
   };
 
@@ -163,11 +198,11 @@ export default function DiaDetalhe() {
       <header style={{ marginTop: 12, marginBottom: 24 }}>
         <h1 style={{ margin: 0 }}>Dia {tituloData}</h1>
         <p style={{ fontSize: 13, color: "#64748b" }}>
-          Aqui voce gerencia as aulas e as equipes deste dia.
+          Aqui voce gerencia os eventos e as equipes deste dia.
         </p>
       </header>
 
-      {/* Form de nova aula */}
+      {/* Form de novo evento */}
       <section
         style={{
           borderRadius: 12,
@@ -177,10 +212,10 @@ export default function DiaDetalhe() {
           background: "#f8fafc",
         }}
       >
-        <h2 style={{ marginTop: 0, fontSize: 16 }}>Nova aula / evento</h2>
+        <h2 style={{ marginTop: 0, fontSize: 16 }}>Novo evento</h2>
 
         <form
-          onSubmit={handleSubmitNovaAula}
+          onSubmit={handleSubmitNovaEvento}
           style={{
             display: "flex",
             flexWrap: "wrap",
@@ -188,7 +223,7 @@ export default function DiaDetalhe() {
             alignItems: "center",
           }}
         >
-          <div style={{ minWidth: 220 }}>
+          <div style={{ minWidth: 180 }}>
             <label
               style={{
                 display: "block",
@@ -197,14 +232,12 @@ export default function DiaDetalhe() {
                 color: "#0f172a",
               }}
             >
-              Turma
+              Modo
             </label>
 
             <select
-              value={novaTurmaId}
-              onChange={(e) =>
-                setNovaTurmaId(e.target.value ? Number(e.target.value) : "")
-              }
+              value={novaTipo}
+              onChange={(e) => setNovaTipo(e.target.value as TipoEventoModo)}
               style={{
                 width: "100%",
                 padding: "6px 8px",
@@ -214,17 +247,56 @@ export default function DiaDetalhe() {
                 background: "#fff",
               }}
             >
-              {turmas.length === 0 ? (
-                <option value="">Nenhuma turma cadastrada</option>
-              ) : (
-                turmas.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.nome}
-                  </option>
-                ))
-              )}
+              {EVENTO_MODO_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
+            <div style={{ marginTop: 4, fontSize: 11, color: "#64748b" }}>
+              {EVENTO_MODO_OPTIONS.find((option) => option.value === novaTipo)?.hint}
+            </div>
           </div>
+
+          {exigeTurma ? (
+            <div style={{ minWidth: 220 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontSize: 12,
+                  marginBottom: 4,
+                  color: "#0f172a",
+                }}
+              >
+                Turma
+              </label>
+
+              <select
+                value={novaTurmaId}
+                onChange={(e) =>
+                  setNovaTurmaId(e.target.value ? Number(e.target.value) : "")
+                }
+                style={{
+                  width: "100%",
+                  padding: "6px 8px",
+                  borderRadius: 6,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 13,
+                  background: "#fff",
+                }}
+              >
+                {turmas.length === 0 ? (
+                  <option value="">Nenhuma turma cadastrada</option>
+                ) : (
+                  turmas.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+          ) : null}
 
           <div>
             <label
@@ -277,46 +349,46 @@ export default function DiaDetalhe() {
           <div style={{ alignSelf: "flex-end" }}>
             <button
               type="submit"
-              disabled={criandoAula || turmas.length === 0 || novaTurmaId === ""}
+              disabled={criandoEvento || (exigeTurma && (turmas.length === 0 || novaTurmaId === ""))}
               style={{
                 padding: "6px 14px",
                 borderRadius: 999,
                 border: "1px solid #16a34a",
                 background:
-                  criandoAula || turmas.length === 0 || novaTurmaId === ""
+                  criandoEvento || (exigeTurma && (turmas.length === 0 || novaTurmaId === ""))
                     ? "#bbf7d0"
                     : "#22c55e",
                 color: "#fff",
                 fontSize: 13,
                 cursor:
-                  criandoAula || turmas.length === 0 || novaTurmaId === ""
+                  criandoEvento || (exigeTurma && (turmas.length === 0 || novaTurmaId === ""))
                     ? "default"
                     : "pointer",
               }}
             >
-              {criandoAula ? "Criando..." : "Adicionar aula"}
+              {criandoEvento ? "Criando..." : "Adicionar evento"}
             </button>
           </div>
         </form>
       </section>
 
-      {/* Lista de aulas */}
+      {/* Lista de eventos */}
       <section>
-        <h2 style={{ marginTop: 0, fontSize: 16 }}>Aulas do dia</h2>
+        <h2 style={{ marginTop: 0, fontSize: 16 }}>Eventos do dia</h2>
 
-        {dia.aulas.length === 0 ? (
+        {dia.eventos.length === 0 ? (
           <p style={{ fontSize: 13, color: "#64748b" }}>
-            Nenhuma aula planejada ainda. Use o formulario acima para cadastrar
-            a primeira aula.
+            Nenhum evento planejado ainda. Use o formulario acima para cadastrar
+            o primeiro evento.
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {dia.aulas.map((aula) => (
-              <AulaCard
-                key={aula.id}
-                aula={aula}
-                onAbrir={() => irParaEvento(aula)}
-                onExcluir={() => handleExcluirAula(aula)}
+            {dia.eventos.map((evento) => (
+              <EventoCard
+                key={evento.id}
+                evento={evento}
+                onAbrir={() => irParaEvento(evento)}
+                onExcluir={() => handleExcluirEvento(evento)}
               />
             ))}
           </div>
@@ -326,13 +398,13 @@ export default function DiaDetalhe() {
   );
 }
 
-type AulaCardProps = {
-  aula: AulaDia;
+type EventoCardProps = {
+  evento: EventoDia;
   onAbrir: () => void;
   onExcluir: () => void;
 };
 
-function AulaCard({ aula, onAbrir, onExcluir }: AulaCardProps) {
+function EventoCard({ evento, onAbrir, onExcluir }: EventoCardProps) {
   return (
     <div
       style={{
@@ -355,13 +427,13 @@ function AulaCard({ aula, onAbrir, onExcluir }: AulaCardProps) {
       >
         <div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>
-            {aula.turmaNome || `Turma #${aula.turmaId}`} - Aula #{aula.numeroAulaNaTurma}
+            {eventoTitulo(evento)}
           </div>
           <div style={{ fontSize: 12, color: "#64748b" }}>
-            {aula.horarioInicio} - {aula.horarioFim} - {aula.tipo}
+            {evento.horarioInicio} - {evento.horarioFim} - {eventoModoLabel(evento.tipo)}
           </div>
           <div style={{ fontSize: 11, color: "#0f172a" }}>
-            {aula.times.length} time(s) - {aula.partidasCount} partida(s)
+            {evento.times.length} time(s) - {evento.partidasCount} partida(s)
           </div>
         </div>
 
@@ -379,7 +451,7 @@ function AulaCard({ aula, onAbrir, onExcluir }: AulaCardProps) {
               whiteSpace: "nowrap",
             }}
           >
-            🗑 Excluir aula
+            Excluir evento
           </button>
           <button
             onClick={onAbrir}

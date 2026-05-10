@@ -11,21 +11,21 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps_auth import AuthUser, require_roles
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     EventoParticipante as EventoParticipanteModel,
     EventoParticipanteStatusEnum,
-    JogadorAula as JogadorAulaModel,
+    JogadorEvento as JogadorEventoModel,
     Lance as LanceModel,
     EventoRotacaoEstado as EventoRotacaoEstadoModel,
     EventoRotacaoSorteio as EventoRotacaoSorteioModel,
     Partida as PartidaModel,
     PartidaStatusEnum,
     RotacaoSorteioStatusEnum,
-    StatusAulaEnum,
+    StatusEventoEnum,
     StatusPresencaEnum,
-    TimeAula as TimeAulaModel,
-    TipoEventoAulaEnum,
+    TimeEvento as TimeEventoModel,
+    TipoEventoEnum,
 )
 from app.schemas.eventos import (
     EventoActionOut,
@@ -51,29 +51,29 @@ from app.schemas.eventos import (
 )
 
 
-def evento_tipo_canonical(aula: AulaModel) -> str:
-    if aula.tipo == TipoEventoAulaEnum.JOGO:
+def evento_tipo_canonical(evento: EventoModel) -> str:
+    if evento.tipo == TipoEventoEnum.JOGO_LIVRE:
         return "JOGO_LIVRE"
     return "AULA"
 
 
-def evento_out(aula: AulaModel) -> EventoOut:
-    if aula.status == StatusAulaEnum.PLANEJADA:
+def evento_out(evento: EventoModel) -> EventoOut:
+    if evento.status == StatusEventoEnum.PLANEJADO:
         canonical_status = "PLANEJADO"
-    elif aula.status == StatusAulaEnum.EM_ANDAMENTO:
+    elif evento.status == StatusEventoEnum.EM_ANDAMENTO:
         canonical_status = "EM_ANDAMENTO"
-    elif aula.status == StatusAulaEnum.CONCLUIDA:
+    elif evento.status == StatusEventoEnum.ENCERRADO:
         canonical_status = "ENCERRADO"
     else:
         canonical_status = "CANCELADO"
 
     return EventoOut(
-        id=aula.id,
-        dia_id=aula.dia_id,
-        tipo=evento_tipo_canonical(aula),
+        id=evento.id,
+        dia_id=evento.dia_id,
+        tipo=evento_tipo_canonical(evento),
         status=canonical_status,
-        horario_inicio=aula.horario_inicio,
-        horario_fim=aula.horario_fim,
+        horario_inicio=evento.horario_inicio,
+        horario_fim=evento.horario_fim,
         inicio_at=None,
         fim_at=None,
     )
@@ -82,7 +82,7 @@ def evento_out(aula: AulaModel) -> EventoOut:
 def participante_out(p: EventoParticipanteModel) -> EventoParticipanteOut:
     return EventoParticipanteOut(
         id=p.id,
-        evento_id=p.aula_id,
+        evento_id=p.evento_id,
         jogador_id=p.jogador_id,
         status=p.status,
         rsvp_at=p.rsvp_at,
@@ -98,26 +98,26 @@ def lance_out(db: Session, lance: LanceModel) -> LanceOut:
     time_nome: str | None = None
 
     if lance.jogador_id is not None:
-        jogador_aula = (
-            db.query(JogadorAulaModel)
+        jogador_evento = (
+            db.query(JogadorEventoModel)
             .filter(
-                JogadorAulaModel.aula_id == lance.aula_id,
-                JogadorAulaModel.jogador_id == lance.jogador_id,
+                JogadorEventoModel.evento_id == lance.evento_id,
+                JogadorEventoModel.jogador_id == lance.jogador_id,
             )
             .first()
         )
-        if jogador_aula:
-            jogador_nome = jogador_aula.nome
-            time_id = jogador_aula.time_id
+        if jogador_evento:
+            jogador_nome = jogador_evento.nome
+            time_id = jogador_evento.time_id
             if time_id is not None:
-                time = db.query(TimeAulaModel).filter(TimeAulaModel.id == time_id).first()
+                time = db.query(TimeEventoModel).filter(TimeEventoModel.id == time_id).first()
                 time_nome = time.nome if time else None
 
     return LanceOut.model_validate(
         {
             "id": lance.id,
             "partida_id": lance.partida_id,
-            "evento_id": lance.aula_id,
+            "evento_id": lance.evento_id,
             "jogador_id": lance.jogador_id,
             "tipo": lance.tipo,
             "payload": lance.payload,
@@ -131,14 +131,14 @@ def lance_out(db: Session, lance: LanceModel) -> LanceOut:
     )
 
 
-def get_evento_or_404(db: Session, evento_id: int) -> AulaModel:
-    evento = db.query(AulaModel).filter(AulaModel.id == evento_id).first()
+def get_evento_or_404(db: Session, evento_id: int) -> EventoModel:
+    evento = db.query(EventoModel).filter(EventoModel.id == evento_id).first()
     if not evento:
         raise HTTPException(status_code=404, detail="Evento nao encontrado")
     return evento
 
 
-def assert_evento_tipo_jogo_livre(evento: AulaModel) -> None:
+def assert_evento_tipo_jogo_livre(evento: EventoModel) -> None:
     if evento_tipo_canonical(evento) != "JOGO_LIVRE":
         raise HTTPException(
             status_code=409,
@@ -146,17 +146,17 @@ def assert_evento_tipo_jogo_livre(evento: AulaModel) -> None:
         )
 
 
-def assert_evento_em_andamento(evento: AulaModel) -> None:
-    if evento.status != StatusAulaEnum.EM_ANDAMENTO:
+def assert_evento_em_andamento(evento: EventoModel) -> None:
+    if evento.status != StatusEventoEnum.EM_ANDAMENTO:
         raise HTTPException(status_code=409, detail="Evento nao esta EM_ANDAMENTO")
 
 
-def assert_jogador_na_aula(db: Session, evento_id: int, jogador_id: int) -> None:
+def assert_jogador_na_evento(db: Session, evento_id: int, jogador_id: int) -> None:
     found = (
-        db.query(JogadorAulaModel.id)
+        db.query(JogadorEventoModel.id)
         .filter(
-            JogadorAulaModel.aula_id == evento_id,
-            JogadorAulaModel.jogador_id == jogador_id,
+            JogadorEventoModel.evento_id == evento_id,
+            JogadorEventoModel.jogador_id == jogador_id,
         )
         .first()
     )
@@ -173,7 +173,7 @@ def get_or_create_participante(
     participante = (
         db.query(EventoParticipanteModel)
         .filter(
-            EventoParticipanteModel.aula_id == evento_id,
+            EventoParticipanteModel.evento_id == evento_id,
             EventoParticipanteModel.jogador_id == jogador_id,
         )
         .first()
@@ -182,7 +182,7 @@ def get_or_create_participante(
         return participante
 
     participante = EventoParticipanteModel(
-        aula_id=evento_id,
+        evento_id=evento_id,
         jogador_id=jogador_id,
         status=EventoParticipanteStatusEnum.RSVP,
         created_by_user_id=user_id,
@@ -195,10 +195,10 @@ def get_or_create_participante(
 
 
 def next_arrival_seq(db: Session, evento_id: int) -> int:
+    db.query(EventoModel.id).filter(EventoModel.id == evento_id).with_for_update().one()
     max_seq = (
         db.query(func.max(EventoParticipanteModel.arrival_seq))
-        .filter(EventoParticipanteModel.aula_id == evento_id)
-        .with_for_update()
+        .filter(EventoParticipanteModel.evento_id == evento_id)
         .scalar()
     )
     return int(max_seq or 0) + 1
@@ -207,12 +207,12 @@ def next_arrival_seq(db: Session, evento_id: int) -> int:
 def rsvp_self_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, EventoParticipanteOut]:
     evento = get_evento_or_404(db, evento_id)
     assert_evento_tipo_jogo_livre(evento)
-    if evento.status not in {StatusAulaEnum.PLANEJADA, StatusAulaEnum.EM_ANDAMENTO}:
+    if evento.status not in {StatusEventoEnum.PLANEJADO, StatusEventoEnum.EM_ANDAMENTO}:
         raise HTTPException(status_code=409, detail="RSVP nao permitido para este status")
     if user.jogador_id is None:
         raise HTTPException(status_code=403, detail="User sem jogador associado")
 
-    assert_jogador_na_aula(db, evento.id, user.jogador_id)
+    assert_jogador_na_evento(db, evento.id, user.jogador_id)
     participante = get_or_create_participante(db, evento.id, user.jogador_id, user.user_id)
     if participante.status == EventoParticipanteStatusEnum.CHECKED_IN:
         db.commit()
@@ -235,7 +235,7 @@ def rsvp_self_cancel_flow(db: Session, evento_id: int, user: AuthUser) -> dict[s
     participante = (
         db.query(EventoParticipanteModel)
         .filter(
-            EventoParticipanteModel.aula_id == evento.id,
+            EventoParticipanteModel.evento_id == evento.id,
             EventoParticipanteModel.jogador_id == user.jogador_id,
         )
         .first()
@@ -258,7 +258,7 @@ def checkin_self_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, 
     if user.jogador_id is None:
         raise HTTPException(status_code=403, detail="User sem jogador associado")
 
-    assert_jogador_na_aula(db, evento.id, user.jogador_id)
+    assert_jogador_na_evento(db, evento.id, user.jogador_id)
     participante = get_or_create_participante(db, evento.id, user.jogador_id, user.user_id)
     if participante.status != EventoParticipanteStatusEnum.CHECKED_IN:
         participante.status = EventoParticipanteStatusEnum.CHECKED_IN
@@ -280,7 +280,7 @@ def checkin_self_cancel_flow(db: Session, evento_id: int, user: AuthUser) -> dic
     participante = (
         db.query(EventoParticipanteModel)
         .filter(
-            EventoParticipanteModel.aula_id == evento.id,
+            EventoParticipanteModel.evento_id == evento.id,
             EventoParticipanteModel.jogador_id == user.jogador_id,
         )
         .first()
@@ -307,7 +307,7 @@ def checkin_manual_flow(
     require_roles(user, "admin", "treinador")
     evento = get_evento_or_404(db, evento_id)
     assert_evento_em_andamento(evento)
-    assert_jogador_na_aula(db, evento.id, jogador_id)
+    assert_jogador_na_evento(db, evento.id, jogador_id)
 
     participante = get_or_create_participante(db, evento.id, jogador_id, user.user_id)
     if participante.status != EventoParticipanteStatusEnum.CHECKED_IN:
@@ -324,15 +324,15 @@ def checkin_manual_flow(
 def start_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActionOut:
     require_roles(user, "admin", "treinador")
     evento = get_evento_or_404(db, evento_id)
-    if evento.status != StatusAulaEnum.PLANEJADA:
+    if evento.status != StatusEventoEnum.PLANEJADO:
         raise HTTPException(status_code=409, detail="Evento nao pode iniciar neste status")
 
-    db.query(JogadorAulaModel).filter(
-        JogadorAulaModel.aula_id == evento.id,
-        JogadorAulaModel.status != StatusPresencaEnum.presente,
-    ).update({JogadorAulaModel.status: StatusPresencaEnum.faltou})
+    db.query(JogadorEventoModel).filter(
+        JogadorEventoModel.evento_id == evento.id,
+        JogadorEventoModel.status != StatusPresencaEnum.presente,
+    ).update({JogadorEventoModel.status: StatusPresencaEnum.faltou})
 
-    evento.status = StatusAulaEnum.EM_ANDAMENTO
+    evento.status = StatusEventoEnum.EM_ANDAMENTO
     db.commit()
     db.refresh(evento)
     return EventoActionOut(evento=evento_out(evento))
@@ -341,13 +341,13 @@ def start_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActi
 def end_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActionOut:
     require_roles(user, "admin", "treinador")
     evento = get_evento_or_404(db, evento_id)
-    if evento.status != StatusAulaEnum.EM_ANDAMENTO:
+    if evento.status != StatusEventoEnum.EM_ANDAMENTO:
         raise HTTPException(status_code=409, detail="Evento nao pode ser encerrado neste status")
 
     partida_ativa = (
         db.query(PartidaModel.id)
         .filter(
-            PartidaModel.aula_id == evento.id,
+            PartidaModel.evento_id == evento.id,
             PartidaModel.status == PartidaStatusEnum.EM_ANDAMENTO,
         )
         .first()
@@ -358,10 +358,10 @@ def end_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoAction
             detail="Encerre a partida em andamento antes de encerrar o evento",
         )
 
-    evento.status = StatusAulaEnum.CONCLUIDA
+    evento.status = StatusEventoEnum.ENCERRADO
     no_show_updated = (
         db.query(EventoParticipanteModel)
-        .filter(EventoParticipanteModel.aula_id == evento.id)
+        .filter(EventoParticipanteModel.evento_id == evento.id)
         .filter(EventoParticipanteModel.status == EventoParticipanteStatusEnum.RSVP)
         .update({EventoParticipanteModel.status: EventoParticipanteStatusEnum.NO_SHOW})
     )
@@ -373,9 +373,9 @@ def end_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoAction
 def cancel_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActionOut:
     require_roles(user, "admin", "treinador")
     evento = get_evento_or_404(db, evento_id)
-    if evento.status != StatusAulaEnum.PLANEJADA:
-        raise HTTPException(status_code=409, detail="Cancelamento permitido apenas em PLANEJADA")
-    evento.status = StatusAulaEnum.CANCELADA
+    if evento.status != StatusEventoEnum.PLANEJADO:
+        raise HTTPException(status_code=409, detail="Cancelamento permitido apenas em PLANEJADO")
+    evento.status = StatusEventoEnum.CANCELADO
     db.commit()
     db.refresh(evento)
     return EventoActionOut(evento=evento_out(evento))
@@ -396,7 +396,7 @@ def seed_primeira_partida_flow(
 
     participantes = (
         db.query(EventoParticipanteModel)
-        .filter(EventoParticipanteModel.aula_id == evento.id)
+        .filter(EventoParticipanteModel.evento_id == evento.id)
         .filter(EventoParticipanteModel.status == EventoParticipanteStatusEnum.CHECKED_IN)
         .order_by(EventoParticipanteModel.arrival_seq.asc(), EventoParticipanteModel.id.asc())
         .limit(payload.players_count)
@@ -406,24 +406,24 @@ def seed_primeira_partida_flow(
         raise HTTPException(status_code=400, detail="Nao ha jogadores CHECKED_IN suficientes")
 
     jogador_ids = [p.jogador_id for p in participantes]
-    jogadores_aula = (
-        db.query(JogadorAulaModel)
-        .filter(JogadorAulaModel.aula_id == evento.id, JogadorAulaModel.jogador_id.in_(jogador_ids))
+    jogadores_evento = (
+        db.query(JogadorEventoModel)
+        .filter(JogadorEventoModel.evento_id == evento.id, JogadorEventoModel.jogador_id.in_(jogador_ids))
         .all()
     )
-    ja_por_jogador = {ja.jogador_id: ja for ja in jogadores_aula if ja.jogador_id is not None}
+    ja_por_jogador = {ja.jogador_id: ja for ja in jogadores_evento if ja.jogador_id is not None}
     if len(ja_por_jogador) < payload.players_count:
         raise HTTPException(status_code=400, detail="Nem todos jogadores possuem snapshot no evento")
 
     times = (
-        db.query(TimeAulaModel)
-        .filter(TimeAulaModel.aula_id == evento.id)
-        .order_by(TimeAulaModel.id.asc())
+        db.query(TimeEventoModel)
+        .filter(TimeEventoModel.evento_id == evento.id)
+        .order_by(TimeEventoModel.id.asc())
         .all()
     )
     while len(times) < 2:
         idx = len(times) + 1
-        t = TimeAulaModel(aula_id=evento.id, nome=f"Time {idx}")
+        t = TimeEventoModel(evento_id=evento.id, nome=f"Time {idx}")
         db.add(t)
         db.flush()
         times.append(t)
@@ -444,11 +444,11 @@ def seed_primeira_partida_flow(
 
     next_ordem = (
         db.query(func.max(PartidaModel.ordem))
-        .filter(PartidaModel.aula_id == evento.id)
+        .filter(PartidaModel.evento_id == evento.id)
         .scalar()
     ) or 0
     partida = PartidaModel(
-        aula_id=evento.id,
+        evento_id=evento.id,
         ordem=int(next_ordem) + 1,
         time_a_id=time_a.id,
         time_b_id=time_b.id,
@@ -478,7 +478,7 @@ def list_participants_flow(db: Session, evento_id: int) -> EventoParticipantesLi
     get_evento_or_404(db, evento_id)
     items = (
         db.query(EventoParticipanteModel)
-        .filter(EventoParticipanteModel.aula_id == evento_id)
+        .filter(EventoParticipanteModel.evento_id == evento_id)
         .order_by(EventoParticipanteModel.id.asc())
         .all()
     )
@@ -488,7 +488,7 @@ def list_participants_flow(db: Session, evento_id: int) -> EventoParticipantesLi
 def list_presentes_flow(db: Session, evento_id: int, order: str) -> EventoParticipantesListOut:
     get_evento_or_404(db, evento_id)
     query = db.query(EventoParticipanteModel).filter(
-        EventoParticipanteModel.aula_id == evento_id,
+        EventoParticipanteModel.evento_id == evento_id,
         EventoParticipanteModel.status == EventoParticipanteStatusEnum.CHECKED_IN,
     )
     if order == "arrival":
@@ -510,44 +510,44 @@ def create_lance_flow(
         if raw_id is None:
             return None
 
-        jogador_aula_por_id = (
-            db.query(JogadorAulaModel)
+        jogador_evento_por_id = (
+            db.query(JogadorEventoModel)
             .filter(
-                JogadorAulaModel.aula_id == partida.aula_id,
-                JogadorAulaModel.id == raw_id,
+                JogadorEventoModel.evento_id == partida.evento_id,
+                JogadorEventoModel.id == raw_id,
             )
             .first()
         )
-        if jogador_aula_por_id:
-            if jogador_aula_por_id.jogador_id is None:
+        if jogador_evento_por_id:
+            if jogador_evento_por_id.jogador_id is None:
                 raise HTTPException(
                     status_code=422,
-                    detail="Jogador da aula sem vinculo global; lance nominal indisponivel para este jogador",
+                    detail="Jogador da evento sem vinculo global; lance nominal indisponivel para este jogador",
                 )
-            return int(jogador_aula_por_id.jogador_id)
+            return int(jogador_evento_por_id.jogador_id)
 
-        jogador_aula_por_global = (
-            db.query(JogadorAulaModel.id)
+        jogador_evento_por_global = (
+            db.query(JogadorEventoModel.id)
             .filter(
-                JogadorAulaModel.aula_id == partida.aula_id,
-                JogadorAulaModel.jogador_id == raw_id,
+                JogadorEventoModel.evento_id == partida.evento_id,
+                JogadorEventoModel.jogador_id == raw_id,
             )
             .first()
         )
-        if jogador_aula_por_global:
+        if jogador_evento_por_global:
             return int(raw_id)
 
         raise HTTPException(status_code=422, detail="Jogador informado nao pertence ao evento")
 
     partida = (
         db.query(PartidaModel)
-        .options(selectinload(PartidaModel.aula))
+        .options(selectinload(PartidaModel.evento))
         .filter(PartidaModel.id == partida_id)
         .first()
     )
     if not partida:
         raise HTTPException(status_code=404, detail="Partida nao encontrada")
-    if partida.aula.status != StatusAulaEnum.EM_ANDAMENTO:
+    if partida.evento.status != StatusEventoEnum.EM_ANDAMENTO:
         raise HTTPException(status_code=409, detail="Evento nao esta EM_ANDAMENTO")
     if partida.status != PartidaStatusEnum.EM_ANDAMENTO:
         raise HTTPException(status_code=409, detail="Partida nao esta EM_ANDAMENTO")
@@ -585,7 +585,7 @@ def create_lance_flow(
 
     lance = LanceModel(
         partida_id=partida.id,
-        aula_id=partida.aula_id,
+        evento_id=partida.evento_id,
         jogador_id=jogador_id_resolvido,
         tipo=payload.tipo,
         payload=payload_normalizado,
@@ -617,7 +617,7 @@ def list_lances_flow(
             db.query(PartidaModel.id)
             .filter(
                 PartidaModel.id == partida_id,
-                PartidaModel.aula_id == evento_id,
+                PartidaModel.evento_id == evento_id,
             )
             .first()
         )
@@ -627,7 +627,7 @@ def list_lances_flow(
     query = (
         db.query(LanceModel)
         .filter(
-            LanceModel.aula_id == evento_id,
+            LanceModel.evento_id == evento_id,
             LanceModel.is_deleted.is_(False),
         )
     )
@@ -644,7 +644,7 @@ def list_lances_flow(
     return LanceListOut(items=[lance_out(db, lance) for lance in items])
 
 
-def _assert_evento_tipo_com_rotacao(evento: AulaModel) -> None:
+def _assert_evento_tipo_com_rotacao(evento: EventoModel) -> None:
     tipo = evento_tipo_canonical(evento)
     if tipo not in {"AULA", "JOGO_LIVRE"}:
         raise HTTPException(status_code=409, detail="Rotacao manual nao habilitada para este tipo de evento")
@@ -654,7 +654,7 @@ def _buscar_partida_em_andamento(db: Session, evento_id: int) -> PartidaModel | 
     return (
         db.query(PartidaModel)
         .filter(
-            PartidaModel.aula_id == evento_id,
+            PartidaModel.evento_id == evento_id,
             PartidaModel.status == PartidaStatusEnum.EM_ANDAMENTO,
         )
         .order_by(PartidaModel.ordem.asc(), PartidaModel.id.asc())
@@ -662,17 +662,17 @@ def _buscar_partida_em_andamento(db: Session, evento_id: int) -> PartidaModel | 
     )
 
 
-def _listar_jogadores_presentes_ids(db: Session, evento: AulaModel) -> list[int]:
+def _listar_jogadores_presentes_ids(db: Session, evento: EventoModel) -> list[int]:
     if evento_tipo_canonical(evento) == "JOGO_LIVRE":
         rows = (
-            db.query(EventoParticipanteModel.jogador_id, JogadorAulaModel.id)
+            db.query(EventoParticipanteModel.jogador_id, JogadorEventoModel.id)
             .join(
-                JogadorAulaModel,
-                (JogadorAulaModel.aula_id == EventoParticipanteModel.aula_id)
-                & (JogadorAulaModel.jogador_id == EventoParticipanteModel.jogador_id),
+                JogadorEventoModel,
+                (JogadorEventoModel.evento_id == EventoParticipanteModel.evento_id)
+                & (JogadorEventoModel.jogador_id == EventoParticipanteModel.jogador_id),
             )
             .filter(
-                EventoParticipanteModel.aula_id == evento.id,
+                EventoParticipanteModel.evento_id == evento.id,
                 EventoParticipanteModel.status == EventoParticipanteStatusEnum.CHECKED_IN,
             )
             .order_by(
@@ -685,12 +685,12 @@ def _listar_jogadores_presentes_ids(db: Session, evento: AulaModel) -> list[int]
         return ids
 
     rows = (
-        db.query(JogadorAulaModel.id)
+        db.query(JogadorEventoModel.id)
         .filter(
-            JogadorAulaModel.aula_id == evento.id,
-            JogadorAulaModel.status == StatusPresencaEnum.presente,
+            JogadorEventoModel.evento_id == evento.id,
+            JogadorEventoModel.status == StatusPresencaEnum.presente,
         )
-        .order_by(JogadorAulaModel.id.asc())
+        .order_by(JogadorEventoModel.id.asc())
         .all()
     )
     return [int(row.id) for row in rows]
@@ -701,9 +701,9 @@ def _listar_jogadores_em_campo_ids(db: Session, evento_id: int, partida: Partida
         return set()
 
     rows = (
-        db.query(JogadorAulaModel.id)
-        .filter(JogadorAulaModel.aula_id == evento_id)
-        .filter(JogadorAulaModel.time_id.in_([partida.time_a_id, partida.time_b_id]))
+        db.query(JogadorEventoModel.id)
+        .filter(JogadorEventoModel.evento_id == evento_id)
+        .filter(JogadorEventoModel.time_id.in_([partida.time_a_id, partida.time_b_id]))
         .all()
     )
     return {int(row.id) for row in rows}
@@ -841,10 +841,10 @@ def _rotacao_estado_out(
     )
 
 
-def _get_or_init_rotacao_estado(db: Session, evento: AulaModel) -> EventoRotacaoEstadoModel:
+def _get_or_init_rotacao_estado(db: Session, evento: EventoModel) -> EventoRotacaoEstadoModel:
     estado = (
         db.query(EventoRotacaoEstadoModel)
-        .filter(EventoRotacaoEstadoModel.aula_id == evento.id)
+        .filter(EventoRotacaoEstadoModel.evento_id == evento.id)
         .first()
     )
     if estado:
@@ -856,7 +856,7 @@ def _get_or_init_rotacao_estado(db: Session, evento: AulaModel) -> EventoRotacao
     fila_ids = [j for j in presentes_ids if j not in em_campo_ids]
     team_size_ref = 8
     estado = EventoRotacaoEstadoModel(
-        aula_id=evento.id,
+        evento_id=evento.id,
         team_size_ref=team_size_ref,
         duracao_partida_segundos=600,
         fila_jogadores_ids=fila_ids,
@@ -871,7 +871,7 @@ def _get_or_init_rotacao_estado(db: Session, evento: AulaModel) -> EventoRotacao
 def _expire_previews_if_needed(db: Session, evento_id: int) -> None:
     now = datetime.now(timezone.utc)
     db.query(EventoRotacaoSorteioModel).filter(
-        EventoRotacaoSorteioModel.aula_id == evento_id,
+        EventoRotacaoSorteioModel.evento_id == evento_id,
         EventoRotacaoSorteioModel.status == RotacaoSorteioStatusEnum.PREVIEWED,
         EventoRotacaoSorteioModel.expires_at < now,
     ).update({EventoRotacaoSorteioModel.status: RotacaoSorteioStatusEnum.EXPIRED}, synchronize_session=False)
@@ -1052,7 +1052,7 @@ def preview_rotacao_sorteio_flow(
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
     record = EventoRotacaoSorteioModel(
         token=token,
-        aula_id=evento.id,
+        evento_id=evento.id,
         partida_origem_id=payload.partida_origem_id,
         grupo_alvo_id=payload.grupo_alvo_id,
         needed_count=faltam,
@@ -1091,7 +1091,7 @@ def confirm_rotacao_sorteio_flow(
     record = (
         db.query(EventoRotacaoSorteioModel)
         .filter(
-            EventoRotacaoSorteioModel.aula_id == evento.id,
+            EventoRotacaoSorteioModel.evento_id == evento.id,
             EventoRotacaoSorteioModel.token == token,
         )
         .first()

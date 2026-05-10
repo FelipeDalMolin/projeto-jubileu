@@ -1,11 +1,11 @@
 import { parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-import type { WorkspaceAulaHeader, WorkspaceAulaMeta } from "../../types/workspaceAula";
+import type { WorkspaceEventoHeader, WorkspaceEventoMeta } from "../../types/workspaceEvento";
 
 type Props = {
-  meta: WorkspaceAulaMeta;
-  header: WorkspaceAulaHeader;
+  meta: WorkspaceEventoMeta;
+  header: WorkspaceEventoHeader;
 };
 
 function formatData(dataIso: string) {

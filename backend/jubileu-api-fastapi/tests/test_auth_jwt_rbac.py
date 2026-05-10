@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
 
-from app.models.dia_aula import (
-    Aula as AulaModel,
+from app.models.dia_evento import (
+    Evento as EventoModel,
     Dia as DiaModel,
-    JogadorAula as JogadorAulaModel,
-    StatusAulaEnum,
+    JogadorEvento as JogadorEventoModel,
+    StatusEventoEnum,
     StatusPresencaEnum,
-    TipoEventoAulaEnum,
+    TipoEventoEnum,
 )
 from app.models.jogador_turma import Jogador as JogadorModel, Turma as TurmaModel
 
@@ -18,29 +18,29 @@ def _criar_evento_jogo_livre(db_session):
     db_session.add_all([dia, turma, jogador_1])
     db_session.flush()
 
-    aula = AulaModel(
+    evento = EventoModel(
         dia_id=dia.id,
         turma_id=turma.id,
         turma_nome=turma.nome,
-        numero_aula_na_turma=1,
-        tipo=TipoEventoAulaEnum.JOGO,
+        numero_evento_na_turma=1,
+        tipo=TipoEventoEnum.JOGO_LIVRE,
         horario_inicio="19:00",
         horario_fim="20:00",
-        status=StatusAulaEnum.PLANEJADA,
+        status=StatusEventoEnum.PLANEJADO,
     )
-    db_session.add(aula)
+    db_session.add(evento)
     db_session.flush()
 
     db_session.add(
-        JogadorAulaModel(
-            aula_id=aula.id,
+        JogadorEventoModel(
+            evento_id=evento.id,
             jogador_id=jogador_1.id,
             nome=jogador_1.nome,
             status=StatusPresencaEnum.presente,
         )
     )
     db_session.commit()
-    return aula.id
+    return evento.id
 
 
 def test_auth_login_and_me_with_bearer(client: TestClient):

@@ -26,7 +26,7 @@ Implementar acoes self e administrativas de presenca sem conflitar com a montage
 ## Arquivos Provaveis
 
 - `frontend/jubileu-web/src/workspaces/evento/components/*`
-- `frontend/jubileu-web/src/workspaces/evento/hooks/useEventoLiveData.ts`
+- `frontend/jubileu-web/src/workspaces/evento/WorkspaceEventoPage.tsx`
 - `frontend/jubileu-web/src/services/eventos/*`
 - `frontend/jubileu-web/src/context/AuthContext.tsx`
 

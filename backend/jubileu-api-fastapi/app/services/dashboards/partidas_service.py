@@ -4,8 +4,8 @@ from typing import List
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.dia_aula import Aula, Dia, Partida
-from app.models.dia_aula import EstatisticaJogadorPartida
+from app.models.dia_evento import Evento, Dia, Partida
+from app.models.dia_evento import EstatisticaJogadorPartida
 from app.services.dashboards.utils import cutoff_date, normalize_period
 from app.schemas.dashboards.partidas import (
     PartidasResumoOut,
@@ -49,13 +49,13 @@ def serie_por_dia(db: Session, periodo: int, turma_id: int | None) -> SeriePorDi
             func.count(Partida.id).label("partidas"),
             func.coalesce(func.sum(Partida.gols_time_a + Partida.gols_time_b), 0).label("gols"),
         )
-        .join(Aula, Partida.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
+        .join(Evento, Partida.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
         .filter(filtro_periodo)
     )
 
     if turma_id is not None:
-        query = query.filter(Aula.turma_id == turma_id)
+        query = query.filter(Evento.turma_id == turma_id)
 
     rows = query.group_by(Dia.data_iso).order_by(Dia.data_iso.asc()).all()
 

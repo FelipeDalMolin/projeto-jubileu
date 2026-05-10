@@ -2,9 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { addDays, isWithinInterval, parseISO } from "date-fns";
 import styles from "./TrofeuPage.module.css";
-import SectionHeader from "../../components/dashboard/common/SectionHeader";
 import InfoCard from "../../components/dashboard/cards/InfoCard";
-import RankingTable from "../../components/dashboard/tables/RankingTable";
 import {
   calcularRanking,
   getRankingTimeline,
@@ -17,6 +15,20 @@ import { buildPlayerProfiles, type PlayerProfile } from "../../domain/recommenda
 
 const ALLOWED_PERIODS = new Set([30, 90, 365]);
 const MAX_SELECTED_EVOLUCAO = 3;
+
+type TrofeuRow = RankingItem & {
+  rank: number;
+  delta: number | null;
+  posAnterior: number | null;
+};
+
+type TrofeuSortKey = keyof TrofeuRow;
+
+type TrofeuColumn = {
+  key: TrofeuSortKey | "spark";
+  label: string;
+  numeric: boolean;
+};
 
 function useDebouncedValue<T>(value: T, delay = 400) {
   const [debounced, setDebounced] = useState(value);
@@ -159,8 +171,14 @@ export default function TrofeuPage() {
   );
 
   useEffect(() => {
-    const cancel = loadData();
-    return cancel;
+    let cancelLoad: (() => void) | undefined;
+    const startTimer = setTimeout(() => {
+      cancelLoad = loadData();
+    }, 0);
+    return () => {
+      clearTimeout(startTimer);
+      cancelLoad?.();
+    };
   }, [loadData]);
 
   const deltas = useMemo(() => calcularDeltaPosicoes(ranking, rankingAnterior), [ranking, rankingAnterior]);
@@ -181,7 +199,7 @@ export default function TrofeuPage() {
     return Number(((soma / ranking.length) * 100).toFixed(1));
   }, [ranking]);
 
-  const [sortKey, setSortKey] = useState<keyof RankingItem | "rank" | "delta">("scoreFinal");
+  const [sortKey, setSortKey] = useState<TrofeuSortKey>("scoreFinal");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const withRank = useMemo(() => {
@@ -199,8 +217,8 @@ export default function TrofeuPage() {
   const sortedRows = useMemo(() => {
     const rows = [...withRank];
     rows.sort((a, b) => {
-      const valA = (a as any)[sortKey];
-      const valB = (b as any)[sortKey];
+      const valA = a[sortKey];
+      const valB = b[sortKey];
       if (valA === valB) return 0;
       if (sortDir === "asc") return valA > valB ? 1 : -1;
       return valA < valB ? 1 : -1;
@@ -208,7 +226,8 @@ export default function TrofeuPage() {
     return rows;
   }, [withRank, sortKey, sortDir]);
 
-  const toggleSort = (key: keyof RankingItem | "rank" | "delta") => {
+  const toggleSort = (key: TrofeuColumn["key"]) => {
+    if (key === "spark") return;
     if (sortKey === key) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
@@ -218,11 +237,11 @@ export default function TrofeuPage() {
   };
 
   const timelineMap = useMemo(() => {
-    const map = new Map<number, number[]>();
+    const map = new Map<number, Array<number | null>>();
     if (!timeline) return map;
     timeline.items.forEach((it) => {
       const positions = it.positionByBucket.map((p) => (p === null ? null : Number(p)));
-      map.set(it.jogadorId, positions as any);
+      map.set(it.jogadorId, positions);
     });
     return map;
   }, [timeline]);
@@ -251,7 +270,7 @@ export default function TrofeuPage() {
     );
   };
 
-  const columns = [
+  const columns: TrofeuColumn[] = [
     { key: "rank", label: "#", numeric: true },
     { key: "delta", label: "Delta", numeric: true },
     { key: "nome", label: "Jogador" },
@@ -525,9 +544,9 @@ export default function TrofeuPage() {
                       <tr>
                         {columns.map((c) => (
                           <th
-                            key={c.key as string}
+                            key={c.key}
                             role="button"
-                            onClick={() => toggleSort(c.key as any)}
+                            onClick={() => toggleSort(c.key)}
                             className={c.numeric ? "text-end" : "text-start"}
                           >
                             <span className="d-inline-flex align-items-center gap-1">
@@ -662,7 +681,7 @@ export default function TrofeuPage() {
                 <ul className="mb-2">
                   <li>PontosBrutos = 3*V + 1*E + 0*D</li>
                   <li>ScoreFinal = PontosBrutos * (0.85 + 0.15*Presenca)</li>
-                  <li>Presenca = presencas / totalAulas</li>
+                  <li>Presenca = presencas / totalEventos</li>
                   <li>Desempate: Score desc, Presenca desc, Vitorias desc, Gols desc, Jogos desc</li>
                 </ul>
                 <div className="alert alert-warning mb-0">Pesos podem ser ajustados no futuro.</div>

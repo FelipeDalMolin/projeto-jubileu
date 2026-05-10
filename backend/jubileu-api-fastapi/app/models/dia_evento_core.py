@@ -9,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.dia_aula_enums import StatusAulaEnum, StatusPresencaEnum, TipoEventoAulaEnum
+from app.models.dia_evento_enums import StatusEventoEnum, StatusPresencaEnum, TipoEventoEnum
 from app.models.jogador_turma import Turma
 
 
@@ -21,98 +21,98 @@ class Dia(Base):
     feriado_nome: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     feriado_tipo: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    aulas: Mapped[List["Aula"]] = relationship(
-        "Aula",
+    eventos: Mapped[List["Evento"]] = relationship(
+        "Evento",
         back_populates="dia",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
 
 
-class Aula(Base):
-    __tablename__ = "aulas"
+class Evento(Base):
+    __tablename__ = "eventos"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     dia_id: Mapped[int] = mapped_column(ForeignKey("dias.id"), nullable=False)
-    turma_id: Mapped[int] = mapped_column(Integer, ForeignKey("turmas.id"), nullable=False)
-    turma_nome: Mapped[str] = mapped_column(String, nullable=False)
-    numero_aula_na_turma: Mapped[int] = mapped_column(Integer, nullable=False)
-    tipo: Mapped[TipoEventoAulaEnum] = mapped_column(
-        SAEnum(TipoEventoAulaEnum),
+    turma_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("turmas.id"), nullable=True)
+    turma_nome: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    numero_evento_na_turma: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    tipo: Mapped[TipoEventoEnum] = mapped_column(
+        SAEnum(TipoEventoEnum),
         nullable=False,
-        default=TipoEventoAulaEnum.AULA,
+        default=TipoEventoEnum.AULA,
     )
     horario_inicio: Mapped[str] = mapped_column(String, nullable=False)
     horario_fim: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[StatusAulaEnum] = mapped_column(
-        SAEnum(StatusAulaEnum),
+    status: Mapped[StatusEventoEnum] = mapped_column(
+        SAEnum(StatusEventoEnum),
         nullable=False,
-        default=StatusAulaEnum.PLANEJADA,
+        default=StatusEventoEnum.PLANEJADO,
     )
 
-    dia: Mapped["Dia"] = relationship("Dia", back_populates="aulas")
-    turma: Mapped["Turma"] = relationship("Turma")
-    estado_equipes: Mapped[Optional["AulaEquipesEstado"]] = relationship(
-        "AulaEquipesEstado",
-        back_populates="aula",
+    dia: Mapped["Dia"] = relationship("Dia", back_populates="eventos")
+    turma: Mapped[Optional["Turma"]] = relationship("Turma")
+    estado_equipes: Mapped[Optional["EventoEquipesEstado"]] = relationship(
+        "EventoEquipesEstado",
+        back_populates="evento",
         uselist=False,
     )
     team_configs: Mapped[List["TeamConfig"]] = relationship(
         "TeamConfig",
-        back_populates="aula",
+        back_populates="evento",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
-    times: Mapped[List["TimeAula"]] = relationship(
-        "TimeAula",
-        back_populates="aula",
+    times: Mapped[List["TimeEvento"]] = relationship(
+        "TimeEvento",
+        back_populates="evento",
         cascade="all, delete-orphan",
         lazy="joined",
     )
-    jogadores: Mapped[List["JogadorAula"]] = relationship(
-        "JogadorAula",
-        back_populates="aula",
+    jogadores: Mapped[List["JogadorEvento"]] = relationship(
+        "JogadorEvento",
+        back_populates="evento",
         cascade="all, delete-orphan",
         lazy="joined",
     )
     partidas: Mapped[List["Partida"]] = relationship(
         "Partida",
-        back_populates="aula",
+        back_populates="evento",
         cascade="all, delete-orphan",
         lazy="joined",
     )
     participantes: Mapped[List["EventoParticipante"]] = relationship(
         "EventoParticipante",
-        back_populates="aula",
+        back_populates="evento",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
     lances: Mapped[List["Lance"]] = relationship(
         "Lance",
-        back_populates="aula",
+        back_populates="evento",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
     rotacao_estado: Mapped[Optional["EventoRotacaoEstado"]] = relationship(
         "EventoRotacaoEstado",
-        back_populates="aula",
+        back_populates="evento",
         uselist=False,
         cascade="all, delete-orphan",
         lazy="selectin",
     )
     rotacao_sorteios: Mapped[List["EventoRotacaoSorteio"]] = relationship(
         "EventoRotacaoSorteio",
-        back_populates="aula",
+        back_populates="evento",
         cascade="all, delete-orphan",
         lazy="selectin",
     )
 
 
-class AulaEquipesEstado(Base):
-    __tablename__ = "aula_equipes_estado"
+class EventoEquipesEstado(Base):
+    __tablename__ = "evento_equipes_estado"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    aula_id: Mapped[int] = mapped_column(ForeignKey("aulas.id"), unique=True, nullable=False)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), unique=True, nullable=False)
     estado: Mapped[dict] = mapped_column(JSON, nullable=False)
     version: Mapped[int] = mapped_column(
         Integer,
@@ -126,14 +126,14 @@ class AulaEquipesEstado(Base):
         server_default=func.now(),
     )
 
-    aula: Mapped["Aula"] = relationship("Aula", back_populates="estado_equipes")
+    evento: Mapped["Evento"] = relationship("Evento", back_populates="estado_equipes")
 
 
 class TeamConfig(Base):
     __tablename__ = "team_configs"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    aula_id: Mapped[int] = mapped_column(ForeignKey("aulas.id"), nullable=False, index=True)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False, index=True)
     estado: Mapped[dict] = mapped_column(JSON, nullable=False)
     version: Mapped[int] = mapped_column(
         Integer,
@@ -153,31 +153,31 @@ class TeamConfig(Base):
         server_default=text("true"),
     )
 
-    aula: Mapped["Aula"] = relationship("Aula", back_populates="team_configs")
+    evento: Mapped["Evento"] = relationship("Evento", back_populates="team_configs")
 
 
-class TimeAula(Base):
-    __tablename__ = "times_aula"
+class TimeEvento(Base):
+    __tablename__ = "times_evento"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    aula_id: Mapped[int] = mapped_column(ForeignKey("aulas.id"), nullable=False)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False)
     nome: Mapped[str] = mapped_column(String, nullable=False)
     caracteristica: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     cor_camisa: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
-    aula: Mapped["Aula"] = relationship("Aula", back_populates="times")
-    jogadores: Mapped[List["JogadorAula"]] = relationship(
-        "JogadorAula",
+    evento: Mapped["Evento"] = relationship("Evento", back_populates="times")
+    jogadores: Mapped[List["JogadorEvento"]] = relationship(
+        "JogadorEvento",
         back_populates="time",
         lazy="selectin",
     )
 
 
-class JogadorAula(Base):
-    __tablename__ = "jogadores_aula"
+class JogadorEvento(Base):
+    __tablename__ = "jogadores_evento"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    aula_id: Mapped[int] = mapped_column(ForeignKey("aulas.id"), nullable=False)
+    evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False)
     jogador_id: Mapped[Optional[int]] = mapped_column(ForeignKey("jogadores.id"), nullable=True)
     nome: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[StatusPresencaEnum] = mapped_column(
@@ -189,7 +189,7 @@ class JogadorAula(Base):
     assistencias: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     chiliques: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     faltas: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    time_id: Mapped[Optional[int]] = mapped_column(ForeignKey("times_aula.id"), nullable=True)
+    time_id: Mapped[Optional[int]] = mapped_column(ForeignKey("times_evento.id"), nullable=True)
 
-    aula: Mapped["Aula"] = relationship("Aula", back_populates="jogadores")
-    time: Mapped[Optional["TimeAula"]] = relationship("TimeAula", back_populates="jogadores")
+    evento: Mapped["Evento"] = relationship("Evento", back_populates="jogadores")
+    time: Mapped[Optional["TimeEvento"]] = relationship("TimeEvento", back_populates="jogadores")

@@ -23,7 +23,8 @@ Habilitar gerência de lances em `AULA` para papéis administrativos com gate ex
 
 - `frontend/jubileu-web/src/workspaces/evento/capabilities.ts`
 - `frontend/jubileu-web/src/workspaces/evento/components/QuickAddLance.tsx`
-- `frontend/jubileu-web/src/workspaces/evento/hooks/useLancesTimeline.ts`
+- `frontend/jubileu-web/src/workspaces/evento/WorkspaceEventoPage.tsx`
+- `frontend/jubileu-web/src/services/eventosService.ts`
 
 ## Riscos
 

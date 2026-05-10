@@ -4,10 +4,10 @@ from typing import List
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.dia_aula import (
+from app.models.dia_evento import (
     EstatisticaJogadorPartida,
-    JogadorAula,
-    Aula,
+    JogadorEvento,
+    Evento,
     Dia,
     Partida,
 )
@@ -33,16 +33,16 @@ def visao_geral(db: Session, periodo: int) -> EstatisticasVisaoGeralOut:
     # Artilheiros
     artilheiros_rows = (
         db.query(
-            JogadorAula.jogador_id.label("jogador_id"),
-            JogadorAula.nome.label("nome"),
+            JogadorEvento.jogador_id.label("jogador_id"),
+            JogadorEvento.nome.label("nome"),
             func.coalesce(func.sum(EstatisticaJogadorPartida.gols), 0).label("gols"),
         )
-        .join(EstatisticaJogadorPartida, EstatisticaJogadorPartida.jogador_aula_id == JogadorAula.id)
+        .join(EstatisticaJogadorPartida, EstatisticaJogadorPartida.jogador_evento_id == JogadorEvento.id)
         .join(Partida, EstatisticaJogadorPartida.partida_id == Partida.id)
-        .join(Aula, Partida.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
+        .join(Evento, Partida.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
         .filter(filtro_periodo)
-        .group_by(JogadorAula.jogador_id, JogadorAula.nome)
+        .group_by(JogadorEvento.jogador_id, JogadorEvento.nome)
         .order_by(func.coalesce(func.sum(EstatisticaJogadorPartida.gols), 0).desc())
         .limit(5)
         .all()
@@ -55,16 +55,16 @@ def visao_geral(db: Session, periodo: int) -> EstatisticasVisaoGeralOut:
     # Presencas
     presencas_rows = (
         db.query(
-            JogadorAula.jogador_id.label("jogador_id"),
-            JogadorAula.nome.label("nome"),
-            func.count(JogadorAula.id).label("presencas"),
+            JogadorEvento.jogador_id.label("jogador_id"),
+            JogadorEvento.nome.label("nome"),
+            func.count(JogadorEvento.id).label("presencas"),
         )
-        .join(Aula, JogadorAula.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
+        .join(Evento, JogadorEvento.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
         .filter(filtro_periodo)
-        .filter(JogadorAula.status.in_(PRESENT_STATUSES))
-        .group_by(JogadorAula.jogador_id, JogadorAula.nome)
-        .order_by(func.count(JogadorAula.id).desc())
+        .filter(JogadorEvento.status.in_(PRESENT_STATUSES))
+        .group_by(JogadorEvento.jogador_id, JogadorEvento.nome)
+        .order_by(func.count(JogadorEvento.id).desc())
         .limit(5)
         .all()
     )
@@ -77,15 +77,15 @@ def visao_geral(db: Session, periodo: int) -> EstatisticasVisaoGeralOut:
     # Gols por turma
     gols_turma_rows = (
         db.query(
-            Aula.turma_id.label("turma_id"),
-            func.coalesce(Aula.turma_nome, Turma.nome).label("turma_nome"),
+            Evento.turma_id.label("turma_id"),
+            func.coalesce(Evento.turma_nome, Turma.nome).label("turma_nome"),
             func.coalesce(func.sum(Partida.gols_time_a + Partida.gols_time_b), 0).label("gols"),
         )
-        .join(Partida, Partida.aula_id == Aula.id)
-        .join(Dia, Aula.dia_id == Dia.id)
-        .outerjoin(Turma, Aula.turma_id == Turma.id)
+        .join(Partida, Partida.evento_id == Evento.id)
+        .join(Dia, Evento.dia_id == Dia.id)
+        .outerjoin(Turma, Evento.turma_id == Turma.id)
         .filter(filtro_periodo)
-        .group_by(Aula.turma_id, func.coalesce(Aula.turma_nome, Turma.nome))
+        .group_by(Evento.turma_id, func.coalesce(Evento.turma_nome, Turma.nome))
         .order_by(func.coalesce(func.sum(Partida.gols_time_a + Partida.gols_time_b), 0).desc())
         .all()
     )

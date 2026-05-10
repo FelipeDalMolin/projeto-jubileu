@@ -21,7 +21,7 @@ export type RegistroPresenca = {
   chilique: number;
 };
 
-export type RegistroAula = {
+export type RegistroEvento = {
   dataIso: string; // YYYY-MM-DD
   turmaId: number;
   presencas: RegistroPresenca[];
@@ -32,7 +32,7 @@ export type RankingInput = {
   periodoDias: number;
   incluirZeroJogos?: boolean;
   busca?: string;
-  registros: RegistroAula[];
+  registros: RegistroEvento[];
   jogadores: Jogador[];
 };
 

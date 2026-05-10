@@ -5,16 +5,16 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.dia_aula import (
-    StatusAulaEnum,
-    TipoEventoAulaEnum,
+from app.models.dia_evento import (
+    StatusEventoEnum,
+    TipoEventoEnum,
     StatusPresencaEnum,
     PartidaStatusEnum,
 )
 
 
 # ---------------------------------------------------------
-# ATRIBUTOS / JOGADORES / TIMES (para SNAPSHOT da aula)
+# ATRIBUTOS / JOGADORES / TIMES (para SNAPSHOT da evento)
 # ---------------------------------------------------------
 
 
@@ -27,18 +27,18 @@ class AtributosJogadorDia(BaseModel):
 
 class PresencaJogadorDiaOut(BaseModel):
     """
-    Snapshot do jogador dentro da aula (nao e o Jogador global).
+    Snapshot do jogador dentro da evento (nao e o Jogador global).
     """
 
     jogadorId: int
     nome: str
     status: StatusPresencaEnum
     atributos: AtributosJogadorDia
-    # id logico do time dentro da aula (ex.: "time-1")
+    # id logico do time dentro da evento (ex.: "time-1")
     timeId: Optional[str] = None
 
 
-class TimeAulaOut(BaseModel):
+class TimeEventoOut(BaseModel):
     """Snapshot de um time dentro da AULA, no formato que o front usa."""
 
     id: str  # "time-1", "time-2"...
@@ -48,9 +48,9 @@ class TimeAulaOut(BaseModel):
     corCamisa: Optional[str] = None
 
 
-class TimeAulaCreate(BaseModel):
+class TimeEventoCreate(BaseModel):
     """
-    DTO de entrada para criar um time no banco (model TimeAula).
+    DTO de entrada para criar um time no banco (model TimeEvento).
     """
 
     nome: str
@@ -80,19 +80,19 @@ class ConfirmarPresencasIn(BaseModel):
 # ---------------------------------------------------------
 
 
-class EstadoEquipesAulaIn(BaseModel):
+class EstadoEquipesEventoIn(BaseModel):
     """
-    Payload que o front envia para salvar o estado de equipes da aula.
+    Payload que o front envia para salvar o estado de equipes da evento.
     """
 
     jogadores: List[PresencaJogadorDiaOut] = Field(default_factory=list)
-    times: List[TimeAulaOut] = Field(default_factory=list)
+    times: List[TimeEventoOut] = Field(default_factory=list)
 
 
-class EstadoEquipesAulaOut(EstadoEquipesAulaIn):
-    """Resposta do backend com o estado de equipes + id da aula."""
+class EstadoEquipesEventoOut(EstadoEquipesEventoIn):
+    """Resposta do backend com o estado de equipes + id da evento."""
 
-    aula_id: int
+    evento_id: int
 
 
 # ---------------------------------------------------------
@@ -101,7 +101,7 @@ class EstadoEquipesAulaOut(EstadoEquipesAulaIn):
 
 
 class EstatisticaJogadorPartidaBase(BaseModel):
-    jogador_aula_id: int
+    jogador_evento_id: int
     gols: int = Field(0, ge=0)
     assistencias: int = Field(0, ge=0)
     chiliques: int = Field(0, ge=0)
@@ -137,7 +137,7 @@ class PartidaUpdate(BaseModel):
 
 class PartidaOut(BaseModel):
     id: int
-    aula_id: int
+    evento_id: int
     status: PartidaStatusEnum = PartidaStatusEnum.PLANEJADA
     ordem: int
     time_a_id: int
@@ -173,11 +173,11 @@ class StatsJogadorIn(BaseModel):
 
 class EquipesEstadoOut(BaseModel):
     jogadores: List[PresencaJogadorDiaOut] = Field(default_factory=list)
-    times: List[TimeAulaOut] = Field(default_factory=list)
+    times: List[TimeEventoOut] = Field(default_factory=list)
 
 
-class AulaEstadoOut(BaseModel):
-    aula_id: int
+class EventoEstadoOut(BaseModel):
+    evento_id: int
     data_iso: str
     version: int
     updated_at: datetime
@@ -190,23 +190,23 @@ class AulaEstadoOut(BaseModel):
 # ---------------------------------------------------------
 
 
-class AulaBase(BaseModel):
-    turma_id: int
-    tipo: TipoEventoAulaEnum = TipoEventoAulaEnum.AULA
+class EventoBase(BaseModel):
+    turma_id: Optional[int] = None
+    tipo: TipoEventoEnum = TipoEventoEnum.AULA
     horario_inicio: str  # "19:00"
     horario_fim: str  # "20:00"
-    status: StatusAulaEnum = StatusAulaEnum.PLANEJADA
+    status: StatusEventoEnum = StatusEventoEnum.PLANEJADO
 
 
-class AulaCreate(AulaBase):
-    """DTO de entrada para criar uma nova aula em um dia."""
+class EventoCreate(EventoBase):
+    """DTO de entrada para criar uma nova evento em um dia."""
 
     # turma_nome opcional (sera sobrescrito pelo nome da turma no backend)
     turma_nome: Optional[str] = None
-    numero_aula_na_turma: Optional[int] = None
+    numero_evento_na_turma: Optional[int] = None
 
 
-class JogadorAulaOut(BaseModel):
+class JogadorEventoOut(BaseModel):
     id: int
     jogador_id: Optional[int] = None
     nome: str
@@ -216,18 +216,18 @@ class JogadorAulaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class AulaOut(AulaBase):
+class EventoDiaOut(EventoBase):
     """
-    Representacao da Aula retornada pelos endpoints:
+    Representacao da Evento retornada pelos endpoints:
     - GET /dias/{data_iso}
-    - GET /dias/{data_iso}/aulas/{aula_id}
+    - GET /dias/{data_iso}/eventos/{evento_id}
     """
 
     id: int
     dia_id: int
-    turma_nome: str
-    numero_aula_na_turma: int
-    jogadores: List[JogadorAulaOut] = Field(default_factory=list)
+    turma_nome: Optional[str] = None
+    numero_evento_na_turma: Optional[int] = None
+    jogadores: List[JogadorEventoOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -238,19 +238,19 @@ class AulaOut(AulaBase):
 
 
 class DiaOut(BaseModel):
-    """Representacao de um dia com suas aulas."""
+    """Representacao de um dia com suas eventos."""
 
     id: int
     data_iso: str
     feriado_nome: Optional[str] = None
     feriado_tipo: Optional[str] = None
-    aulas: List[AulaOut] = Field(default_factory=list)
+    eventos: List[EventoDiaOut] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class DiaListOut(BaseModel):
-    """Representacao leve de um dia (sem aulas)."""
+    """Representacao leve de um dia (sem eventos)."""
 
     id: int
     data_iso: str

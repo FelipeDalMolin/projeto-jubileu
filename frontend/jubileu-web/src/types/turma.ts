@@ -8,7 +8,7 @@ export interface ParticipanteTurma {
 
   papel: PapelParticipanteTurma; // aluno / professor
   ativo: boolean;                // ex-aluno = false
-  podeJogar: boolean;            // se false, não vai pra AulaPage
+  podeJogar: boolean;            // se false, não vai pra EventoPage
 }
 
 export interface Turma {

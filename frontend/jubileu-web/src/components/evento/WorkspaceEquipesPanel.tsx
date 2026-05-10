@@ -8,13 +8,13 @@ import {
 } from "react";
 
 import {
-  atualizarStatusJogadorNaAula,
-  criarTimeNaAula,
-  deletarTimeNaAula,
-  moverJogadorNaAula,
-  salvarEstadoEquipesAula,
+  atualizarStatusJogadorNoEvento,
+  criarTimeNoEvento,
+  deletarTimeNoEvento,
+  moverJogadorNoEvento,
+  salvarEstadoEquipesEvento,
 } from "../../services/diasService";
-import { encerrarAula, iniciarAula } from "../../services/aulaLifecycleService";
+import { encerrarEvento, iniciarEvento } from "../../services/eventoLifecycleService";
 
 import type {
   PresencaJogadorDia,
@@ -22,18 +22,18 @@ import type {
   TimeDia,
 } from "../../types/dia";
 import type {
-  WorkspaceAulaEquipes,
-  WorkspaceAulaMeta,
-} from "../../types/workspaceAula";
+  WorkspaceEventoEquipes,
+  WorkspaceEventoMeta,
+} from "../../types/workspaceEvento";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
 
 type Props = {
   dataIso: string;
-  aulaId: number;
-  meta: WorkspaceAulaMeta;
-  equipes: WorkspaceAulaEquipes;
+  eventoId: number;
+  meta: WorkspaceEventoMeta;
+  equipes: WorkspaceEventoEquipes;
   onRefresh: () => Promise<void>;
   teamSizeRef?: number | null;
   onSaveTeamSizeRef?: (teamSizeRef: number) => Promise<void>;
@@ -42,7 +42,7 @@ type Props = {
 
 export default function WorkspaceEquipesPanel({
   dataIso,
-  aulaId,
+  eventoId,
   meta,
   equipes,
   onRefresh,
@@ -93,7 +93,7 @@ export default function WorkspaceEquipesPanel({
     novoStatus: StatusPresenca,
   ) => {
     try {
-      await atualizarStatusJogadorNaAula(dataIso, aulaId, jogadorId, novoStatus);
+      await atualizarStatusJogadorNoEvento(dataIso, eventoId, jogadorId, novoStatus);
       await onRefresh();
     } catch (err) {
       console.error(err);
@@ -126,7 +126,7 @@ export default function WorkspaceEquipesPanel({
     try {
       const idx = times.length + 1;
       const nome = `Time ${idx}`;
-      await criarTimeNaAula(dataIso, aulaId, { nome });
+      await criarTimeNoEvento(dataIso, eventoId, { nome });
       await onRefresh();
     } catch (err) {
       console.error(err);
@@ -174,7 +174,7 @@ export default function WorkspaceEquipesPanel({
     destinoTimeId: string | null,
   ) => {
     try {
-      await moverJogadorNaAula(dataIso, aulaId, jogadorId, destinoTimeId);
+      await moverJogadorNoEvento(dataIso, eventoId, jogadorId, destinoTimeId);
       await onRefresh();
     } catch (err) {
       console.error(err);
@@ -232,7 +232,7 @@ export default function WorkspaceEquipesPanel({
     );
 
     try {
-      await deletarTimeNaAula(dataIso, aulaId, timeId);
+      await deletarTimeNoEvento(dataIso, eventoId, timeId);
       await onRefresh();
     } catch (err) {
       console.error(err);
@@ -243,7 +243,7 @@ export default function WorkspaceEquipesPanel({
 
   const handleSalvarEstadoEquipes = async () => {
     try {
-      await salvarEstadoEquipesAula(dataIso, aulaId, jogadores, times);
+      await salvarEstadoEquipesEvento(dataIso, eventoId, jogadores, times);
       alert("Estado das equipes salvo com sucesso!");
       await onRefresh();
     } catch (err) {
@@ -252,7 +252,7 @@ export default function WorkspaceEquipesPanel({
     }
   };
 
-  const handleIniciarAula = async () => {
+  const handleIniciarEvento = async () => {
     if (presentesCount === 0) {
       setStatusError("Selecione ao menos um jogador presente antes de iniciar.");
       return;
@@ -260,23 +260,23 @@ export default function WorkspaceEquipesPanel({
     setStatusLoading(true);
     setStatusError(null);
     try {
-      await iniciarAula(dataIso, aulaId);
+      await iniciarEvento(dataIso, eventoId);
       await onRefresh();
     } catch (err: unknown) {
-      setStatusError(err instanceof Error ? err.message : "Erro ao iniciar a aula.");
+      setStatusError(err instanceof Error ? err.message : "Erro ao iniciar a evento.");
     } finally {
       setStatusLoading(false);
     }
   };
 
-  const handleEncerrarAula = async () => {
+  const handleEncerrarEvento = async () => {
     setStatusLoading(true);
     setStatusError(null);
     try {
-      await encerrarAula(dataIso, aulaId);
+      await encerrarEvento(dataIso, eventoId);
       await onRefresh();
     } catch (err: unknown) {
-      setStatusError(err instanceof Error ? err.message : "Erro ao encerrar a aula.");
+      setStatusError(err instanceof Error ? err.message : "Erro ao encerrar a evento.");
     } finally {
       setStatusLoading(false);
     }
@@ -301,7 +301,7 @@ export default function WorkspaceEquipesPanel({
   const statusLabel =
     meta.status === "EM_ANDAMENTO"
       ? "EM ANDAMENTO"
-      : meta.status === "CONCLUIDA"
+      : meta.status === "ENCERRADO"
         ? "ENCERRADA"
         : meta.status;
 
@@ -320,7 +320,7 @@ export default function WorkspaceEquipesPanel({
 
               {statusError ? <div className="rounded-md bg-amber-50 p-2 text-sm text-amber-800">{statusError}</div> : null}
 
-              {meta.status === "PLANEJADA" ? (
+              {meta.status === "PLANEJADO" ? (
                 <div className="space-y-2">
                   {presentesCount === 0 ? (
                     <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-700">
@@ -331,21 +331,21 @@ export default function WorkspaceEquipesPanel({
                     <Button
                       type="button"
                       size="sm"
-                      onClick={handleIniciarAula}
+                      onClick={handleIniciarEvento}
                       disabled={statusLoading || presentesCount === 0}
                     >
-                      Iniciar aula
+                      Iniciar evento
                     </Button>
                     <Button type="button" size="sm" variant="outline" disabled title="Acao ainda nao disponivel">
-                      Cancelar aula
+                      Cancelar evento
                     </Button>
                   </div>
                 </div>
               ) : null}
 
               {meta.status === "EM_ANDAMENTO" ? (
-                <Button type="button" size="sm" variant="secondary" onClick={handleEncerrarAula} disabled={statusLoading}>
-                  Encerrar aula
+                <Button type="button" size="sm" variant="secondary" onClick={handleEncerrarEvento} disabled={statusLoading}>
+                  Encerrar evento
                 </Button>
               ) : null}
             </CardContent>

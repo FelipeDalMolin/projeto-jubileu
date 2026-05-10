@@ -1,21 +1,21 @@
 import { useMemo, useState } from "react";
 import type {
-  AulaDia,
+  EventoDia,
   EstatisticaJogadorPartida,
   PresencaJogadorDia,
   TimeDia,
 } from "../../types/dia";
-import type { PartidaEstado } from "../../types/aulaEstado";
+import type { PartidaEstado } from "../../types/eventoEstado";
 import {
   criarPartida,
   atualizarPartida,
   deletarPartida,
 } from "../../services/partidasService";
-import { useAulaEstadoPolling } from "../../hooks/useAulaEstadoPolling";
+import { useEventoEstadoPolling } from "../../hooks/useEventoEstadoPolling";
 
 type Props = {
   dataIso: string;
-  aula: AulaDia;
+  evento: EventoDia;
 };
 
 type CampoStat = keyof Pick<
@@ -24,6 +24,10 @@ type CampoStat = keyof Pick<
 >;
 
 const normalizeTimeId = (id: string) => (id.startsWith("time-") ? id : `time-${id}`);
+
+function errorMessage(err: unknown, fallback: string) {
+  return err instanceof Error ? err.message : fallback;
+}
 
 function normalizarPartidas(partidas: PartidaEstado[]) {
   return partidas.map((p) => ({
@@ -50,19 +54,19 @@ function normalizarStat(valor: number) {
   return Math.max(0, Math.floor(Number(valor) || 0));
 }
 
-export default function DiaPartidasTab({ dataIso, aula }: Props) {
+export default function DiaPartidasTab({ dataIso, evento }: Props) {
   const [salvando, setSalvando] = useState(false);
 
-  const { estado, setEstado, loading, error, refreshNow } = useAulaEstadoPolling({
+  const { estado, setEstado, loading, error, refreshNow } = useEventoEstadoPolling({
     dataIso,
-    aulaId: Number(aula.id),
+    eventoId: Number(evento.id),
     enabled: true,
   });
 
   const equipes = useMemo(() => {
-    const eq = estado?.equipes ?? { jogadores: aula.jogadores ?? [], times: aula.times ?? [] };
+    const eq = estado?.equipes ?? { jogadores: evento.jogadores ?? [], times: evento.times ?? [] };
     return normalizarEquipes(eq.jogadores ?? [], eq.times ?? []);
-  }, [estado, aula.jogadores, aula.times]);
+  }, [estado, evento.jogadores, evento.times]);
 
   const partidas = useMemo(() => {
     return normalizarPartidas(estado?.partidas ?? []);
@@ -94,7 +98,7 @@ export default function DiaPartidasTab({ dataIso, aula }: Props) {
 
     try {
       setSalvando(true);
-      const nova = await criarPartida(dataIso, aula.id, {
+      const nova = await criarPartida(dataIso, evento.id, {
         timeAId: timeA.id,
         timeBId: timeB.id,
         estatisticas: [],
@@ -112,9 +116,9 @@ export default function DiaPartidasTab({ dataIso, aula }: Props) {
           : prev,
       );
       await refreshNow();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err?.message ?? "Erro ao criar partida.");
+      alert(errorMessage(err, "Erro ao criar partida."));
     } finally {
       setSalvando(false);
     }
@@ -132,11 +136,11 @@ export default function DiaPartidasTab({ dataIso, aula }: Props) {
     );
 
     try {
-      await deletarPartida(dataIso, aula.id, String(id));
+      await deletarPartida(dataIso, evento.id, String(id));
       await refreshNow();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err?.message ?? "Erro ao remover partida.");
+      alert(errorMessage(err, "Erro ao remover partida."));
       setEstado((prev) =>
         prev
           ? { ...prev, partidas: anterior }
@@ -148,16 +152,16 @@ export default function DiaPartidasTab({ dataIso, aula }: Props) {
   async function persistirPartida(partida: PartidaEstado) {
     setSalvando(true);
     try {
-      await atualizarPartida(dataIso, aula.id, String(partida.id), {
+      await atualizarPartida(dataIso, evento.id, String(partida.id), {
         ordem: partida.ordem,
         timeAId: partida.timeAId,
         timeBId: partida.timeBId,
         estatisticas: partida.estatisticas ?? [],
       });
       await refreshNow();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      alert(err?.message ?? "Erro ao salvar estatisticas da partida.");
+      alert(errorMessage(err, "Erro ao salvar estatisticas da partida."));
     } finally {
       setSalvando(false);
     }
@@ -178,19 +182,19 @@ export default function DiaPartidasTab({ dataIso, aula }: Props) {
         if (p.id !== partidaId) return p;
         const estatisticas = (p.estatisticas ?? []) as EstatisticaJogadorPartida[];
         const statExistente = estatisticas.find(
-          (s) => s.jogadorAulaId === jogadorId,
+          (s) => s.jogadorEventoId === jogadorId,
         );
 
         let novasStats: EstatisticaJogadorPartida[];
         if (statExistente) {
           novasStats = estatisticas.map((s) =>
-            s.jogadorAulaId === jogadorId ? { ...s, [campo]: novoValor } : s,
+            s.jogadorEventoId === jogadorId ? { ...s, [campo]: novoValor } : s,
           );
         } else {
           novasStats = [
             ...estatisticas,
             {
-              jogadorAulaId: jogadorId,
+              jogadorEventoId: jogadorId,
               gols: 0,
               assistencias: 0,
               chiliques: 0,
@@ -335,7 +339,7 @@ function TabelaSumulaTime({
     jogadorId: number,
     campo: CampoStat,
   ) => {
-    const stat = partidaStats.find((s) => s.jogadorAulaId === jogadorId);
+    const stat = partidaStats.find((s) => s.jogadorEventoId === jogadorId);
     return stat ? stat[campo] : 0;
   };
 

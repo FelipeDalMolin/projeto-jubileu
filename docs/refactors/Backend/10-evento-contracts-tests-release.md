@@ -43,6 +43,16 @@ Consolidar cobertura de testes e documentação de release para evitar drift ent
 - revisar riscos PostgreSQL não cobertos por SQLite
 - registrar hot spots legados remanescentes
 
+- executar a matriz em `docs/refactors/evento-validation-matrix.md`
+
+## Status de Fechamento
+
+- Backend automated validation passed through `.venv\Scripts\python.exe -m pytest` on 2026-05-09.
+- Frontend automated validation passed through `npm run lint` and `npm run build` on 2026-05-09.
+- Local PostgreSQL API smoke passed for login/profile with `jogadorId`, AULA lifecycle/lance gates and JOGO_LIVRE RSVP/check-in/seed/lance.
+- Browser-level visual smoke remains pending; the Vite `/login` route returned HTTP 200, but browser automation was unavailable in this session.
+- Linear was reconciled with DEV-28 through DEV-33 created; keep vNext DEV-34 through DEV-36 unopened until this closure is accepted.
+
 ## Dependencias para proxima fase
 
 - próximos slices de expansão de tipos de evento além de `JOGO_LIVRE`

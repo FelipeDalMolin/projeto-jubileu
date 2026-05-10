@@ -22,9 +22,9 @@ Estabilizar polling por canal e tratamento de autenticação para eliminar flood
 
 ## Arquivos/areas impactadas
 
-- `frontend/jubileu-web/src/workspaces/evento/hooks/useEventoPagePollingController.ts`
-- `frontend/jubileu-web/src/workspaces/evento/hooks/useEventoLiveData.ts`
-- `frontend/jubileu-web/src/workspaces/evento/hooks/useLancesTimeline.ts`
+- `frontend/jubileu-web/src/workspaces/evento/WorkspaceEventoPage.tsx`
+- `frontend/jubileu-web/src/lib/queryClient.ts`
+- remover hooks locais de polling de Evento quando ficarem sem uso
 
 ## Riscos
 
