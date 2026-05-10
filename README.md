@@ -1,113 +1,106 @@
-# Projeto Jubileu
+﻿# Projeto Jubileu
 
-Projeto Jubileu é uma aplicação web para gerenciamento de eventos esportivos, organização de jogadores, criação de partidas e acompanhamento de estatísticas de jogo.
+Projeto Jubileu e uma aplicacao web para gerenciamento de eventos esportivos, organizacao de jogadores, criacao de partidas e acompanhamento de estatisticas de jogo.
 
-O sistema foi projetado para suportar treinos, jogos livres e campeonatos, permitindo organizar eventos por data, registrar presença, formar times, acompanhar partidas e consolidar indicadores da aplicação.
+O sistema foi projetado para suportar treinos, jogos livres e campeonatos, permitindo organizar eventos por data, registrar presenca, formar times, acompanhar partidas e consolidar indicadores da aplicacao.
 
-Para configurar o ambiente de desenvolvimento no Windows, consulte [docs/SETUP_DEV_WINDOWS.md](docs/SETUP_DEV_WINDOWS.md).
+Para configurar o ambiente de desenvolvimento, comece por [docs/README.md](docs/README.md) ou pelo [quick start](docs/runbooks/quick-start.md).
 
 - [Getting Started](#getting-started)
   - [Usando uma Release](#usando-uma-release)
-  - [Desenvolvimento e contribuição](#desenvolvimento-e-contribuição)
+  - [Desenvolvimento e contribuicao](#desenvolvimento-e-contribuicao)
 - [Guia de Setup](#guia-de-setup)
-- [Documentação](#documentação)
+- [Documentacao](#documentacao)
 - [Arquitetura](#arquitetura)
-- [Estruturação do domínio](#estruturação-do-domínio)
+- [Estruturacao do dominio](#estruturacao-do-dominio)
 - [Releases](#releases)
-- [Contribuição](#contribuição)
-- Dúvidas, problemas ou sugestões? [Abra uma issue](https://github.com/FelipeDalMolin/projeto-jubileu/issues)
+- [Contribuicao](#contribuicao)
+- Duvidas, problemas ou sugestoes? [Abra uma issue](https://github.com/FelipeDalMolin/projeto-jubileu/issues)
 
 ## Getting Started
 
-Se você quer conhecer o projeto rapidamente, pode começar pela documentação de setup e pela estrutura geral da aplicação.
+Se voce quer conhecer o projeto rapidamente, comece pela documentacao de setup e pela estrutura geral da aplicacao.
 
-Se você pretende desenvolver, testar ou evoluir o sistema, consulte os guias da pasta `docs/`.
+Se voce pretende desenvolver, testar ou evoluir o sistema, consulte os guias da pasta `docs/`.
 
 ### Usando uma Release
 
-Se você quer apenas executar uma versão publicada do projeto para testes ou validação:
+Se voce quer apenas executar uma versao publicada do projeto para testes ou validacao:
 
-- Acesse a página de [Releases](https://github.com/FelipeDalMolin/projeto-jubileu/releases)
-- Escolha a versão desejada
-- Siga as instruções de setup do ambiente conforme seu sistema operacional:
-  - **Windows**: [docs/QUICK_START.md](docs/QUICK_START.md) (5 min com scripts PowerShell)
-  - **Linux/macOS**: [docs/SETUP_LINUX.md](docs/SETUP_LINUX.md)
-  - **Windows Detailed**: [docs/SETUP_DEV_WINDOWS.md](docs/SETUP_DEV_WINDOWS.md)
+- Acesse a pagina de [Releases](https://github.com/FelipeDalMolin/projeto-jubileu/releases)
+- Escolha a versao desejada
+- Siga as instrucoes de setup do ambiente conforme seu sistema operacional:
+  - **Windows**: [docs/runbooks/quick-start.md](docs/runbooks/quick-start.md)
+  - **Linux/macOS**: [docs/runbooks/setup-linux.md](docs/runbooks/setup-linux.md)
+  - **Windows detalhado**: [docs/runbooks/setup-windows.md](docs/runbooks/setup-windows.md)
 
-### Desenvolvimento e contribuição
+### Desenvolvimento e contribuicao
 
-Se você quer rodar o Jubileu localmente, contribuir com código ou evoluir a aplicação:
+Se voce quer rodar o Jubileu localmente, contribuir com codigo ou evoluir a aplicacao:
 
-1. **Comece pelo guia de navegação**: [docs/DOCS_NAVIGATION.md](docs/DOCS_NAVIGATION.md)
-2. **Configure seu ambiente**:
-   - Windows: [docs/QUICK_START.md](docs/QUICK_START.md)
-   - Linux/macOS: [docs/SETUP_LINUX.md](docs/SETUP_LINUX.md)
-3. **Entenda o projeto**:
-   - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - Arquitetura geral
-   - [docs/DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) - Domínio da aplicação
-   - [docs/UML/Diagramas.md](docs/UML/Diagramas.md) - Diagramas UML
-4. **Contribua**: Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para padrões de contribuição (em breve)
+1. Comece pela navegacao de docs: [docs/README.md](docs/README.md)
+2. Configure seu ambiente:
+   - Windows: [docs/runbooks/quick-start.md](docs/runbooks/quick-start.md)
+   - Linux/macOS: [docs/runbooks/setup-linux.md](docs/runbooks/setup-linux.md)
+3. Entenda o projeto:
+   - [docs/current/ARCHITECTURE.md](docs/current/ARCHITECTURE.md) - arquitetura geral
+   - [docs/current/DOMAIN_MODEL.md](docs/current/DOMAIN_MODEL.md) - dominio da aplicacao
+   - [docs/uml/Diagramas.md](docs/uml/Diagramas.md) - diagramas UML
+4. Contribua: consulte [CONTRIBUTING.md](CONTRIBUTING.md) para padroes de contribuicao quando esse arquivo for formalizado.
 
 ## Guia de Setup
 
-Documentação completa para configurar o projeto em diferentes ambientes:
+Documentacao para configurar e operar o projeto:
 
-| Sistema | Guia | Timeframe |
-|---------|------|-----------|
-| **Windows** | [QUICK_START.md](docs/QUICK_START.md) | 5 min (com scripts) |
-| **Windows Detalhado** | [SETUP_DEV_WINDOWS.md](docs/SETUP_DEV_WINDOWS.md) | 15 min (manual) |
-| **Linux / macOS** | [SETUP_LINUX.md](docs/SETUP_LINUX.md) | 20 min |
-| **Resumo Linux** | [SETUP_LINUX_SUMMARY.md](docs/SETUP_LINUX_SUMMARY.md) | Quick reference |
-| **Comparação de Scripts** | [SETUP_SCRIPTS_COMPARISON.md](docs/SETUP_SCRIPTS_COMPARISON.md) | Windows vs Linux |
-| **Scripts Análise Detalhada** | [SETUP_SCRIPTS_ANALYSIS.md](docs/SETUP_SCRIPTS_ANALYSIS.md) | Aprofundado |
-| **Visualização de Scripts** | [SETUP_SCRIPTS_VISUAL.md](docs/SETUP_SCRIPTS_VISUAL.md) | Estrutura visual |
+| Necessidade | Guia | Uso |
+|---|---|---|
+| Quick start | [quick-start.md](docs/runbooks/quick-start.md) | comandos essenciais |
+| Windows detalhado | [setup-windows.md](docs/runbooks/setup-windows.md) | setup Windows |
+| Linux / macOS | [setup-linux.md](docs/runbooks/setup-linux.md) | setup Linux/WSL |
+| Migrations PostgreSQL | [postgres-migrations.md](docs/runbooks/postgres-migrations.md) | Alembic/PostgreSQL |
+| Release v0.3 | [release-v03.md](docs/runbooks/release-v03.md) | gate e smoke |
 
-**Recomendação**: Comece por [DOCS_NAVIGATION.md](docs/DOCS_NAVIGATION.md) para escolher o caminho certo para seu caso de uso.
+Recomendacao: comece por [docs/README.md](docs/README.md) para escolher o caminho certo para seu caso de uso.
 
-**Ou assista em:** https://youtu.be/dAXu-O_J-vs?si=U1ecyWdOuq1QvD9G
+## Documentacao
 
-## Documentação
+Recursos principais de documentacao do projeto:
 
-Recursos principais de documentação do projeto:
-
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Arquitetura da aplicação
-- [DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) - Modelo de domínio e entidades
-- [UML/Diagramas.md](docs/UML/Diagramas.md) - Diagramas UML da aplicação
-- [FILE_INVENTORY.md](docs/FILE_INVENTORY.md) - Inventário de arquivos do projeto
-- [RESUMO_MELHORIAS.md](docs/RESUMO_MELHORIAS.md) - Histórico de melhorias
+- [docs/current/](docs/current/) - fonte viva do projeto
+- [docs/plans/v0.3/](docs/plans/v0.3/) - plano do ciclo atual
+- [docs/adr/](docs/adr/) - decisoes arquiteturais
+- [docs/runbooks/](docs/runbooks/) - setup, migrations e release
+- [docs/archive/](docs/archive/) - historico e relatorios superseded
 
 ## Arquitetura
 
-O Jubileu segue uma arquitetura web baseada em frontend, API e banco de dados, com foco em separação clara de responsabilidades.
+O Jubileu segue uma arquitetura web baseada em frontend, gateway, API e banco de dados.
 
 ```text
-React + Vite + TypeScript
-          ↓
-        NGINX
-          ↓
-        FastAPI
-          ↓
-       PostgreSQL
+Cloudflare -> NGINX -> FastAPI -> PostgreSQL
 ```
 
-## Estruturação do domínio
+NGINX e o unico entrypoint publico. FastAPI e PostgreSQL nao devem expor portas publicas em producao.
 
-A aplicação foi estruturada seguindo princípios de **Domain-Driven Design (DDD)** para organizar entidades, agregados e invariantes de negócio. Consulte [docs/DOMAIN_MODEL.md](docs/DOMAIN_MODEL.md) para detalhes completos.
+## Estruturacao do dominio
+
+A aplicacao usa `Evento` como entidade operacional canonica. `AULA` e apenas um valor de `Evento.tipo`. Consulte [docs/current/DOMAIN_MODEL.md](docs/current/DOMAIN_MODEL.md) para detalhes completos.
 
 ## Releases
 
-| Versão | Descrição | Status | Data |
-|--------|-----------|--------|------|
-| 0.2.0  | Setup melhorado, otimizações e novos scripts | ✅ Atual | Abril 2026 |
-| 0.1.1  | Ajustes e correções | Arquivada | - |
-| 0.1.0-alpha | Primeira versão alpha | Arquivada | - |
+| Versao | Descricao | Status | Data |
+|---|---|---|---|
+| v0.3.x | Evento canonico, Usuario, hardening e release gate | Em planejamento/execucao | Maio 2026 |
+| 0.2.0 | Setup melhorado, otimizacoes e novos scripts | Arquivado | Abril 2026 |
+| 0.1.1 | Ajustes e correcoes | Arquivado | - |
+| 0.1.0-alpha | Primeira versao alpha | Arquivado | - |
 
-## Contribuição
+## Contribuicao
 
-Se você quer contribuir, abra uma issue ou envie um pull request. Siga os padrões definidos em [CONTRIBUTING.md](CONTRIBUTING.md) (em desenvolvimento).
+Se voce quer contribuir, abra uma issue ou envie um pull request. Use Linear como tracker oficial de trabalho e GitHub para PRs/codigo.
 
 ---
 
 ## Suporte
 
-Dúvidas, problemas ou sugestões? [Abra uma issue](https://github.com/FelipeDalMolin/projeto-jubileu/issues) no repositório.
+Duvidas, problemas ou sugestoes? [Abra uma issue](https://github.com/FelipeDalMolin/projeto-jubileu/issues) no repositorio.
