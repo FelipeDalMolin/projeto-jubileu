@@ -16,7 +16,7 @@ import type { Dia, EventoDia, TipoEventoModo } from "../../types/dia";
 const EVENTO_MODO_OPTIONS: Array<{ value: TipoEventoModo; label: string; hint: string }> = [
   {
     value: "AULA",
-    label: "Aula",
+    label: "AULA",
     hint: "Treino regular com turma.",
   },
   {
