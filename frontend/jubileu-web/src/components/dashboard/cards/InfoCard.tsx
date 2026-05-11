@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { cn } from "../../../lib/utils";
 
 type Props = {
   title: string;
@@ -10,35 +11,48 @@ type Props = {
   onClick?: () => void;
 };
 
+const interactiveClasses =
+  "transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-panel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
 export default function InfoCard({ title, value, subtitle, icon, to, onClick }: Props) {
   const content = (
-    <div className="card h-100 shadow-sm border-0" role="article">
-      <div className="card-body d-flex flex-column gap-2">
-        <div className="d-flex justify-content-between align-items-start">
-          <div>
-            <p className="text-uppercase text-muted mb-1" style={{ letterSpacing: 0.3 }}>
-              {title}
-            </p>
-            <h4 className="mb-0 fw-bold">{value}</h4>
-          </div>
-          {icon && <div className="text-primary fs-4">{icon}</div>}
+    <div
+      className={cn(
+        "group flex h-full min-h-32 flex-col justify-between rounded-lg border border-slate-200 bg-white p-5 shadow-sm",
+        to || onClick ? interactiveClasses : "",
+      )}
+      role="article"
+    >
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-normal text-slate-500">{title}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">{value}</p>
         </div>
-        {subtitle && <small className="text-muted">{subtitle}</small>}
+        {icon ? (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-primary/10 text-sm font-semibold text-primary">
+            {icon}
+          </div>
+        ) : null}
       </div>
+      {subtitle ? <p className="mt-4 text-sm leading-5 text-slate-600">{subtitle}</p> : null}
     </div>
   );
 
   if (to) {
     return (
-      <Link to={to} className="text-decoration-none text-reset" onClick={onClick}>
+      <Link to={to} className="block h-full rounded-lg focus-visible:outline-none" onClick={onClick}>
         {content}
       </Link>
     );
   }
 
-  return (
-    <button type="button" className="p-0 border-0 bg-transparent text-start w-100" onClick={onClick}>
-      {content}
-    </button>
-  );
+  if (onClick) {
+    return (
+      <button type="button" className="block h-full w-full rounded-lg text-left focus-visible:outline-none" onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+
+  return content;
 }

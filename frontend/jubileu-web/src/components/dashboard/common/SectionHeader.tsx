@@ -8,14 +8,12 @@ type Props = {
 
 export default function SectionHeader({ title, subtitle, action }: Props) {
   return (
-    <div className="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
-      <div>
-        <p className="text-muted mb-1 small text-uppercase" style={{ letterSpacing: 0.3 }}>
-          {subtitle ?? "Visão geral"}
-        </p>
-        <h2 className="h4 mb-0">{title}</h2>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        {subtitle ? <p className="text-sm font-medium text-slate-600">{subtitle}</p> : null}
+        <h1 className="mt-1 text-2xl font-semibold tracking-normal text-slate-950 sm:text-3xl">{title}</h1>
       </div>
-      {action && <div className="d-flex align-items-center gap-2">{action}</div>}
-    </div>
+      {action ? <div className="flex flex-wrap items-center gap-2">{action}</div> : null}
+    </header>
   );
 }
