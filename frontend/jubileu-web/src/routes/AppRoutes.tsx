@@ -12,7 +12,7 @@ import JogadoresPage from "../pages/jogadores/JogadoresPage";
 import DashboardHome from "../pages/dashboard/DashboardHome";
 import DashboardJogadores from "../pages/dashboard/DashboardJogadores";
 import DashboardPartidas from "../pages/dashboard/DashboardPartidas";
-import TrofeuPage from "../pages/dashboard/TrofeuPage";
+import DashboardEstatisticas from "../pages/dashboard/DashboardEstatisticas";
 import TurmasPage from "../pages/turmas/TurmasPage";
 import TurmaDetalhe from "../pages/turmas/TurmaDetalhePage";
 
@@ -37,8 +37,8 @@ export default function AppRoutes() {
         <Route path="/dashboard" element={<DashboardHome />} />
         <Route path="/dashboard/jogadores" element={<DashboardJogadores />} />
         <Route path="/dashboard/partidas" element={<DashboardPartidas />} />
-        <Route path="/dashboard/estatisticas" element={<TrofeuPage />} />
-        <Route path="/dashboard/trofeu" element={<TrofeuPage />} />
+        <Route path="/dashboard/estatisticas" element={<DashboardEstatisticas />} />
+        <Route path="/dashboard/trofeu" element={<Navigate to="/dashboard/estatisticas" replace />} />
         <Route path="/dashboards" element={<Navigate to="/dashboard" replace />} />
 
         <Route path="/usuario" element={<UsuarioPerfil />} />

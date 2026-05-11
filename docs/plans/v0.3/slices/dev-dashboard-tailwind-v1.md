@@ -13,6 +13,25 @@ Refatorar a pagina `/dashboard` para uma experiencia operacional clara, responsi
 - `frontend/jubileu-web/src/pages/dashboard/DashboardHome.tsx`
 - `frontend/jubileu-web/src/components/dashboard/cards/InfoCard.tsx`
 - `frontend/jubileu-web/src/components/dashboard/common/SectionHeader.tsx`
+- `frontend/jubileu-web/src/routes/AppRoutes.tsx`
+
+## Fonte canonica do dashboard
+
+O dashboard deve ter uma unica fonte ativa:
+
+- Rotas e paginas: `frontend/jubileu-web/src/pages/dashboard/`
+- Componentes compartilhados: `frontend/jubileu-web/src/components/dashboard/`
+- Dados reais: `frontend/jubileu-web/src/services/dashboard/`
+
+Remover fontes paralelas baseadas em mock ou prototipo:
+
+- `frontend/jubileu-web/src/pages/dashboards/DashboardPage.tsx`
+- `frontend/jubileu-web/src/pages/dashboard/TrofeuPage.tsx`
+- `frontend/jubileu-web/src/mocks/dashboard/`
+- `frontend/jubileu-web/src/mocks/trofeu/`
+- dominios exclusivos do prototipo `trofeu`
+
+`/dashboard/estatisticas` deve apontar para `DashboardEstatisticas`, usando service real. `/dashboard/trofeu` permanece apenas como redirect legado para `/dashboard/estatisticas`.
 
 ## Criterios de aceite
 
@@ -22,6 +41,8 @@ Refatorar a pagina `/dashboard` para uma experiencia operacional clara, responsi
 - Atividade recente e Top artilheiros usam paineis claros em `lg:grid-cols-2`.
 - Estados loading, erro e vazio estao implementados.
 - `DashboardHome.tsx` nao contem classes Bootstrap-like.
+- `/dashboard/estatisticas` usa `DashboardEstatisticas` como fonte canonica.
+- Nao existem imports ativos de `TrofeuPage`, `trofeuMock`, `mocks/dashboard` ou `pages/dashboards`.
 - `npm run lint` e `npm run build` passam.
 
 ## Comandos de validacao
@@ -38,10 +59,17 @@ git grep -nE "container|row|col-|card|card-body|btn|alert|list-group|badge|text-
 
 Resultado esperado da busca: sem ocorrencias.
 
+```powershell
+rg -n "TrofeuPage|trofeuMock|mocks/dashboard|pages/dashboards" frontend/jubileu-web/src -S
+```
+
+Resultado esperado da busca: sem ocorrencias.
+
 ## Riscos
 
 - `InfoCard` e `SectionHeader` sao compartilhados por outras telas de dashboard; a mudanca deve manter props e semantica publicas.
 - Outras telas de dashboard ainda podem ter Bootstrap-like; isso fica para `DEV-42`.
+- `/dashboard/estatisticas` ainda depende do visual atual de `DashboardEstatisticas`, `DashboardFilters` e `RankingTable`; a limpeza Tailwind transversal fica para `DEV-42`.
 
 ## Fora de escopo
 
@@ -49,6 +77,7 @@ Resultado esperado da busca: sem ocorrencias.
 - Instalar Bootstrap, shadcn/ui, lucide, recharts ou qualquer dependencia nova.
 - Refatorar `DashboardFilters` e `RankingTable`.
 - Redesenhar dashboards secundarios.
+- Reintroduzir ranking de trofeu com dados mockados.
 
 ## Plano de rollback
 
