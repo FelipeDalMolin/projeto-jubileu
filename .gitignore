@@ -144,3 +144,4 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+.env.server
