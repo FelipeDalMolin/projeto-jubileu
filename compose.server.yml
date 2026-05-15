@@ -13,6 +13,11 @@ services:
       - jubileu_net
     expose:
       - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jubileu_app -d jubileu"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   jubileu-api:
     image: python:3.12-slim
@@ -35,6 +40,11 @@ services:
       - jubileu_net
     expose:
       - "8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')\""]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
   nginx:
     image: nginx:1.27-alpine
@@ -49,6 +59,11 @@ services:
       - ./infra/nginx/jubileu.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - jubileu_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
 networks:
   jubileu_net:
