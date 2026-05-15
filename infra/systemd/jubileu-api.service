@@ -1,0 +1,14 @@
+[Unit]
+Description=Jubileu API FastAPI
+After=network.target
+
+[Service]
+User=aluno
+WorkingDirectory=/home/aluno/projetos/projeto-jubileu/backend/jubileu-api-fastapi
+EnvironmentFile=/home/aluno/projetos/projeto-jubileu/backend/jubileu-api-fastapi/.env
+ExecStart=/home/aluno/projetos/projeto-jubileu/backend/jubileu-api-fastapi/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
