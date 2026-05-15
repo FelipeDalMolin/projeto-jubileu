@@ -4,9 +4,9 @@ services:
     container_name: jubileu-db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: jubileu
-      POSTGRES_USER: jubileu_app
-      POSTGRES_PASSWORD: jubileu_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - jubileu_db_data:/var/lib/postgresql/data
     networks:
@@ -33,7 +33,7 @@ services:
     volumes:
       - ./backend/jubileu-api-fastapi:/app
     env_file:
-      - ./backend/jubileu-api-fastapi/.env
+      - .env.server
     depends_on:
       - jubileu-db
     networks:
