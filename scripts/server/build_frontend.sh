@@ -3,13 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+echo "==> Building frontend"
+
 cd "$ROOT_DIR/frontend/jubileu-web"
 
 npm ci
 npm run build
 
-sudo mkdir -p /var/www/jubileu-web
-sudo rm -rf /var/www/jubileu-web/*
-sudo cp -r dist/* /var/www/jubileu-web/
-
-sudo systemctl reload nginx
+echo "Frontend build generated at frontend/jubileu-web/dist"
