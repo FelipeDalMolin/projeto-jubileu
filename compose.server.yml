@@ -35,7 +35,8 @@ services:
     env_file:
       - .env.server
     depends_on:
-      - jubileu-db
+      jubileu-db:
+        condition: service_healthy
     networks:
       - jubileu_net
     expose:
@@ -51,7 +52,8 @@ services:
     container_name: jubileu-nginx
     restart: unless-stopped
     depends_on:
-      - jubileu-api
+      jubileu-api:
+        condition: service_healthy
     ports:
       - "80:80"
     volumes:
