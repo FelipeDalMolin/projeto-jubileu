@@ -22,7 +22,12 @@ CURRENT_BRANCH="$(git branch --show-current)"
 echo "==> Current branch: $CURRENT_BRANCH"
 echo "==> Pulling latest"
 
-git pull --ff-only origin "$CURRENT_BRANCH"
+if git ls-remote --exit-code --heads origin "$CURRENT_BRANCH" >/dev/null 2>&1; then
+  git pull --ff-only origin "$CURRENT_BRANCH"
+else
+  echo "Remote branch origin/$CURRENT_BRANCH not found. Skipping pull."
+  echo "Push this branch first with: git push -u origin $CURRENT_BRANCH"
+fi
 
 echo "==> Starting server"
 
