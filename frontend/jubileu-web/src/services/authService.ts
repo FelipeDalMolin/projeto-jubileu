@@ -31,7 +31,10 @@ async function safeText(resp: Response) {
   }
 }
 
-export async function loginAuth(username: string, password: string): Promise<AuthTokenResponse> {
+export async function loginAuth(
+  username: string,
+  password: string,
+): Promise<AuthTokenResponse> {
   const resp = await fetch(buildUrl("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -45,10 +48,11 @@ export async function loginAuth(username: string, password: string): Promise<Aut
   return await resp.json();
 }
 
-export async function getCurrentUser(token?: string): Promise<AuthMeResponse> {
+export async function getAuthMe(token: string): Promise<AuthMeResponse> {
   const resp = await fetch(buildUrl("/api/auth/me"), {
-    method: "GET",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
 
   if (!resp.ok) {
@@ -57,3 +61,5 @@ export async function getCurrentUser(token?: string): Promise<AuthMeResponse> {
 
   return await resp.json();
 }
+
+export const getCurrentUser = getAuthMe;
