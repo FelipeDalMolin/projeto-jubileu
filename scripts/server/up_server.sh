@@ -13,7 +13,7 @@ cd "$ROOT_DIR"
 
 echo "==> Starting containers"
 
-docker compose -f compose.server.yml up -d
+docker compose --env-file .env.server -f compose.server.yml up -d --build
 
 echo "==> Waiting API through NGINX"
 
@@ -30,6 +30,6 @@ done
 
 echo "Server did not become healthy in time"
 
-docker compose -f compose.server.yml logs --tail=80
+docker compose --env-file .env.server -f compose.server.yml logs --tail=80
 
 exit 1
