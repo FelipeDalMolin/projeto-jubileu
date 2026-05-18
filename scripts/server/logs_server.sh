@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-docker compose -f compose.server.yml logs -f
+docker compose --env-file .env.server -f compose.server.yml logs -f
