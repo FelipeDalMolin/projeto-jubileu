@@ -1,0 +1,9 @@
+tunnel: <TUNNEL_UUID>
+credentials-file: /home/<USER>/.cloudflared/<TUNNEL_UUID>.json
+
+ingress:
+  - hostname: app.jubileuweb.com
+    service: http://127.0.0.1:80
+    originRequest:
+      httpHostHeader: app.jubileuweb.com
+  - service: http_status:404
