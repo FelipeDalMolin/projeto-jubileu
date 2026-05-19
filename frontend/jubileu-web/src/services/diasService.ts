@@ -234,7 +234,7 @@ export function ordenarEventosPorHorario(eventos: EventoDia[]): EventoDia[] {
 // -------------------------
 
 export async function listarDias(): Promise<Dia[]> {
-  const resp = await fetch(url("/api/dias"));
+  const resp = await fetch(url("/api/dias/"));
   if (!resp.ok) {
     throw new Error(`Erro ao listar dias: ${resp.status} ${await safeText(resp)}`);
   }
