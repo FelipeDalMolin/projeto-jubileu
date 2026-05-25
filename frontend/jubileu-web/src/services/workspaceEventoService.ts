@@ -32,7 +32,7 @@ export async function obterWorkspaceEvento(
 
   const resp = await fetch(
     buildUrl(
-      `/dias/${dataIso}/eventos/${eventoId}/workspace${query ? `?${query}` : ""}`,
+      `/api/dias/${dataIso}/eventos/${eventoId}/workspace${query ? `?${query}` : ""}`,
     ),
   );
 

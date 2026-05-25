@@ -21,7 +21,7 @@ export async function confirmarPresencasEvento(
   presentesIds: number[],
 ): Promise<{ version?: number }> {
   const resp = await fetch(
-    buildUrl(`/dias/${dataIso}/eventos/${eventoId}/confirmar-presencas`),
+    buildUrl(`/api/dias/${dataIso}/eventos/${eventoId}/confirmar-presencas`),
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },

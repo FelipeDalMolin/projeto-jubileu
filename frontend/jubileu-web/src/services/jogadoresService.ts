@@ -58,7 +58,7 @@ function limparAtualizarPayload(data: AtualizarJogadorInput) {
 }
 
 export async function listarJogadores(): Promise<JogadorDTO[]> {
-  const resp = await fetch(url(`/jogadores/`));
+  const resp = await fetch(url(`/api/jogadores/`));
   if (!resp.ok) throw new Error(`Erro ao listar jogadores: ${resp.status}`);
   return resp.json();
 }
@@ -66,7 +66,7 @@ export async function listarJogadores(): Promise<JogadorDTO[]> {
 export async function criarJogador(data: CriarJogadorInput): Promise<JogadorDTO> {
   const payload = limparCriarPayload(data);
 
-  const resp = await fetch(url(`/jogadores/`), {
+  const resp = await fetch(url(`/api/jogadores/`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -86,7 +86,7 @@ export async function atualizarJogador(
 ): Promise<JogadorDTO> {
   const payload = limparAtualizarPayload(data);
 
-  const resp = await fetch(url(`/jogadores/${id}`), {
+  const resp = await fetch(url(`/api/jogadores/${id}`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -101,7 +101,7 @@ export async function atualizarJogador(
 }
 
 export async function deletarJogador(id: number): Promise<void> {
-  const resp = await fetch(url(`/jogadores/${id}`), { method: "DELETE" });
+  const resp = await fetch(url(`/api/jogadores/${id}`), { method: "DELETE" });
   if (!resp.ok) {
     const txt = await resp.text().catch(() => "");
     throw new Error(`Erro ao deletar jogador: ${resp.status} ${txt}`);
