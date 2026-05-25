@@ -1,12 +1,18 @@
 // src/services/equipesService.ts
 import type { EstadoEquipesDia } from "../types/equipes";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+
+function url(path: string) {
+  const base = API_BASE_URL.replace(/\/+$/, "");
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${p}`;
+}
 
 export async function obterEstadoEquipes(
   diaId: string
 ): Promise<EstadoEquipesDia> {
-  const resp = await fetch(`${API_BASE}/dias/${diaId}/equipes`);
+  const resp = await fetch(url(`/api/dias/${diaId}/equipes`));
 
   if (!resp.ok) {
     throw new Error("Erro ao obter equipes do dia");
@@ -19,7 +25,7 @@ export async function salvarEstadoEquipes(
   diaId: string,
   estado: EstadoEquipesDia
 ): Promise<EstadoEquipesDia> {
-  const resp = await fetch(`${API_BASE}/dias/${diaId}/equipes`, {
+  const resp = await fetch(url(`/api/dias/${diaId}/equipes`), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

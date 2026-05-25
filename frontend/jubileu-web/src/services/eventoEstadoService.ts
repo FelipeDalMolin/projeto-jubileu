@@ -48,7 +48,7 @@ export async function obterEstadoEvento(
 
   const resp = await fetch(
     buildUrl(
-      `/dias/${dataIso}/eventos/${eventoId}/estado${query ? `?${query}` : ""}`,
+      `/api/dias/${dataIso}/eventos/${eventoId}/estado${query ? `?${query}` : ""}`,
     ),
   );
 

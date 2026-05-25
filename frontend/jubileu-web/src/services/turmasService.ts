@@ -69,20 +69,20 @@ async function requestJson<T>(
 
 /**
  * Rotas Turmas
- * Observação: mantive /turmas/ com barra final como você já usa.
+ * Observação: mantive /api/turmas/ com barra final como você já usa.
  */
 export async function listarTurmas(): Promise<Turma[]> {
-  return requestJson<Turma[]>("/turmas/", undefined, "Erro ao listar turmas");
+  return requestJson<Turma[]>("/api/turmas/", undefined, "Erro ao listar turmas");
 }
 
 export async function obterTurma(id: number): Promise<Turma> {
-  return requestJson<Turma>(`/turmas/${id}`, undefined, "Turma não encontrada");
+  return requestJson<Turma>(`/api/turmas/${id}`, undefined, "Turma não encontrada");
 }
 
 export async function criarTurma(data: CriarTurmaInput): Promise<Turma> {
   const payload: CriarTurmaInput = { nome: data.nome };
   return requestJson<Turma>(
-    "/turmas/",
+    "/api/turmas/",
     {
       method: "POST",
       body: JSON.stringify(payload),
@@ -99,7 +99,7 @@ export async function atualizarTurma(
   if (typeof data.nome === "string") payload.nome = data.nome;
 
   return requestJson<Turma>(
-    `/turmas/${id}`,
+    `/api/turmas/${id}`,
     {
       method: "PUT",
       body: JSON.stringify(payload),
@@ -115,7 +115,7 @@ export async function listarJogadoresDaTurma(
   turmaId: number,
 ): Promise<JogadorDTO[]> {
   return requestJson<JogadorDTO[]>(
-    `/turmas/${turmaId}/jogadores`,
+    `/api/turmas/${turmaId}/jogadores`,
     undefined,
     "Erro ao listar jogadores da turma",
   );
@@ -128,7 +128,7 @@ export async function adicionarJogadorNaTurma(
   const payload: AddJogadorTurmaInput = { jogador_id: jogadorId };
 
   await requestJson<void>(
-    `/turmas/${turmaId}/jogadores`,
+    `/api/turmas/${turmaId}/jogadores`,
     {
       method: "POST",
       body: JSON.stringify(payload),
@@ -142,7 +142,7 @@ export async function removerJogadorDaTurma(
   jogadorId: number,
 ): Promise<void> {
   await requestJson<void>(
-    `/turmas/${turmaId}/jogadores/${jogadorId}`,
+    `/api/turmas/${turmaId}/jogadores/${jogadorId}`,
     { method: "DELETE" },
     "Erro ao remover jogador",
   );

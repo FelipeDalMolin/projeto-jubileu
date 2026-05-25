@@ -21,7 +21,7 @@ async function executarAcao(
   action: "start" | "finish",
 ) {
   const resp = await fetch(
-    buildUrl(`/dias/${dataIso}/eventos/${eventoId}/${action}`),
+    buildUrl(`/api/dias/${dataIso}/eventos/${eventoId}/${action}`),
     {
       method: "POST",
     },
