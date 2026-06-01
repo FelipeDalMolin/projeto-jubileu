@@ -9,10 +9,30 @@ def test_smoke_root_and_health(client: TestClient):
     root_resp = client.get("/")
     assert root_resp.status_code == 200, root_resp.text
     assert root_resp.json()["status"] == "ok"
+    assert root_resp.headers["X-Request-ID"]
 
     health_resp = client.get("/health")
     assert health_resp.status_code == 200, health_resp.text
     assert health_resp.json() == {"status": "ok"}
+    assert health_resp.headers["X-Request-ID"]
+
+    api_health_resp = client.get("/api/health")
+    assert api_health_resp.status_code == 200, api_health_resp.text
+    assert api_health_resp.json() == {"status": "ok"}
+    assert api_health_resp.headers["X-Request-ID"]
+
+
+@pytest.mark.smoke
+@pytest.mark.contract
+def test_request_id_is_generated_and_preserved(client: TestClient):
+    generated_resp = client.get("/health")
+    assert generated_resp.status_code == 200, generated_resp.text
+    assert generated_resp.headers["X-Request-ID"]
+
+    request_id = "jubileu-test-request-id"
+    preserved_resp = client.get("/api/health", headers={"X-Request-ID": request_id})
+    assert preserved_resp.status_code == 200, preserved_resp.text
+    assert preserved_resp.headers["X-Request-ID"] == request_id
 
 
 @pytest.mark.smoke
@@ -28,6 +48,12 @@ def test_smoke_critical_route_contracts_exist():
     expected_contracts = {
         ("/", "GET"),
         ("/health", "GET"),
+        ("/api/health", "GET"),
+        ("/api/jogadores/", "GET"),
+        ("/api/turmas/", "GET"),
+        ("/api/dias/", "GET"),
+        ("/api/dias/{data_iso}", "GET"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/workspace", "GET"),
         ("/jogadores/", "GET"),
         ("/turmas/", "GET"),
         ("/dias/", "GET"),
@@ -44,6 +70,7 @@ def test_smoke_critical_route_contracts_exist():
 
     # Keep the /api gateway assumption explicit in stabilization checks.
     assert any(path.startswith("/api/") for path, _ in route_methods)
+    assert not any(path.startswith("/api/api") for path, _ in route_methods)
 
 
 @pytest.mark.smoke

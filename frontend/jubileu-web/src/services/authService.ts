@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
+import { apiFetch } from "../lib/apiClient";
 
 export type UserRole = "admin" | "treinador" | "auxiliar" | "user";
 
@@ -17,12 +17,6 @@ export type AuthMeResponse = {
   jogador_id: number | null;
 };
 
-function buildUrl(path: string) {
-  const base = API_BASE_URL.replace(/\/+$/, "");
-  const p = path.startsWith("/") ? path : `/${path}`;
-  return `${base}${p}`;
-}
-
 async function safeText(resp: Response) {
   try {
     return await resp.text();
@@ -35,7 +29,7 @@ export async function loginAuth(
   username: string,
   password: string,
 ): Promise<AuthTokenResponse> {
-  const resp = await fetch(buildUrl("/api/auth/login"), {
+  const resp = await apiFetch("/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
@@ -49,7 +43,7 @@ export async function loginAuth(
 }
 
 export async function getAuthMe(token: string): Promise<AuthMeResponse> {
-  const resp = await fetch(buildUrl("/api/auth/me"), {
+  const resp = await apiFetch("/auth/me", {
     headers: {
       Authorization: `Bearer ${token}`,
     },

@@ -1,4 +1,8 @@
-from fastapi import FastAPI
+import logging
+import time
+from uuid import uuid4
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
@@ -7,6 +11,9 @@ from app.routers import jogadores, dias, turmas, partidas, eventos, usuarios
 from app.api.dashboards import jogadores as dashboards_jogadores
 from app.api.dashboards import partidas as dashboards_partidas
 from app.api.dashboards import estatisticas as dashboards_estatisticas
+
+logger = logging.getLogger("jubileu.request")
+
 
 def create_app() -> FastAPI:
     app = FastAPI(
@@ -20,13 +27,38 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
     )
+
+    @app.middleware("http")
+    async def request_id_middleware(request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID") or str(uuid4())
+        started_at = time.perf_counter()
+        status_code = 500
+
+        try:
+            response = await call_next(request)
+            status_code = response.status_code
+            return response
+        finally:
+            duration_ms = round((time.perf_counter() - started_at) * 1000, 2)
+            if "response" in locals():
+                response.headers["X-Request-ID"] = request_id
+            logger.info(
+                "request_id=%s method=%s path=%s status_code=%s duration_ms=%.2f",
+                request_id,
+                request.method,
+                request.url.path,
+                status_code,
+                duration_ms,
+            )
 
     @app.get("/")
     def read_root():
         return {"status": "ok", "message": "Jubileu API rodando"}
 
     @app.get("/health")
+    @app.get("/api/health")
     def health():
         return {"status": "ok"}
 
