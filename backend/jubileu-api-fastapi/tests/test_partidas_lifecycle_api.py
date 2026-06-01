@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from datetime import datetime, timezone
@@ -78,6 +79,8 @@ def _criar_evento_com_partida(
     return dia.data_iso, evento.id, partida.id
 
 
+@pytest.mark.uc08
+@pytest.mark.uc09
 def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
@@ -107,6 +110,7 @@ def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_sessi
     assert "Partida nao esta EM_ANDAMENTO" in resp.text
 
 
+@pytest.mark.uc08
 def test_partida_nao_inicia_com_evento_fora_de_andamento(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.PLANEJADO)
 
@@ -115,6 +119,7 @@ def test_partida_nao_inicia_com_evento_fora_de_andamento(client: TestClient, db_
     assert "Evento precisa estar EM_ANDAMENTO" in resp.text
 
 
+@pytest.mark.uc08
 def test_partida_nao_encerra_sem_estar_em_andamento(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
@@ -123,6 +128,8 @@ def test_partida_nao_encerra_sem_estar_em_andamento(client: TestClient, db_sessi
     assert "Partida nao pode encerrar neste status" in resp.text
 
 
+@pytest.mark.uc05
+@pytest.mark.uc08
 def test_finalizar_evento_bloqueia_com_partida_ativa(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
@@ -134,6 +141,7 @@ def test_finalizar_evento_bloqueia_com_partida_ativa(client: TestClient, db_sess
     assert "partida em andamento" in resp.text.lower()
 
 
+@pytest.mark.uc08
 def test_encerrar_partida_permite_reconciliar_evento_concluida(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(
         db_session,

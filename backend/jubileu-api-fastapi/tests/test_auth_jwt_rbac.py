@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.models.dia_evento import (
@@ -43,6 +44,7 @@ def _criar_evento_jogo_livre(db_session):
     return evento.id
 
 
+@pytest.mark.uc01
 def test_auth_login_and_me_with_bearer(client: TestClient):
     login = client.post("/api/auth/login", json={"username": "coach", "password": "coach123"})
     assert login.status_code == 200, login.text
@@ -54,6 +56,7 @@ def test_auth_login_and_me_with_bearer(client: TestClient):
     assert me.json()["user_id"] == "u-coach"
 
 
+@pytest.mark.uc01
 def test_auth_me_legacy_headers_compat(client: TestClient):
     me = client.get("/api/auth/me", headers={"X-User-Id": "legacy-u1", "X-Role": "user"})
     assert me.status_code == 200, me.text
@@ -61,6 +64,8 @@ def test_auth_me_legacy_headers_compat(client: TestClient):
     assert me.json()["role"] == "user"
 
 
+@pytest.mark.uc01
+@pytest.mark.uc05
 def test_rbac_preserved_event_start_requires_admin_or_treinador(client: TestClient, db_session):
     evento_id = _criar_evento_jogo_livre(db_session)
 

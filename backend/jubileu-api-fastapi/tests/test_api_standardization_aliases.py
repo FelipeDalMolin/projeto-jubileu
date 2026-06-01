@@ -1,8 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 
 
+@pytest.mark.contract
 def test_api_alias_routes_exist():
     route_methods = {
         (route.path, method)
@@ -33,6 +35,8 @@ def test_api_alias_routes_exist():
     assert not missing, f"Missing /api standardized contracts: {sorted(missing)}"
 
 
+@pytest.mark.contract
+@pytest.mark.uc02
 def test_legacy_and_api_alias_both_respond(client: TestClient):
     legacy = client.get("/jogadores/")
     alias = client.get("/api/jogadores/")
@@ -42,6 +46,8 @@ def test_legacy_and_api_alias_both_respond(client: TestClient):
     assert legacy.json() == alias.json()
 
 
+@pytest.mark.contract
+@pytest.mark.uc04
 def test_api_alias_day_get_or_create_behavior(client: TestClient):
     data_iso = "2026-03-10"
     legacy = client.get(f"/dias/{data_iso}")

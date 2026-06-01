@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.models.dia_evento import (
@@ -128,6 +129,7 @@ def _criar_partida_com_placar(
     db_session.commit()
 
 
+@pytest.mark.uc10
 def test_workspace_returns_structure(client: TestClient, db_session):
     data_iso = "2026-01-20"
     evento = _criar_evento_com_jogadores(
@@ -145,6 +147,7 @@ def test_workspace_returns_structure(client: TestClient, db_session):
     assert isinstance(payload["meta"]["version"], int)
 
 
+@pytest.mark.uc10
 def test_workspace_since_version_returns_204(client: TestClient, db_session):
     data_iso = "2026-01-21"
     evento = _criar_evento_com_jogadores(
@@ -161,6 +164,7 @@ def test_workspace_since_version_returns_204(client: TestClient, db_session):
     assert resp.status_code == 204, resp.text
 
 
+@pytest.mark.uc07
 def test_workspace_warning_player_without_team(client: TestClient, db_session):
     data_iso = "2026-01-22"
     evento = _criar_evento_com_jogadores(
@@ -177,6 +181,7 @@ def test_workspace_warning_player_without_team(client: TestClient, db_session):
     assert "PLAYER_WITHOUT_TEAM" in codes
 
 
+@pytest.mark.uc07
 def test_workspace_warning_unbalanced_teams(client: TestClient, db_session):
     data_iso = "2026-01-23"
     evento = _criar_evento_com_jogadores(
@@ -192,6 +197,7 @@ def test_workspace_warning_unbalanced_teams(client: TestClient, db_session):
     assert "UNBALANCED_TEAMS" in codes
 
 
+@pytest.mark.uc10
 def test_workspace_kpis_counts_players(client: TestClient, db_session):
     data_iso = "2026-01-24"
     evento = _criar_evento_com_jogadores(
@@ -219,6 +225,8 @@ def test_workspace_kpis_counts_players(client: TestClient, db_session):
     assert kpis["presentes"] == 2
 
 
+@pytest.mark.uc09
+@pytest.mark.uc10
 def test_workspace_kpis_goals_total(client: TestClient, db_session):
     data_iso = "2026-01-25"
     evento = _criar_evento_com_jogadores(
@@ -251,6 +259,8 @@ def test_workspace_kpis_goals_total(client: TestClient, db_session):
     assert kpis["gols_total"] == 3
 
 
+@pytest.mark.uc07
+@pytest.mark.uc10
 def test_team_config_version_increments_on_move(client: TestClient, db_session):
     data_iso = "2026-01-26"
     evento = _criar_evento_com_jogadores(
@@ -300,6 +310,8 @@ def test_team_config_version_increments_on_move(client: TestClient, db_session):
     assert second_version != first_version
 
 
+@pytest.mark.uc05
+@pytest.mark.uc10
 def test_workspace_version_changes_when_event_status_changes(client: TestClient, db_session):
     data_iso = "2026-01-27"
     evento = _criar_evento_com_jogadores(
@@ -324,6 +336,9 @@ def test_workspace_version_changes_when_event_status_changes(client: TestClient,
     assert resp.json()["meta"]["status"] == "EM_ANDAMENTO"
 
 
+@pytest.mark.uc08
+@pytest.mark.uc09
+@pytest.mark.uc10
 def test_workspace_placar_reflete_lance_gol_e_muda_versao(client: TestClient, db_session):
     data_iso = "2026-01-28"
     evento = _criar_evento_com_jogadores(

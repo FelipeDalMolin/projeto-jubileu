@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.models.dia_evento import (
@@ -15,6 +16,7 @@ from app.models.usuario import Usuario as UsuarioModel
 from app.modules.auth.service import password_hash
 
 
+@pytest.mark.uc01
 def test_usuario_me_retorna_perfil_e_eventos_participados(client: TestClient, db_session):
     turma = TurmaModel(nome="Sub 11")
     jogador = JogadorModel(nome="Joao", apelido="J", status="ativo", ativo=True)

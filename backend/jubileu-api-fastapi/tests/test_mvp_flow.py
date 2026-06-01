@@ -40,6 +40,12 @@ def client():
     Base.metadata.drop_all(bind=engine)
 
 
+@pytest.mark.integration
+@pytest.mark.uc02
+@pytest.mark.uc03
+@pytest.mark.uc04
+@pytest.mark.uc05
+@pytest.mark.uc07
 def test_fluxo_mvp(client: TestClient):
     # cria turma
     resp = client.post("/turmas", json={"nome": "Turma Teste"})
@@ -124,6 +130,8 @@ def test_fluxo_mvp(client: TestClient):
     assert estado["times"][0]["jogadoresIds"] == [jogador_id]
 
 
+@pytest.mark.integration
+@pytest.mark.uc05
 def test_criacao_evento_condiciona_turma_por_tipo(client: TestClient):
     data_iso = "2026-05-09"
 

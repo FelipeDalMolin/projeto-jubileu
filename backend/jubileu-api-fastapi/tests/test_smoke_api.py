@@ -1,8 +1,10 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app, create_app
 
 
+@pytest.mark.smoke
 def test_smoke_root_and_health(client: TestClient):
     root_resp = client.get("/")
     assert root_resp.status_code == 200, root_resp.text
@@ -13,6 +15,8 @@ def test_smoke_root_and_health(client: TestClient):
     assert health_resp.json() == {"status": "ok"}
 
 
+@pytest.mark.smoke
+@pytest.mark.contract
 def test_smoke_critical_route_contracts_exist():
     route_methods = {
         (route.path, method)
@@ -42,6 +46,7 @@ def test_smoke_critical_route_contracts_exist():
     assert any(path.startswith("/api/") for path, _ in route_methods)
 
 
+@pytest.mark.smoke
 def test_create_app_preserves_startup_contract():
     new_app = create_app()
     assert new_app.title == app.title == "Jubileu API"

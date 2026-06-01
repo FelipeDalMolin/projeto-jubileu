@@ -1,3 +1,4 @@
+import pytest
 from fastapi import HTTPException
 
 from app.models.dia_evento import (
@@ -36,6 +37,8 @@ def _build_base_evento(db_session, data_iso: str = "2026-02-01"):
     return evento
 
 
+@pytest.mark.uc04
+@pytest.mark.uc05
 def test_dias_service_get_evento_no_dia_or_404(db_session):
     evento = _build_base_evento(db_session, data_iso="2026-02-10")
     db_session.commit()
@@ -50,6 +53,7 @@ def test_dias_service_get_evento_no_dia_or_404(db_session):
         assert exc.status_code == 404
 
 
+@pytest.mark.uc09
 def test_partidas_service_calcular_placar(db_session):
     evento = _build_base_evento(db_session, data_iso="2026-02-11")
 

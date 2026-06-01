@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from app.models.dia_evento import (
@@ -254,6 +255,10 @@ def _criar_evento_evento_para_preview_rotacao(db_session):
     return evento.id, {ja1.id, ja2.id}
 
 
+@pytest.mark.uc05
+@pytest.mark.uc06
+@pytest.mark.uc08
+@pytest.mark.uc09
 def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     evento_id, jogador_1_id, jogador_2_id = _criar_evento_jogo_livre(db_session)
 
@@ -355,6 +360,7 @@ def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     assert items[0]["jogador_nome"] == "Jogador 1"
 
 
+@pytest.mark.uc06
 def test_eventos_presentes_order_invalido_retorna_422(client: TestClient, db_session):
     evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
     headers = {
@@ -367,6 +373,7 @@ def test_eventos_presentes_order_invalido_retorna_422(client: TestClient, db_ses
     assert resp.status_code == 422, resp.text
 
 
+@pytest.mark.uc09
 def test_eventos_lances_since_invalido_retorna_422(client: TestClient, db_session):
     evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
     headers = {
@@ -380,6 +387,7 @@ def test_eventos_lances_since_invalido_retorna_422(client: TestClient, db_sessio
     assert "since" in resp.text.lower()
 
 
+@pytest.mark.uc09
 def test_eventos_lances_partida_fora_do_evento_retorna_404(client: TestClient, db_session):
     evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
     headers = {
@@ -392,6 +400,7 @@ def test_eventos_lances_partida_fora_do_evento_retorna_404(client: TestClient, d
     assert resp.status_code == 404, resp.text
 
 
+@pytest.mark.uc09
 def test_eventos_lances_limit_fora_da_faixa_retorna_422(client: TestClient, db_session):
     evento_id, jogador_1_id, _ = _criar_evento_jogo_livre(db_session)
     headers = {
@@ -404,6 +413,7 @@ def test_eventos_lances_limit_fora_da_faixa_retorna_422(client: TestClient, db_s
     assert resp.status_code == 422, resp.text
 
 
+@pytest.mark.uc09
 def test_lance_aceita_jogador_evento_id_convertendo_para_jogador_global(client: TestClient, db_session):
     ctx = _criar_evento_evento_com_partida_para_lance(db_session)
 
@@ -421,6 +431,7 @@ def test_lance_aceita_jogador_evento_id_convertendo_para_jogador_global(client: 
     assert lance["jogador_id"] == ctx["jogador_global_id"]
 
 
+@pytest.mark.uc09
 def test_lance_rejeita_jogador_evento_sem_vinculo_global(client: TestClient, db_session):
     ctx = _criar_evento_evento_com_partida_para_lance(db_session)
 
@@ -437,6 +448,8 @@ def test_lance_rejeita_jogador_evento_sem_vinculo_global(client: TestClient, db_
     assert "sem vinculo global" in resp.text.lower()
 
 
+@pytest.mark.uc05
+@pytest.mark.uc08
 def test_end_evento_bloqueia_com_partida_em_andamento(client: TestClient, db_session):
     ctx = _criar_evento_evento_com_partida_para_lance(db_session)
     resp = client.post(
@@ -447,6 +460,7 @@ def test_end_evento_bloqueia_com_partida_em_andamento(client: TestClient, db_ses
     assert "encerre a partida" in resp.text.lower()
 
 
+@pytest.mark.uc05
 def test_start_evento_permite_sem_jogadores_presentes(client: TestClient, db_session):
     evento_id = _criar_evento_evento_sem_presentes(db_session)
     resp = client.post(
@@ -457,6 +471,7 @@ def test_start_evento_permite_sem_jogadores_presentes(client: TestClient, db_ses
     assert resp.json()["evento"]["status"] == "EM_ANDAMENTO"
 
 
+@pytest.mark.uc07
 def test_update_rotacao_estado_aceita_filas_de_jogadores_e_times(client: TestClient, db_session):
     evento_id, jogador_evento_ids = _criar_evento_evento_para_rotacao_update(db_session)
     headers = {"X-User-Id": "coach", "X-Role": "treinador"}
@@ -480,6 +495,7 @@ def test_update_rotacao_estado_aceita_filas_de_jogadores_e_times(client: TestCli
     assert body["proximos_times"][1]["grupo_id"] == "time:manual-2"
 
 
+@pytest.mark.uc07
 def test_preview_rotacao_exclui_jogadores_em_campo(client: TestClient, db_session):
     evento_id, ids_em_campo = _criar_evento_evento_para_preview_rotacao(db_session)
     headers = {"X-User-Id": "coach", "X-Role": "treinador"}
