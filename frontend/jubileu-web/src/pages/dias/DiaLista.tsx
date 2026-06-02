@@ -93,7 +93,7 @@ export default function DiaLista() {
   // Estados de loading / erro bem explícitos pra não ficar tela branca
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
+      <div data-testid="page-calendario" style={{ padding: 24 }}>
         <h1>Agenda de dias</h1>
         <p>Carregando dias...</p>
       </div>
@@ -102,7 +102,7 @@ export default function DiaLista() {
 
   if (erro) {
     return (
-      <div style={{ padding: 24 }}>
+      <div data-testid="page-calendario" style={{ padding: 24 }}>
         <h1>Agenda de dias</h1>
         <p>{erro}</p>
       </div>
@@ -110,7 +110,7 @@ export default function DiaLista() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div data-testid="page-calendario" style={{ padding: 24 }}>
       <h1>Agenda de dias</h1>
       <p style={{ marginBottom: 16 }}>
         Use o calendário para navegar e selecione um dia para ver as eventos.
@@ -341,6 +341,7 @@ function CalendarGrid({
 
       days.push(
         <button
+          data-testid={`cal-dia-${iso}`}
           key={iso}
           onClick={() => onSelectDate(iso)}
           style={{ ...baseStyle, width: "100%" }}

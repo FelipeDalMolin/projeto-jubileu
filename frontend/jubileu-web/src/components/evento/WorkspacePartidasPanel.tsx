@@ -261,6 +261,7 @@ export default function WorkspacePartidasPanel({
             </select>
 
             <button
+              data-testid="button-criar-partida"
               type="button"
               className="btn btn-sm btn-success"
               onClick={handleAdicionarPartida}

@@ -164,7 +164,7 @@ export default function DiaDetalhe() {
 
   if (!dataIso) {
     return (
-      <div style={{ padding: 24 }}>
+      <div data-testid="page-dia-detalhe" style={{ padding: 24 }}>
         <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
         <h1>Dia invalido</h1>
       </div>
@@ -173,7 +173,7 @@ export default function DiaDetalhe() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
+      <div data-testid="page-dia-detalhe" style={{ padding: 24 }}>
         <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
         <h1>Dia {tituloData}</h1>
         <p>Carregando informacoes do dia...</p>
@@ -183,7 +183,7 @@ export default function DiaDetalhe() {
 
   if (erro || !dia) {
     return (
-      <div style={{ padding: 24 }}>
+      <div data-testid="page-dia-detalhe" style={{ padding: 24 }}>
         <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
         <h1>Dia {tituloData}</h1>
         <p style={{ color: "#b91c1c" }}>{erro ?? "Dia nao encontrado."}</p>
@@ -192,7 +192,7 @@ export default function DiaDetalhe() {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div data-testid="page-dia-detalhe" style={{ padding: 24 }}>
       <button onClick={() => navigate("/dias")}>&larr; Voltar</button>
 
       <header style={{ marginTop: 12, marginBottom: 24 }}>
@@ -215,6 +215,7 @@ export default function DiaDetalhe() {
         <h2 style={{ marginTop: 0, fontSize: 16 }}>Novo evento</h2>
 
         <form
+          data-testid="form-evento"
           onSubmit={handleSubmitNovaEvento}
           style={{
             display: "flex",
@@ -236,6 +237,7 @@ export default function DiaDetalhe() {
             </label>
 
             <select
+              data-testid="select-evento-tipo"
               value={novaTipo}
               onChange={(e) => setNovaTipo(e.target.value as TipoEventoModo)}
               style={{
@@ -272,6 +274,7 @@ export default function DiaDetalhe() {
               </label>
 
               <select
+                data-testid="select-evento-turma"
                 value={novaTurmaId}
                 onChange={(e) =>
                   setNovaTurmaId(e.target.value ? Number(e.target.value) : "")
@@ -348,6 +351,7 @@ export default function DiaDetalhe() {
 
           <div style={{ alignSelf: "flex-end" }}>
             <button
+              data-testid="button-criar-evento"
               type="submit"
               disabled={criandoEvento || (exigeTurma && (turmas.length === 0 || novaTurmaId === ""))}
               style={{
@@ -454,6 +458,7 @@ function EventoCard({ evento, onAbrir, onExcluir }: EventoCardProps) {
             Excluir evento
           </button>
           <button
+            data-testid="button-abrir-evento"
             onClick={onAbrir}
             style={{
               padding: "4px 10px",

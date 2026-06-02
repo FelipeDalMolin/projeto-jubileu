@@ -14,19 +14,19 @@ function linkStyle(active: boolean) {
 export default function NavLinks({ isActive }: Props) {
   return (
     <nav style={{ display: "flex", gap: 14 }}>
-      <Link to="/dias" style={linkStyle(isActive("/dias"))}>
+      <Link to="/dias" data-testid="nav-calendario" style={linkStyle(isActive("/dias"))}>
         Calendario
       </Link>
-      <Link to="/turmas" style={linkStyle(isActive("/turmas"))}>
+      <Link to="/turmas" data-testid="nav-turmas" style={linkStyle(isActive("/turmas"))}>
         Turmas
       </Link>
-      <Link to="/jogadores" style={linkStyle(isActive("/jogadores"))}>
+      <Link to="/jogadores" data-testid="nav-jogadores" style={linkStyle(isActive("/jogadores"))}>
         Jogadores
       </Link>
-      <Link to="/dashboard" style={linkStyle(isActive("/dashboard"))}>
+      <Link to="/dashboard" data-testid="nav-dashboard" style={linkStyle(isActive("/dashboard"))}>
         Dashboards
       </Link>
-      <Link to="/usuario" style={linkStyle(isActive("/usuario"))}>
+      <Link to="/usuario" data-testid="nav-sessao" style={linkStyle(isActive("/usuario"))}>
         Sessao
       </Link>
     </nav>

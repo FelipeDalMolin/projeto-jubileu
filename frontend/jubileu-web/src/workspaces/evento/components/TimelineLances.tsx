@@ -34,7 +34,7 @@ export function TimelineLances({
   }
 
   return (
-    <Card className="h-full">
+    <Card className="h-full" data-testid="painel-lances">
       <CardHeader className="pb-2">
         <CardTitle>Timeline de Lances</CardTitle>
       </CardHeader>

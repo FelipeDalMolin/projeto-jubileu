@@ -322,7 +322,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
 
   if (!dataIso || eventoIdNum === null) {
     return (
-      <main className="mx-auto max-w-7xl p-4">
+      <main className="mx-auto max-w-7xl p-4" data-testid="page-evento">
         <Button variant="ghost" className="mb-3" onClick={() => navigate("/dias")}>
           Voltar
         </Button>
@@ -334,7 +334,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
 
   if (workspaceQuery.isLoading && !workspace) {
     return (
-      <main className="mx-auto max-w-7xl p-4">
+      <main className="mx-auto max-w-7xl p-4" data-testid="page-evento">
         <Button variant="ghost" className="mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
           Voltar
         </Button>
@@ -346,7 +346,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
 
   if (!workspace || !workspaceLegacy || !caps) {
     return (
-      <main className="mx-auto max-w-7xl p-4">
+      <main className="mx-auto max-w-7xl p-4" data-testid="page-evento">
         <Button variant="ghost" className="mb-3" onClick={() => navigate(`/dias/${dataIso}`)}>
           Voltar
         </Button>
@@ -646,7 +646,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
   ].some((err) => err instanceof Error && err.message.startsWith("401"));
 
   return (
-    <main className="mx-auto max-w-7xl p-4">
+    <main className="mx-auto max-w-7xl p-4" data-testid="page-evento">
       <div className="mb-2 flex items-center justify-between">
         <Button variant="ghost" onClick={() => navigate(`/dias/${dataIso}`)}>
           Voltar para o dia

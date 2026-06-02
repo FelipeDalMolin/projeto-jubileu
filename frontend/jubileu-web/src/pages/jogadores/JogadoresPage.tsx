@@ -152,7 +152,7 @@ export default function JogadoresPage() {
   // --------- Render ---------
 
   return (
-    <main className="container py-3">
+    <main className="container py-3" data-testid="page-jogadores">
       <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/")}>
         Voltar para o dashboard
       </button>
@@ -177,7 +177,7 @@ export default function JogadoresPage() {
                 {modo === "create" ? "Novo jogador" : "Editar jogador"}
               </h2>
 
-              <form onSubmit={handleSubmit}>
+              <form data-testid="form-jogador" onSubmit={handleSubmit}>
                 <div className="mb-2">
                   <label className="form-label form-label-sm">Nome *</label>
                   <input
@@ -220,6 +220,7 @@ export default function JogadoresPage() {
 
                 <div className="d-flex gap-2">
                   <button
+                    data-testid="button-salvar-jogador"
                     type="submit"
                     className="btn btn-sm btn-primary"
                     disabled={salvando}

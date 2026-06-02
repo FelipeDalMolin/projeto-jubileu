@@ -32,7 +32,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ padding: 40, maxWidth: 420, margin: "40px auto" }}>
+    <div data-testid="page-login" style={{ padding: 40, maxWidth: 420, margin: "40px auto" }}>
       <h2 style={{ marginBottom: 16 }}>Login - Projeto Jubileu</h2>
       <p style={{ fontSize: 13, color: "#475569", marginBottom: 16 }}>
         Contas JWT de desenvolvimento: admin/admin123, coach/coach123, aux/aux123, user/user123.
@@ -42,6 +42,7 @@ export default function LoginPage() {
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Usuario</label>
           <input
+            data-testid="input-login-usuario"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
             style={{ width: "100%" }}
@@ -51,6 +52,7 @@ export default function LoginPage() {
         <div style={{ marginBottom: 12 }}>
           <label style={{ display: "block", marginBottom: 4 }}>Senha</label>
           <input
+            data-testid="input-login-senha"
             type="password"
             value={senha}
             onChange={(e) => setSenha(e.target.value)}
@@ -58,7 +60,7 @@ export default function LoginPage() {
           />
         </div>
 
-        <button type="submit" disabled={submitting} style={{ marginTop: 8 }}>
+        <button data-testid="button-login" type="submit" disabled={submitting} style={{ marginTop: 8 }}>
           {submitting ? "Entrando..." : "Entrar"}
         </button>
       </form>

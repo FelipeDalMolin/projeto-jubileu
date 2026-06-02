@@ -175,7 +175,7 @@ export default function DashboardHome() {
             <LoadingSkeleton />
           ) : (
             <div className="space-y-6">
-              <section aria-labelledby="dashboard-kpis">
+              <section aria-labelledby="dashboard-kpis" data-testid="dashboard-indicadores">
                 <h2 id="dashboard-kpis" className="sr-only">
                   Indicadores principais
                 </h2>

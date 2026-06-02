@@ -54,7 +54,7 @@ export default function TurmasPage() {
   }
 
   return (
-    <main className="container py-3">
+    <main className="container py-3" data-testid="page-turmas">
       <div className="d-flex justify-content-between align-items-center mb-3">
         <h1 className="h4 mb-0">Turmas</h1>
 
@@ -73,7 +73,7 @@ export default function TurmasPage() {
       {showCreate && (
         <div className="card mb-3">
           <div className="card-body">
-            <form onSubmit={handleCriarTurma} className="row g-2 align-items-end">
+            <form data-testid="form-turma" onSubmit={handleCriarTurma} className="row g-2 align-items-end">
               <div className="col-12 col-md-8">
                 <label htmlFor="turma-nome" className="form-label mb-1">
                   Nome da turma
@@ -90,7 +90,7 @@ export default function TurmasPage() {
               </div>
 
               <div className="col-12 col-md-4 d-flex gap-2">
-                <button type="submit" className="btn btn-success w-100" disabled={saving}>
+                <button data-testid="button-salvar-turma" type="submit" className="btn btn-success w-100" disabled={saving}>
                   {saving ? "Salvando..." : "Salvar"}
                 </button>
                 <button

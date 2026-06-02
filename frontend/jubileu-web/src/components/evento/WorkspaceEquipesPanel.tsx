@@ -306,7 +306,7 @@ export default function WorkspaceEquipesPanel({
         : meta.status;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+    <div data-testid="board-equipes" className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <section className="space-y-4">
         {showEventStatusCard ? (
           <Card>
