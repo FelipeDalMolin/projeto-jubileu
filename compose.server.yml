@@ -24,6 +24,7 @@ services:
       context: ./backend/jubileu-api-fastapi
     container_name: jubileu-api
     restart: unless-stopped
+    init: true
     working_dir: /app
     command: >
       bash -c "
