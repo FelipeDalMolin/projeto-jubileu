@@ -1,6 +1,8 @@
 import type { APIRequestContext, APIResponse } from "@playwright/test";
 
-export const API_URL = process.env.E2E_API_URL ?? "http://localhost:8000";
+export const E2E_RUNTIME_MODE = process.env.E2E_RUNTIME_MODE ?? "dev";
+export const API_URL =
+  process.env.E2E_API_URL ?? (E2E_RUNTIME_MODE === "nginx" ? "http://127.0.0.1" : "http://localhost:8000");
 
 export type SeedJogador = {
   id: number;
@@ -25,11 +27,28 @@ function apiPath(path: string): string {
   return `${API_URL}${normalized}`;
 }
 
+export function apiRuntimeDescription(): string {
+  if (E2E_RUNTIME_MODE === "nginx") {
+    return "runtime nginx: NGINX on port 80 with API under /api";
+  }
+  return "dev local: Vite on port 5173 and FastAPI on port 8000";
+}
+
+export function apiHealthBlockedReason(): string {
+  return [
+    `blocked: /api/health did not respond at ${apiPath("/api/health")}`,
+    `mode=${E2E_RUNTIME_MODE}`,
+    apiRuntimeDescription(),
+    "Use E2E_API_URL to override, or E2E_RUNTIME_MODE=nginx for the server runtime.",
+  ].join("; ");
+}
+
 export async function apiHealth(request: APIRequestContext): Promise<APIResponse | null> {
   try {
     const response = await request.get(apiPath("/api/health"), { timeout: 5_000 });
     return response;
-  } catch {
+  } catch (error) {
+    console.warn(`${apiHealthBlockedReason()} (${String(error)})`);
     return null;
   }
 }

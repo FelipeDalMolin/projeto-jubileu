@@ -14,3 +14,6 @@ pydantic==2.9.2
 pydantic-settings==2.6.1
 pytest==8.3.4
 httpx==0.24.1
+
+# dependencias de auditoria/testes
+coverage==7.14.1

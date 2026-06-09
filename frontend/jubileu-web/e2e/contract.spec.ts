@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { apiHealth, isApiHealthy } from "./support/api";
+import { apiHealth, apiHealthBlockedReason, isApiHealthy } from "./support/api";
 import { loginViaUi } from "./support/auth";
 import {
   expectAtLeastOneRequestId,
@@ -10,7 +10,7 @@ import { testIds } from "./support/testIds";
 
 test("E2E-CONTRACT: /api/health responde com X-Request-ID", async ({ request }) => {
   const response = await apiHealth(request);
-  test.skip(!response, "blocked: E2E_API_URL nao respondeu /api/health");
+  test.skip(!response, apiHealthBlockedReason());
 
   expect(response!.ok()).toBeTruthy();
   expect(response!.headers()["x-request-id"]).toBeTruthy();
@@ -31,7 +31,7 @@ test("E2E-CONTRACT: navegador nao gera /api/api e usa /api para dados", async ({
 });
 
 test("E2E-CONTRACT: responses observaveis carregam X-Request-ID", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), "blocked: API local indisponivel para validar X-Request-ID via browser");
+  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
 
   const observer = observeApiRequests(page);
   try {

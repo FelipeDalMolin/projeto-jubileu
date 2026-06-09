@@ -4,12 +4,15 @@
 
 - Repositorio: `FelipeDalMolin/projeto-jubileu`
 - Branch local: `jubileu-v2`
-- HEAD analisado: `fe06768 Ajuste em routes da API`
-- Data desta revisao: 2026-06-01
-- Escopo desta entrega: documentacao, rastreabilidade, markers pytest, contrato frontend/API e configuracao inicial Playwright E2E.
+- Marco tecnico de runtime/API analisado: `94d4f45 chore(server): enable init for api container`
+- Base local deste PR2: `4ec4284 ci: adiciona gate minimo e atualiza evidencias`
+- Data desta revisao: 2026-06-09
+- Escopo desta entrega: PR2 empilhado sobre `4ec4284 ci: adiciona gate minimo e atualiza evidencias`, adicionando coverage backend, preflight Playwright diagnosticavel e evidencias locais sem aprovar E2E completo.
 - Fora de escopo: models, migrations, regras de dominio, RBAC definitivo e refatoracao visual/UI.
 
-Este documento corrige a leitura de cobertura do projeto: o commit `fe06768` avanca o contrato `/api`, `/api/health`, `X-Request-ID`, smoke/contract backend, `apiClient`, `check:api-contract` e a primeira infraestrutura Playwright. Isso ainda nao comprova cobertura funcional completa dos casos de uso; E2E navegador depende de host com dependencias nativas do browser instaladas e backend local saudavel.
+O marco tecnico de runtime/API de referencia permanece `94d4f45 chore(server): enable init for api container`. Esse commit e hardening operacional: adiciona `init: true` ao container `jubileu-api` em `compose.server.yml` e nao altera regras de negocio, models, migrations, contratos publicos, UI ou cobertura funcional UC/CT. O PR1 local `4ec4284 ci: adiciona gate minimo e atualiza evidencias` criou o gate minimo GitHub Actions e atualizou evidencias documentais. O commit documental anterior e `a5c74dd Ajuste Roadmap`; a ultima entrega tecnica de testes e automacao continua sendo `4d51fdf test(e2e): estrutura Playwright e evidencias UC CT`; o marco de contrato `/api`, `/api/health`, `X-Request-ID`, smoke/contract backend, `apiClient` e `check:api-contract` permanece em `fe06768 Ajuste em routes da API`.
+
+Esta revisao PR2 adiciona `coverage` como dependencia de auditoria/testes, move o full pytest do CI backend para `coverage run --branch` + `coverage report -m`, torna o servidor Playwright previsivel com `--strictPort` e cria um job `playwright-preflight` nao bloqueante. Isso ainda nao comprova cobertura funcional completa dos casos de uso; documentacao nao conta como cobertura automatizada, Playwright nao deve ser marcado como passed enquanto o browser completo nao passar, e E2E navegador depende de host com dependencias nativas do browser instaladas e backend local saudavel. Vercel nao e gate oficial de qualidade nem runtime oficial do projeto; pode aparecer apenas como resquicio historico de integracao externa.
 
 ## Casos de uso macro
 
@@ -42,59 +45,92 @@ npx playwright install
 npm run test:e2e
 ```
 
-Variaveis:
+Variaveis e modos:
 
-- `E2E_BASE_URL`: URL do frontend, fallback `http://localhost:5173`.
-- `E2E_API_URL`: URL do backend, fallback `http://localhost:8000`.
+- `E2E_BASE_URL`: URL do frontend, fallback `http://127.0.0.1:5173`.
+- `E2E_API_URL`: URL explicita da API; se definida, tem precedencia sobre o modo.
+- `E2E_RUNTIME_MODE=nginx`: usa runtime local NGINX em `http://127.0.0.1`, com API sob `/api`.
+- Modo dev local: Vite em `127.0.0.1:5173` e FastAPI direto em `localhost:8000`.
+- Runtime local/Cloudflare/NGINX: NGINX em porta 80 e API sob `/api`.
+- `E2E_REUSE_EXISTING_SERVER=1`: permite reutilizar um Vite existente; por padrao o Playwright sobe servidor novo com `--strictPort`.
+
+`https://app.jubileuweb.com` deve ser usado para smoke/validacao manual publica. Nao usar esse ambiente para seed destrutivo de E2E automatizado.
 
 ### Specs criadas
 
 | Spec | UC/CT alvo | Status nesta revisao | Observacao |
 |---|---|---|---|
-| `contract.spec.ts` | E2E-CONTRACT; `/api/health`, `X-Request-ID`, ausencia de `/api/api` | blocked | Browser nao abriu neste host por dependencia nativa ausente. |
-| `uc01-login.spec.ts` | UC01 login/sessao/navegacao protegida | blocked | Teste criado; execucao depende de Chromium funcional. |
-| `uc02-uc03-cadastros.spec.ts` | UC02 jogador; UC03 turma | blocked | Testes criam jogador/turma pela UI quando API esta saudavel. |
-| `uc04-uc05-dia-evento.spec.ts` | UC04 dia; UC05 evento/aula | blocked | Seed por API prepara turma/dia; criacao do evento e feita pela UI. |
+| `contract.spec.ts` | E2E-CONTRACT; `/api/health`, `X-Request-ID`, ausencia de `/api/api` | created-e2e/partial/blocked-e2e | Spec criada; no runtime NGINX local com Vite existente saudavel, 2/3 testes passaram e 1 falhou por `ERR_CONNECTION_RESET`; E2E completo nao esta aprovado. |
+| `uc01-login.spec.ts` | UC01 login/sessao/navegacao protegida | created-e2e/blocked-e2e | Spec criada; execucao depende de browser, Vite saudavel e API no modo correto. |
+| `uc02-uc03-cadastros.spec.ts` | UC02 jogador; UC03 turma | created-e2e/blocked-e2e | Specs criadas; testes criam jogador/turma pela UI quando API esta saudavel. |
+| `uc04-uc05-dia-evento.spec.ts` | UC04 dia; UC05 evento/aula | created-e2e/blocked-e2e | Spec criada; seed por API prepara turma/dia e criacao do evento e feita pela UI. |
 | `uc06-uc09.spec.ts` | UC06 a UC09 | pending | Specs `test.skip` com motivo: exigem fixtures completas de participantes, equipes, partidas e lances. |
-| `uc10-dashboard.spec.ts` | UC10 dashboard/indicadores | blocked | Teste criado para validar indicadores ou estado operacional vazio/erro. |
+| `uc10-dashboard.spec.ts` | UC10 dashboard/indicadores | created-e2e/blocked-e2e | Spec criada para validar indicadores ou estado operacional vazio/erro. |
 
 ### Status E2E por UC
 
 | UC | Status E2E | Leitura |
 |---|---|---|
-| UC01 | blocked | Spec criada; host atual nao consegue abrir Chromium. |
-| UC02 | blocked | Spec criada para cadastro UI de jogador; depende de browser e API local. |
-| UC03 | blocked | Spec criada para cadastro UI de turma; depende de browser e API local. |
-| UC04 | blocked | Spec criada para abrir dia; depende de browser e API local. |
-| UC05 | blocked | Spec criada para criar evento/aula pela UI; depende de browser e API local. |
+| UC01 | created-e2e/blocked-e2e | Spec criada; E2E completo depende de browser, Vite saudavel e API no modo correto. |
+| UC02 | created-e2e/blocked-e2e | Spec criada para cadastro UI de jogador; depende de browser e API local. |
+| UC03 | created-e2e/blocked-e2e | Spec criada para cadastro UI de turma; depende de browser e API local. |
+| UC04 | created-e2e/blocked-e2e | Spec criada para abrir dia; depende de browser e API local. |
+| UC05 | created-e2e/blocked-e2e | Spec criada para criar evento/aula pela UI; depende de browser e API local. |
 | UC06 | pending | Fluxo UI de presenca/check-in requer fixture completa e estabilizacao futura. |
 | UC07 | pending | Fluxo UI de equipes/rotacao requer fixture completa e criterios de testabilidade. |
 | UC08 | pending | Fluxo UI de partida requer fixture completa de equipes/partida. |
 | UC09 | pending | Fluxo UI de lances requer partida em andamento e jogadores elegiveis. |
-| UC10 | blocked | Spec criada; depende de browser funcional para validar dashboard. |
+| UC10 | created-e2e/blocked-e2e | Spec criada; depende de browser funcional para validar dashboard. |
 
-Motivo do blocked E2E neste ambiente: `E2E_API_URL` default (`http://localhost:8000/api/health`) nao respondeu, e `npm run test:e2e` iniciou o webServer/coletou 11 testes, mas o Chromium headless falhou ao abrir por dependencia nativa ausente: `libnspr4.so: cannot open shared object file`. `npx playwright install` concluiu com aviso de host pedindo dependencias como `libasound2t64`; `sudo` nao esta disponivel sem senha neste ambiente.
+Motivos conhecidos de blocked E2E neste ambiente: modo dev local exige FastAPI direto em `localhost:8000`; nesta revisao `127.0.0.1:8000` nao respondeu. Runtime server oficial usa NGINX em `127.0.0.1:80` e deve ser selecionado com `E2E_RUNTIME_MODE=nginx`; um Vite antigo em `127.0.0.1:5173` pode travar a navegacao se for reutilizado indevidamente. O Playwright agora usa `--strictPort` e so reutiliza servidor existente com `E2E_REUSE_EXISTING_SERVER=1`.
+
+## Atualizacao do ultimo commit
+
+| Commit | Tipo | Impacto na matriz UC/CT | Status |
+|---|---|---|---|
+| `4ec4284 ci: adiciona gate minimo e atualiza evidencias` | CI/documentacao | Cria gate minimo GitHub Actions, atualiza roadmap/plano/runbook e declara Cloudflare/NGINX como runtime oficial. | workflow criado/aguardando execucao |
+| `94d4f45 chore(server): enable init for api container` | hardening operacional | Adiciona `init: true` ao container `jubileu-api`; nao muda regra de negocio, contrato, UI ou suite de testes. | partial |
+| `a5c74dd Ajuste Roadmap` | documentacao | Atualiza `docs/current/ROADMAP.md`; documentacao nao conta como cobertura automatizada. | partial |
+| `4d51fdf test(e2e): estrutura Playwright e evidencias UC CT` | automacao de testes | Adiciona Playwright, helpers, specs iniciais, `data-testid` minimos e evidencias E2E blocked por ambiente. | created-e2e/blocked-e2e |
+| `fe06768 Ajuste em routes da API` | contrato/API | Consolida `/api`, `/api/health`, `X-Request-ID`, smoke/contract backend, `apiClient` e `check:api-contract`. | covered-api/covered-contract |
 
 ## Matriz UC -> CT -> teste -> evidencia
 
 | ID do caso de uso | Nome do caso de uso | Objetivo | Casos de teste associados | Tipo de teste | Arquivo de teste | Comando de execucao | Status | Evidencia | Observacoes |
 |---|---|---|---|---|---|---|---|---|---|
-| UC01 | Autenticar usuario/perfil | Login, perfil e autorizacao. | CT-01 login e `/api/auth/me` com bearer; CT-02 compatibilidade headers legados; CT-03 perfil `/api/usuarios/me` e RBAC de inicio de evento. | integracao API, e2e | `test_auth_jwt_rbac.py`, `test_usuarios_api.py`; `uc01-login.spec.ts` | `python -m pytest -q -m uc01`; `npm run test:e2e` | covered-api/blocked-e2e | Incluido no full pytest: `44 passed, 2 skipped`; E2E bloqueado por dependencia nativa do browser no host. | Cobertura backend suficiente para login/perfil basico; UI de login tem spec criada, ainda sem execucao neste host. |
-| UC02 | Manter jogadores | Cadastro e consulta de jogadores. | CT-04 alias/listagem `/jogadores/` e `/api/jogadores/`; CT-05 criacao de jogador no fluxo MVP; CT-06 update/delete/validacoes negativas. | contrato, integracao API | `test_api_standardization_aliases.py`, `test_mvp_flow.py` | `python -m pytest -q -m uc02` | skipped/parcial | `test_mvp_flow.py` pula sem `DATABASE_URL_TEST`; alias roda no full pytest. | CT-06 permanece pending. |
-| UC03 | Manter turmas/vinculos | Cadastro de turma e vinculos jogador-turma. | CT-07 criacao de turma no fluxo MVP; CT-08 contrato/listagem `/api/turmas`; CT-09 adicionar/remover vinculos de turma. | contrato, integracao API | `test_mvp_flow.py`, `test_smoke_api.py` | `python -m pytest -q -m uc03` | skipped/parcial | Teste funcional de turma depende de `DATABASE_URL_TEST`. | CT-09 permanece pending; smoke de rota nao comprova fluxo funcional. |
-| UC04 | Consultar/criar dias | Consulta e criacao implicita de dia. | CT-10 get-or-create de dia por `data_iso`; CT-11 alias `/dias` e `/api/dias`; CT-12 servico `get_evento_no_dia_or_404`. | contrato, unitario, integracao API | `test_api_standardization_aliases.py`, `test_slice02_services.py`, `test_mvp_flow.py` | `python -m pytest -q -m uc04` | passed/parcial | Alias e service cobertos no full pytest; fluxo MVP de dia fica skipped sem `DATABASE_URL_TEST`. | Ainda falta negativo funcional completo de data/agenda. |
-| UC05 | Criar/agendar evento/aula | Criacao, tipo, agenda e inicio de evento. | CT-13 criar evento/aula; CT-14 regras de tipo (`JOGO_LIVRE` sem turma e `AULA` com turma); CT-15 inicio autorizado/status; CT-16 validacoes temporais de agenda. | integracao API, unitario | `test_mvp_flow.py`, `test_auth_jwt_rbac.py`, `test_eventos_api.py`, `test_partidas_lifecycle_api.py`, `test_slice02_services.py`, `test_workspace_evento.py` | `python -m pytest -q -m uc05` | passed/parcial | Comando agrupado `python -m pytest -q -m "uc05 or uc06 or uc07"`: `19 passed, 2 skipped, 24 deselected`. | CT-16 permanece pending; criacao detalhada depende parcialmente de `DATABASE_URL_TEST`. |
-| UC06 | Registrar presencas/check-in/RSVP | RSVP, check-in, check-out e presenca. | CT-17 RSVP; CT-18 check-in/check-out/cancelamento; CT-19 check-in por treinador e ordem de presentes invalida; CT-20 negativos de duplicidade/estado. | integracao API | `test_eventos_api.py` | `python -m pytest -q -m uc06` | passed/parcial | Coberto no comando agrupado: `19 passed, 2 skipped, 24 deselected`. | CT-20 permanece pending se exigir duplicidade/estado especifico. |
-| UC07 | Formar equipes | Equipes, rotacao, fila e snapshots. | CT-21 estado de equipes/snapshot; CT-22 estado de rotacao e indicadores; CT-23 preview/confirmacao de sorteio; CT-24 update de fila/proximos times/team size; CT-25 reconciliacao e avisos de times. | integracao API | `test_mvp_flow.py`, `test_eventos_api.py`, `test_eventos_rotacao_api.py`, `test_workspace_evento.py` | `python -m pytest -q -m uc07` | passed/parcial | Coberto no comando agrupado: `19 passed, 2 skipped, 24 deselected`. | Parte de CT-21 fica skipped sem `DATABASE_URL_TEST`; demais rodam em SQLite in-memory. |
-| UC08 | Criar e operar partidas | Seed, inicio, encerramento e gates. | CT-26 seed/criacao de partida; CT-27 start/end; CT-28 negativos de lifecycle; CT-29 finalizar evento com partida ativa/reconciliacao. | integracao API, e2e pending | `test_eventos_api.py`, `test_partidas_lifecycle_api.py`, `test_workspace_evento.py`; `uc06-uc09.spec.ts` | `python -m pytest -q -m uc08`; `npm run test:e2e` | covered-api/pending-e2e | Incluido no full pytest: `44 passed, 2 skipped`; E2E marcado `test.skip`. | UI E2E requer fixture completa de equipes/partida. |
-| UC09 | Registrar lances/estatisticas | Lances, filtros, placar e estatisticas. | CT-30 registrar e consultar lances; CT-31 filtros invalidos; CT-32 conversao/rejeicao de jogador; CT-33 placar e estatisticas em service/workspace. | unitario, integracao API, e2e pending | `test_eventos_api.py`, `test_partidas_lifecycle_api.py`, `test_slice02_services.py`, `test_workspace_evento.py`; `uc06-uc09.spec.ts` | `python -m pytest -q -m uc09`; `npm run test:e2e` | covered-api/pending-e2e | Incluido no full pytest: `44 passed, 2 skipped`; E2E marcado `test.skip`. | UI E2E requer partida em andamento e jogadores elegiveis. |
-| UC10 | Consultar dashboards/indicadores | Dashboards e indicadores agregados. | CT-34 contratos de rotas de dashboard e KPIs agregados de workspace; CT-35 dashboard funcional com dados reais. | contrato, integracao API, e2e | `test_api_standardization_aliases.py`, `test_workspace_evento.py`; `uc10-dashboard.spec.ts` | `python -m pytest -q -m uc10`; `npm run test:e2e` | partial/blocked-e2e | KPIs de workspace rodam no full pytest; spec de dashboard criada, mas bloqueada por dependencia nativa do browser no host. | CT-35 permanece partial ate E2E rodar em host habilitado. |
+| UC01 | Autenticar usuario/perfil | Login, perfil e autorizacao. | CT-01 login e `/api/auth/me` com bearer; CT-02 compatibilidade headers legados; CT-03 perfil `/api/usuarios/me` e RBAC de inicio de evento. | integracao API, e2e | `test_auth_jwt_rbac.py`, `test_usuarios_api.py`; `uc01-login.spec.ts` | `python -m pytest -q -m uc01`; `npm run test:e2e` | covered-api/created-e2e/blocked-e2e | Incluido no full pytest: `44 passed, 2 skipped`; E2E completo ainda nao aprovado. | Cobertura backend suficiente para login/perfil basico; UI de login tem spec criada, ainda sem execucao completa. |
+| UC02 | Manter jogadores | Cadastro e consulta de jogadores. | CT-04 alias/listagem `/jogadores/` e `/api/jogadores/`; CT-05 criacao de jogador no fluxo MVP; CT-06 update/delete/validacoes negativas. | contrato, integracao API, e2e | `test_api_standardization_aliases.py`, `test_mvp_flow.py`; `uc02-uc03-cadastros.spec.ts` | `python -m pytest -q -m uc02`; `npm run test:e2e` | covered-contract/partial/created-e2e/blocked-e2e | `test_mvp_flow.py` pula sem `DATABASE_URL_TEST`; alias roda no full pytest; spec UI criada. | CT-06 permanece pending. |
+| UC03 | Manter turmas/vinculos | Cadastro de turma e vinculos jogador-turma. | CT-07 criacao de turma no fluxo MVP; CT-08 contrato/listagem `/api/turmas`; CT-09 adicionar/remover vinculos de turma. | contrato, integracao API, e2e | `test_mvp_flow.py`, `test_smoke_api.py`; `uc02-uc03-cadastros.spec.ts` | `python -m pytest -q -m uc03`; `npm run test:e2e` | covered-contract/partial/created-e2e/blocked-e2e | Teste funcional de turma depende de `DATABASE_URL_TEST`; spec UI criada. | CT-09 permanece pending; smoke de rota nao comprova fluxo funcional. |
+| UC04 | Consultar/criar dias | Consulta e criacao implicita de dia. | CT-10 get-or-create de dia por `data_iso`; CT-11 alias `/dias` e `/api/dias`; CT-12 servico `get_evento_no_dia_or_404`. | contrato, unitario, integracao API, e2e | `test_api_standardization_aliases.py`, `test_slice02_services.py`, `test_mvp_flow.py`; `uc04-uc05-dia-evento.spec.ts` | `python -m pytest -q -m uc04`; `npm run test:e2e` | covered-api/covered-contract/partial/created-e2e/blocked-e2e | Alias e service cobertos no full pytest; fluxo MVP de dia fica skipped sem `DATABASE_URL_TEST`; spec UI criada. | Ainda falta negativo funcional completo de data/agenda. |
+| UC05 | Criar/agendar evento/aula | Criacao, tipo, agenda e inicio de evento. | CT-13 criar evento/aula; CT-14 regras de tipo (`JOGO_LIVRE` sem turma e `AULA` com turma); CT-15 inicio autorizado/status; CT-16 validacoes temporais de agenda. | integracao API, unitario, e2e | `test_mvp_flow.py`, `test_auth_jwt_rbac.py`, `test_eventos_api.py`, `test_partidas_lifecycle_api.py`, `test_slice02_services.py`, `test_workspace_evento.py`; `uc04-uc05-dia-evento.spec.ts` | `python -m pytest -q -m uc05`; `npm run test:e2e` | covered-api/partial/created-e2e/blocked-e2e | Comando agrupado `python -m pytest -q -m "uc05 or uc06 or uc07"`: `19 passed, 2 skipped, 24 deselected`; spec UI criada. | CT-16 permanece pending; criacao detalhada depende parcialmente de `DATABASE_URL_TEST`. |
+| UC06 | Registrar presencas/check-in/RSVP | RSVP, check-in, check-out e presenca. | CT-17 RSVP; CT-18 check-in/check-out/cancelamento; CT-19 check-in por treinador e ordem de presentes invalida; CT-20 negativos de duplicidade/estado. | integracao API, e2e pending | `test_eventos_api.py`; `uc06-uc09.spec.ts` | `python -m pytest -q -m uc06`; `npm run test:e2e` | covered-api/partial/pending | Coberto no comando agrupado: `19 passed, 2 skipped, 24 deselected`; E2E marcado `test.skip`. | CT-20 permanece pending se exigir duplicidade/estado especifico. |
+| UC07 | Formar equipes | Equipes, rotacao, fila e snapshots. | CT-21 estado de equipes/snapshot; CT-22 estado de rotacao e indicadores; CT-23 preview/confirmacao de sorteio; CT-24 update de fila/proximos times/team size; CT-25 reconciliacao e avisos de times. | integracao API, e2e pending | `test_mvp_flow.py`, `test_eventos_api.py`, `test_eventos_rotacao_api.py`, `test_workspace_evento.py`; `uc06-uc09.spec.ts` | `python -m pytest -q -m uc07`; `npm run test:e2e` | covered-api/partial/pending | Parte de CT-21 fica skipped sem `DATABASE_URL_TEST`; demais rodam em SQLite in-memory; E2E marcado `test.skip`. | Fixtures completas ainda pendentes. |
+| UC08 | Criar e operar partidas | Seed, inicio, encerramento e gates. | CT-26 seed/criacao de partida; CT-27 start/end; CT-28 negativos de lifecycle; CT-29 finalizar evento com partida ativa/reconciliacao. | integracao API, e2e pending | `test_eventos_api.py`, `test_partidas_lifecycle_api.py`, `test_workspace_evento.py`; `uc06-uc09.spec.ts` | `python -m pytest -q -m uc08`; `npm run test:e2e` | covered-api/pending | Incluido no full pytest: `44 passed, 2 skipped`; E2E marcado `test.skip`. | UI E2E requer fixture completa de equipes/partida. |
+| UC09 | Registrar lances/estatisticas | Lances, filtros, placar e estatisticas. | CT-30 registrar e consultar lances; CT-31 filtros invalidos; CT-32 conversao/rejeicao de jogador; CT-33 placar e estatisticas em service/workspace. | unitario, integracao API, e2e pending | `test_eventos_api.py`, `test_partidas_lifecycle_api.py`, `test_slice02_services.py`, `test_workspace_evento.py`; `uc06-uc09.spec.ts` | `python -m pytest -q -m uc09`; `npm run test:e2e` | covered-api/pending | Incluido no full pytest: `44 passed, 2 skipped`; E2E marcado `test.skip`. | UI E2E requer partida em andamento e jogadores elegiveis. |
+| UC10 | Consultar dashboards/indicadores | Dashboards e indicadores agregados. | CT-34 contratos de rotas de dashboard e KPIs agregados de workspace; CT-35 dashboard funcional com dados reais. | contrato, integracao API, e2e | `test_api_standardization_aliases.py`, `test_workspace_evento.py`; `uc10-dashboard.spec.ts` | `python -m pytest -q -m uc10`; `npm run test:e2e` | covered-contract/partial/created-e2e/blocked-e2e | KPIs de workspace rodam no full pytest; spec de dashboard criada, mas E2E completo ainda nao aprovado. | CT-35 permanece partial ate E2E rodar em host habilitado. |
+
+## Validacao manual publica
+
+Validacao manual em `https://app.jubileuweb.com` e evidencia operacional complementar. Ela nao substitui `pytest`, contrato frontend/API, GitHub Actions ou smoke server. Todos os UCs permanecem `manual-pending` ate haver gravacao, print ou log auditavel associado.
+
+| UC | Fluxo publico esperado | URL base | Status | Evidencia exigida |
+|---|---|---|---|---|
+| UC01 | Login, sessao e perfil basico. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao do login e chamadas `/api/auth/me` ou `/api/usuarios/me`. |
+| UC02 | Cadastro/consulta de jogadores. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao de criacao/listagem e request `/api/jogadores/...`. |
+| UC03 | Cadastro de turmas e vinculos. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao de turma/vinculo e request `/api/turmas/...`. |
+| UC04 | Consulta/criacao implicita de dia. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao de dia aberto e request `/api/dias/...`. |
+| UC05 | Criacao/agendamento de Evento do tipo `AULA`. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao do evento criado e request `/api/dias/{data_iso}/eventos`. |
+| UC06 | RSVP, check-in, check-out e presenca. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao do fluxo de presenca/check-in. |
+| UC07 | Formacao de equipes e rotacao. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao de equipes/fila/rotacao. |
+| UC08 | Criacao, inicio e encerramento de partida. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao de partida ativa e encerrada. |
+| UC09 | Registro de lances e estatisticas. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao de lance e placar/estatisticas. |
+| UC10 | Dashboard e indicadores agregados. | `https://app.jubileuweb.com` | manual-pending | Print/gravacao de indicadores com dados reais ou estado operacional esperado. |
 
 ## Testes existentes, planejados, pendentes e bloqueados
 
 ### Ja existentes
 
-- Backend `pytest` com 45 itens coletados em `backend/jubileu-api-fastapi/tests`.
+- Backend `pytest` com 46 itens coletados em `backend/jubileu-api-fastapi/tests`.
 - Testes de smoke/startup: `test_smoke_api.py`.
 - Testes de contrato/API: `test_api_standardization_aliases.py` e parte de `test_smoke_api.py`.
 - Testes de dominio/eventos: `test_eventos_api.py`, `test_eventos_rotacao_api.py`, `test_partidas_lifecycle_api.py`, `test_workspace_evento.py`.
@@ -103,6 +139,7 @@ Motivo do blocked E2E neste ambiente: `E2E_API_URL` default (`http://localhost:8
 - Testes de fluxo MVP: `test_mvp_flow.py`, dependentes de `DATABASE_URL_TEST`.
 - Check frontend/API: `npm run check:api-contract`.
 - Infraestrutura Playwright E2E em `frontend/jubileu-web/e2e`, com specs iniciais por UC/CT.
+- Coverage backend com `coverage run --branch` para auditoria de teste.
 
 ### Planejados
 
@@ -117,30 +154,55 @@ Motivo do blocked E2E neste ambiente: `E2E_API_URL` default (`http://localhost:8
 - CT-16: validacoes temporais de agenda/evento.
 - CT-20: negativos especificos de duplicidade/estado em presenca.
 - CT-35: dashboard funcional completo com dados reais.
-- Relatorio de `coverage` por branch.
-- Execucao bem-sucedida de pelo menos um fluxo E2E com navegador em host com dependencias Playwright instaladas.
+- Execucao bem-sucedida do E2E browser completo em host com dependencias Playwright instaladas e runtime/API saudaveis.
+- Validacao manual publica em `https://app.jubileuweb.com` com evidencia auditavel para UC01 a UC10.
+- Execucao do workflow GitHub Actions criado neste PR.
 
 ### Bloqueados por ambiente
 
 - `test_mvp_flow.py` depende de `DATABASE_URL_TEST`; nesta revisao os 2 testes desse arquivo ficaram skipped.
-- `coverage run --branch -m pytest` esta bloqueado porque o modulo `coverage` nao esta instalado no venv local.
-- `npm run test:e2e` esta bloqueado no host atual: `http://localhost:8000/api/health` nao responde e Chromium headless nao abre porque falta `libnspr4.so`; `npx playwright install` tambem avisou falta de dependencias de sistema, incluindo `libasound2t64`.
+- `npm run test:e2e` completo ainda nao e gate aprovado; exige browser funcional, Vite saudavel e API no modo correto.
+- `npx playwright install-deps --dry-run chromium` apontou dependencia nativa pendente neste host: `libcups2t64`.
+- Modo dev local E2E nao foi executado porque `http://127.0.0.1:8000/health` nao respondeu.
+- Modo runtime NGINX local ficou parcial: `/health` e `/api/health` responderam, mas `contract.spec.ts` fechou com 2 passed e 1 failed por `ERR_CONNECTION_RESET` em `/login`.
+- `app.jubileuweb.com` e ambiente de smoke/validacao manual publica, nao ambiente para seed destrutivo de E2E automatizado.
 
 ## Evidencia informada/observada
 
-Resultados abaixo sao evidencia local desta revisao, nao resultado definitivo do projeto em todos os ambientes.
+Resultados abaixo sao evidencia local desta revisao para o marco tecnico `94d4f45` com PR2 empilhado sobre `4ec4284`. O commit `94d4f45` e hardening operacional, entao nao aumenta cobertura funcional UC/CT.
 
 | Comando | Resultado observado | Status |
 |---|---|---|
-| `cd backend/jubileu-api-fastapi && .venv/bin/python -m pytest -q -rs` | `44 passed, 2 skipped, 1 warning in 8.53s`; skipped por `DATABASE_URL_TEST nao definido` em `test_mvp_flow.py`. | passed/parcial |
-| `.venv/bin/python -m pytest -q -m smoke -rs` | `4 passed, 42 deselected, 1 warning in 0.79s`. | passed |
-| `.venv/bin/python -m pytest -q -m contract -rs` | `5 passed, 41 deselected, 1 warning in 0.54s`. | passed |
-| `cd frontend/jubileu-web && npm install` | `added 3 packages`; `4 vulnerabilities` reportadas pelo npm audit. | passed/com observacao |
-| `npm run lint` | `eslint .` concluiu com exit code 0. | passed |
-| `npm run build` | Vite build concluiu com `983 modules transformed` e `built in 1m 29s`. | passed |
-| `npm run check:api-contract` | `API contract check OK: no suspicious service calls, /api/api, or Vite rewrite found.` | passed |
-| `npx playwright install` | Browsers baixados; aviso de host sem dependencias nativas (`libasound2t64`). | passed/com warning |
-| `npm run test:e2e` | 11 testes coletados; `7 failed`, `4 skipped`; falha por Chromium nao abrir: `libnspr4.so` ausente. | blocked |
+| `cd backend/jubileu-api-fastapi && .venv/bin/python -m pytest -q -rs` | `44 passed, 2 skipped`; skipped por `DATABASE_URL_TEST nao definido` em `test_mvp_flow.py`. | covered-api/partial |
+| `.venv/bin/python -m pip install -r requirements.txt` | Instalou dependencias, incluindo `coverage==7.14.1`. | covered-api |
+| `.venv/bin/python -m coverage run --branch -m pytest -q -rs` | `44 passed, 2 skipped, 1 warning`; skipped por `DATABASE_URL_TEST nao definido` em `test_mvp_flow.py`. | covered-api/partial |
+| `.venv/bin/python -m coverage report -m` | Relatorio emitido com `TOTAL 77%`. | covered-api |
+| `.venv/bin/python -m pytest -q -m smoke -rs` | `4 passed`. | covered-api |
+| `.venv/bin/python -m pytest -q -m contract -rs` | `5 passed`. | covered-contract |
+| `cd frontend/jubileu-web && npm ci` | Instalacao concluiu; npm reportou 6 vulnerabilidades de dependencia, sem alteracao automatica nesta revisao. | covered-contract |
+| `cd frontend/jubileu-web && npm run lint` | `eslint .` concluiu com exit code 0. | covered-contract |
+| `npm run build` | Vite build concluiu com sucesso. | covered-contract |
+| `npm run check:api-contract` | `API contract check OK: no suspicious service calls, /api/api, or Vite rewrite found.` | covered-contract |
+| `LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh` | `Smoke OK: NGINX + Frontend + FastAPI respondendo.` | covered-contract |
+| `PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh` | `Smoke OK: NGINX + Frontend + FastAPI respondendo.` | covered-contract |
+| `npx playwright install-deps --dry-run chromium` | `Missing system dependencies (1): libcups2t64`. | blocked-e2e |
+| `npx playwright --version` | `Version 1.60.0`. | created-e2e |
+| `E2E_RUNTIME_MODE=nginx E2E_REUSE_EXISTING_SERVER=1 E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e -- --project=chromium e2e/contract.spec.ts --reporter=list` | `contract.spec.ts`: 2 passed, 1 failed; falha em `/login` com `net::ERR_CONNECTION_RESET`. | created-e2e/partial/blocked-e2e |
+| `npm run test:e2e` completo | Infraestrutura criada e 11 testes coletados; E2E completo ainda nao e gate aprovado. | created-e2e/blocked-e2e |
+
+## CI/GitHub Actions
+
+O gate oficial de qualidade passa a ser GitHub Actions + smoke server + runtime oficial `Cloudflare Tunnel -> NGINX -> React/Vite estatico + FastAPI /api -> PostgreSQL`.
+
+Vercel nao e runtime oficial nem evidencia oficial de qualidade. Se checks, comments ou previews Vercel aparecerem no historico do GitHub, devem ser tratados como resquicio de integracao externa, sem substituir CI, smoke server ou validacao no runtime oficial.
+
+| Camada | Responsabilidade | Status nesta revisao |
+|---|---|---|
+| GitHub Actions `ci.yml` | Rodar backend coverage/smoke/contract e frontend lint/build/check:api-contract em PR/push para `jubileu-v2`. | workflow criado/aguardando execucao |
+| GitHub Actions `playwright-preflight` | Instalar Chromium com dependencias e registrar versao Playwright, sem rodar E2E completo; job nao bloqueante. | workflow criado/aguardando execucao |
+| Smoke server local | Validar `/health`, `/api/health` e rotas API pelo NGINX local quando a stack estiver ativa. | covered-contract |
+| Smoke server publico | Validar `https://app.jubileuweb.com/health` e `https://app.jubileuweb.com/api/...` pelo Cloudflare Tunnel/NGINX. | covered-contract |
+| Vercel | Integracao externa historica, sem valor de gate oficial. | pending |
 
 ## Scripts de checagem
 
@@ -151,15 +213,15 @@ Os scripts abaixo foram localizados no estado atual do workspace, mas nao foram 
 | `scripts/dev/check_frontend_api_prefixes.sh` | Procurar chamadas provaveis de backend sem prefixo `/api` nos services do frontend. | `C:\Program Files\Git\bin\bash.exe scripts/dev/check_frontend_api_prefixes.sh` | localizado, nao executado como evidencia desta entrega |
 | `scripts/server/check_api_contracts.sh` | Validar contrato de borda NGINX/SPA/API em uma instancia HTTP ativa. | `C:\Program Files\Git\bin\bash.exe scripts/server/check_api_contracts.sh` | localizado, pendente de ambiente server em `127.0.0.1:80` |
 
-## Analise do commit HEAD fe06768
+## Analise do commit HEAD 94d4f45
 
 | Dimensao | Analise |
 |---|---|
-| Comportamento funcional | Mantem regras de dominio e adiciona testabilidade; `data-testid` nao altera comportamento. |
-| Contrato de API | Consolida `/api`, `/api/health`, ausencia de `/api/api`, `X-Request-ID` e check frontend/API. |
-| Documentacao | Atualiza rastreabilidade para backend/API, contrato frontend/API e camada E2E inicial. |
-| Runtime/deploy | Playwright inicia Vite local e usa `E2E_API_URL`; backend real precisa estar saudavel para E2E de integracao. |
-| Testes | Mantem pytest, adiciona Playwright configurado e specs iniciais; execucao E2E bloqueada neste host por dependencia nativa ausente. |
+| Comportamento funcional | Sem mudanca funcional; commit restrito a hardening operacional do container API. |
+| Contrato de API | Sem mudanca no contrato; mantem leitura anterior de `/api`, `/api/health`, ausencia de `/api/api`, `X-Request-ID` e check frontend/API. |
+| Documentacao | Esta revisao atualiza roadmap, plano de testes, runbook Cloudflare e CI minimo para refletir o HEAD atual. |
+| Runtime/deploy | `compose.server.yml` usa `init: true` no container `jubileu-api`; topologia oficial segue Cloudflare Tunnel -> NGINX -> React/Vite estatico + FastAPI `/api` -> PostgreSQL. |
+| Testes | Sem nova suite funcional neste commit; GitHub Actions minimo passa a executar full/smoke/contract backend e lint/build/check frontend. |
 
 ## Metricas
 
@@ -167,14 +229,16 @@ Os scripts abaixo foram localizados no estado atual do workspace, mas nao foram 
 |---|---:|---|
 | Casos de uso mapeados | 10 | UC01 a UC10. |
 | Casos de teste planejados | 35 | CT-01 a CT-35. |
-| Itens pytest coletados | 45 | Coleta local do backend. |
+| Itens pytest coletados | 46 | Coleta local do backend. |
 | Testes executaveis no ambiente padrao | 44 | Passaram sem `DATABASE_URL_TEST`. |
 | Testes dependentes de `DATABASE_URL_TEST`/PostgreSQL externo | 2 | `test_mvp_flow.py`. |
 | Cobertura planejada por UC | 100% | Todos os 10 UCs possuem CTs planejados. |
 | Cobertura automatizada estimada | parcial | Ha testes backend para todos os UCs e specs E2E iniciais para UC01-UC05/UC10; execucao browser ainda blocked neste host. |
-| Cobertura comprovada nesta revisao | parcial | Limitada aos comandos executados e registrados acima. |
-| Coverage report | nao gerado | Bloqueado porque `coverage` nao esta instalado no venv local. |
-| E2E navegador | configurado/blocked | Playwright e specs criados; Chromium nao abre neste host por falta de `libnspr4.so`. |
+| Cobertura comprovada nesta revisao | parcial | Backend/API, contratos e build/lint frontend comprovados; manual publico e E2E browser seguem pendentes. |
+| Coverage report | 77% | `coverage run --branch` passou com `44 passed, 2 skipped`; `coverage report -m` emitido. |
+| E2E navegador | created-e2e/partial/blocked-e2e | Playwright e specs criados; preflight configurado no CI; local host ainda bloqueia E2E completo. |
+| Validacao manual publica | manual-pending | UC01 a UC10 ainda exigem evidencia em `https://app.jubileuweb.com`. |
+| GitHub Actions | pending | Workflow minimo criado; aguardando execucao no GitHub. |
 
 ### Percentual estimado por caso de uso
 
@@ -197,45 +261,56 @@ Esses percentuais sao estimativas de auditoria por comportamento, nao metricas d
 
 Backend:
 
-```powershell
+```bash
 cd backend/jubileu-api-fastapi
-python -m pytest -q
-python -m pytest -q -m smoke
-python -m pytest -q -m contract
-python -m pytest -q -m "uc05 or uc06 or uc07"
-coverage run --branch -m pytest
-coverage report -m
-```
-
-Se `coverage` nao estiver instalado:
-
-```powershell
-python -m pip install coverage
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m coverage run --branch -m pytest -q -rs
+.venv/bin/python -m coverage report -m
+.venv/bin/python -m pytest -q -rs
+.venv/bin/python -m pytest -q -m smoke -rs
+.venv/bin/python -m pytest -q -m contract -rs
+.venv/bin/python -m pytest -q -m "uc05 or uc06 or uc07" -rs
 ```
 
 Frontend:
 
-```powershell
+```bash
 cd frontend/jubileu-web
-npm install
+npm ci
 npm run lint
 npm run build
 npm run check:api-contract
-npx playwright install
+npx playwright install-deps --dry-run chromium
 npm run test:e2e
+```
+
+E2E contrato local:
+
+```bash
+# Modo dev local: Vite 5173 + FastAPI direto 8000.
+E2E_BASE_URL=http://127.0.0.1:5173 E2E_API_URL=http://127.0.0.1:8000 npm run test:e2e -- --project=chromium e2e/contract.spec.ts --reporter=list
+
+# Modo runtime NGINX: NGINX 80 + API sob /api.
+E2E_RUNTIME_MODE=nginx E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e -- --project=chromium e2e/contract.spec.ts --reporter=list
+
+# Apenas quando um Vite existente em 127.0.0.1:5173 estiver saudavel.
+E2E_RUNTIME_MODE=nginx E2E_REUSE_EXISTING_SERVER=1 E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e -- --project=chromium e2e/contract.spec.ts --reporter=list
 ```
 
 Server/contrato de borda, quando a stack estiver ativa:
 
-```powershell
-C:\Program Files\Git\bin\bash.exe scripts/dev/check_frontend_api_prefixes.sh
-C:\Program Files\Git\bin\bash.exe scripts/server/check_api_contracts.sh
+```bash
+scripts/dev/check_frontend_api_prefixes.sh
+LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh
 ```
 
 ## Conclusao
 
 - Cobertura planejada: 10 UCs e 35 CTs documentados.
-- Cobertura automatizada: existe uma base real de testes backend, check frontend/API e Playwright E2E configurado.
-- Cobertura comprovada: pytest, lint, build e `check:api-contract` passaram; E2E browser ficou blocked por dependencia do host.
-- Cobertura pendente: execucao Playwright em host habilitado, dashboards funcionais completos, relatorio `coverage` e fluxos UC06-UC09 com participantes/equipes/partidas/lances.
-- Proximo PR recomendado: habilitar dependencias de host do Playwright no ambiente/CI e ampliar UC06-UC09 com fixtures completas.
+- Cobertura automatizada: existe uma base real de testes backend, check frontend/API e Playwright E2E criado.
+- Cobertura comprovada: pytest com coverage (`TOTAL 77%`), smoke, contract, lint, build, `check:api-contract` e smoke server local/publico estao registrados como passed/covered.
+- Cobertura parcial/bloqueada: `contract.spec.ts` no runtime NGINX local passou 2/3 e falhou 1/3 com `ERR_CONNECTION_RESET`; `install-deps --dry-run chromium` apontou `libcups2t64`.
+- Cobertura pendente: execucao Playwright completa em host habilitado, validacao manual publica, dashboards funcionais completos e fluxos UC06-UC09 com participantes/equipes/partidas/lances.
+- Gate oficial: GitHub Actions minimo + smoke server + runtime Cloudflare/NGINX. Vercel nao e gate oficial.
+- Proximo PR recomendado: adicionar PostgreSQL com `DATABASE_URL_TEST` no CI e, depois, habilitar Playwright no CI com dependencias nativas.
