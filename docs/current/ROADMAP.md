@@ -16,7 +16,9 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 Branch de trabalho: `jubileu-v2`.
 
-Marco tecnico mais recente: `fe06768 Ajuste em routes da API`.
+Marco tecnico mais recente: `94d4f45 chore(server): enable init for api container`.
+
+O commit `94d4f45` e hardening operacional do runtime server: adiciona `init: true` ao container `jubileu-api` em `compose.server.yml`. Ele nao altera regras de negocio, models, migrations, contratos publicos ou cobertura funcional UC/CT.
 
 Estado consolidado:
 
@@ -27,6 +29,8 @@ Estado consolidado:
 - `npm run check:api-contract` valida separacao entre rotas SPA e chamadas de API.
 - `pytest` cobre smoke, contratos e fluxos backend/API.
 - Playwright esta configurado para E2E inicial, mas a execucao local atual ficou bloqueada por dependencias nativas do browser e API local indisponivel.
+- GitHub Actions passa a ser o gate oficial minimo de CI para backend, frontend e contratos.
+- Vercel pode aparecer no historico por integracao externa, mas nao e gate oficial de qualidade ou runtime do projeto.
 
 ## Marco Ativo
 
@@ -82,7 +86,8 @@ Foco:
 - FastAPI e PostgreSQL nao devem ser expostos diretamente;
 - Vite dev proxy deve preservar `/api`;
 - logs devem permitir correlacao por `X-Request-ID`;
-- Playwright no ambiente/CI precisa de dependencias nativas instaladas.
+- Playwright no ambiente/CI precisa de dependencias nativas instaladas;
+- gate oficial: GitHub Actions + smoke server + runtime `Cloudflare Tunnel -> NGINX -> React/Vite estatico + FastAPI /api -> PostgreSQL`.
 
 ## Janela Atual de Fechamento
 
@@ -90,10 +95,15 @@ Foco:
 |---|---|---|
 | Contrato `/api` | Implementado | `/api/health`, rotas canonicas e guarda contra `/api/api`. |
 | Correlacao de requests | Implementado | `X-Request-ID` no frontend/base client, middleware FastAPI e docs operacionais. |
-| Backend pytest | Operacional | Baseline atual: `44 passed, 2 skipped`; skips por `DATABASE_URL_TEST`. |
-| Frontend build | Operacional | `npm run build` passa. |
+| Backend pytest | Operacional | Full pytest: `44 passed, 2 skipped`; skips por `DATABASE_URL_TEST`. |
+| Backend smoke | Operacional | Marker smoke: `4 passed`. |
+| Backend contract | Operacional | Marker contract: `5 passed`. |
+| Frontend lint/build | Operacional | `npm run lint` e `npm run build` passam. |
 | Contrato frontend/API | Operacional | `npm run check:api-contract` passa. |
-| Playwright E2E | Configurado/blocked | Specs criadas; execucao local bloqueada por `libnspr4.so` ausente e API local desligada. |
+| Smoke server | Operacional | Smoke local em `127.0.0.1` e publico em `https://app.jubileuweb.com` passam pelo runtime NGINX/API. |
+| Playwright E2E | created-e2e/blocked-e2e | Specs criadas; execucao browser bloqueada por dependencias nativas do host/API local. |
+| PostgreSQL real | pending | Requer `DATABASE_URL_TEST`; nao faz parte do CI minimo deste PR. |
+| GitHub Actions | pending | Workflow minimo criado para ser executado no GitHub. |
 | UC06-UC09 E2E | Pendente | Requer fixtures completas de participantes, equipes, partidas e lances. |
 
 ## Regras de Compatibilidade
