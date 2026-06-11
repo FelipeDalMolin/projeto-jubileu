@@ -381,9 +381,7 @@ public_head_diagnostic() {
   local code
   code="$(curl -sS -o /dev/null -I -L -w '%{http_code}' --max-time 15 "$url" 2>/dev/null || echo 000)"
   if [[ "$code" == "405" ]]; then
-    record_check "$key" "WARN" "$code" "" "HEAD retornou 405 em $url; GET e o criterio principal" ""
-    add_alert "WARN" "HEAD em $url retornou 405; informativo apenas, GET continua sendo criterio principal."
-    add_action "Manter checks publicos por GET; nao tratar HEAD 405 como indisponibilidade."
+    record_check "$key" "OK" "$code" "" "HEAD retornou 405 em $url; informativo apenas, GET e o criterio principal" ""
   fi
 }
 
