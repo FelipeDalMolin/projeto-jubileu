@@ -27,6 +27,8 @@ jubileu-db
 
 O NGINX é o ponto de entrada local publicado apenas em loopback. FastAPI e PostgreSQL não devem ser expostos diretamente.
 
+O runtime server Docker usa o projeto Compose `jubileu-prod` e o volume de banco `jubileu_prod_db_data`, independentemente da pasta local do checkout.
+
 ## Requisitos locais
 
 - Stack Docker saudável.

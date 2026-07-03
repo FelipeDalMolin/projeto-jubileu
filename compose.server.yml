@@ -1,3 +1,5 @@
+name: jubileu-prod
+
 services:
   jubileu-db:
     image: postgres:16
@@ -74,3 +76,4 @@ networks:
 
 volumes:
   jubileu_db_data:
+    name: jubileu_prod_db_data
