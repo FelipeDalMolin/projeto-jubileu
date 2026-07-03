@@ -1,146 +1,107 @@
 ---
 name: jubileu-backend-feature
-description: Implement or evolve backend features for the Jubileu sports event management system (FastAPI + SQLAlchemy + Alembic + PostgreSQL). Use when Codex needs to analyze, refactor, or extend backend behavior, especially for flows centered on Dia -> Eventos -> Times -> Partidas -> Estatisticas, authentication, users, and domain migration from the current Aula-based persistence toward the target Evento-based architecture.
+description: Implement or evolve backend/API features for Projeto Jubileu, a FastAPI, SQLAlchemy, Alembic, and PostgreSQL sports event system. Use when Codex changes or analyzes domain behavior, persistence, routes, services, tests, migrations, or backend/frontend API convergence across jogadores, dias, eventos, times, partidas, and estatisticas.
 ---
 
 # Jubileu Backend Feature
 
-Implement backend changes by preserving Jubileu's domain hierarchy, REST conventions, migration discipline, and platform constraints. Keep the output actionable: ready code, a short technical description, and a validation checklist.
+Use this skill to keep backend work aligned with the current Jubileu domain, docs, and runtime constraints.
 
-Read only the references needed for the current task:
+Read only the references needed for the task:
 
-- Read [`references/backend-map.md`](./references/backend-map.md) at the start to locate routers, models, services, Alembic, tests, and the current backend structure.
-- Read [`references/domain-rules.md`](./references/domain-rules.md) before changing behavior that touches Dia, Aula/Evento, Times, Partidas, presence, statistics, or aggregate invariants.
-- Read [`references/target-architecture.md`](./references/target-architecture.md) when the task affects project structure, service boundaries, module organization, or backend layering.
-- Read [`references/refactor-rules.md`](./references/refactor-rules.md) when the task affects domain migration, legacy-to-target convergence, renames, coexistence strategy, or large refactors.
-- Read [`references/platform-rules.md`](./references/platform-rules.md) when the task affects authentication, users, routing, deployment, infra, public exposure, or API security constraints.
-- Read [`references/delivery.md`](./references/delivery.md) when the user also wants Linear updates, GitHub PR structure, technical delivery notes, or validation reporting.
+- Read [`references/backend-map.md`](./references/backend-map.md) to locate routers, models, schemas, services, tests, migrations, docs sync, and current structure.
+- Read [`references/domain-rules.md`](./references/domain-rules.md) before changing Dia, Evento, teams, presence, partidas, lances, statistics, workspace, rotation, or aggregate invariants.
+- Read [`references/target-architecture.md`](./references/target-architecture.md) when changing folders, module boundaries, layering, or service extraction.
+- Read [`references/refactor-rules.md`](./references/refactor-rules.md) when removing legacy naming, consolidating duplicate surfaces, or moving code toward modules.
+- Read [`references/platform-rules.md`](./references/platform-rules.md) when changing auth, users, `/api`, deployment, Docker, NGINX, public exposure, or security.
+- Read [`references/delivery.md`](./references/delivery.md) when preparing a PR, Linear/GitHub note, validation checklist, or release-oriented summary.
 
 ## Operating Modes
 
 ### Maintenance Mode
-Use this mode when the task is a focused backend change inside the current project structure.
-- Preserve existing domain semantics unless explicitly asked to change them.
+
+Use for focused fixes or feature work inside the current structure.
+
+- Preserve current domain semantics.
 - Prefer the smallest coherent change set.
-- Maintain compatibility with the current persistence model.
+- Keep `Evento` naming public and active.
+- Avoid structural refactors unless they directly simplify the task.
 
 ### Refactor Mode
-Use this mode when the task affects architecture, folder layout, service extraction, aggregate ownership, or the migration path from Aula to Evento.
-- Prioritize the target architecture over the current folder layout.
-- Preserve backward compatibility only when explicitly needed.
-- Avoid deepening legacy naming unless the task is purely maintenance.
-- Prefer incremental convergence with controlled coexistence between legacy and target concepts.
-- Never perform blind renames without migration strategy, compatibility notes, and tests.
+
+Use when the task affects module layout, service boundaries, ownership, naming convergence, or migration/debt cleanup.
+
+- Move new backend domain logic toward `app/modules/<domain>/`.
+- Keep compatibility choices explicit.
+- Do not perform blind renames.
+- Include migration strategy, tests, docs sync, and rollback/risk notes when persistence changes.
 
 ## Workflow
 
-1. Read the current code path end to end before proposing changes.
-2. Identify the domain impact explicitly:
-   - which entity owns the rule
-   - which transitions are allowed
-   - which aggregates must remain consistent
-3. Determine whether the task is Maintenance Mode or Refactor Mode.
-4. Suggest the smallest coherent change set across:
-   - router
-   - schema
-   - service
-   - model
-   - migration
-   - tests
-5. Generate code in the project style unless the task explicitly requires structural refactor.
-6. Validate edge cases, domain invariants, migration safety, and platform constraints before closing.
+1. Read the current code path end to end before editing.
+2. Identify the owning aggregate and status/ownership rules.
+3. Decide Maintenance Mode or Refactor Mode.
+4. Plan the smallest coherent set across router, schema, service, model, migration, tests, and docs.
+5. Implement in the project style.
+6. Run the relevant checks.
+7. Regenerate the code map when routes, models, schemas, frontend services, or domain surfaces changed:
 
-## Implementation Rules
+```bash
+python3 scripts/docs/generate_code_map.py
+```
+
+## Core Rules
+
+### Domain
+
+- Treat `Evento` as the current public and persisted aggregate.
+- Treat `AULA` only as `Evento.tipo = AULA`.
+- Preserve the chain `Usuarios -> Jogadores -> Dias -> Eventos -> Times -> Partidas -> Estatisticas`.
+- Do not introduce active code using `/aulas`, `aula_id`, `aulaId`, `WorkspaceAula`, `TimeAula`, or `JogadorAula`.
+- Historical Alembic migrations may contain old names; do not use them as current implementation vocabulary.
 
 ### REST and routing
-- Prefer nested resources rooted in the day: `/dias/{data_iso}/eventos`.
-- Keep new operations consistent with the route family already handling the owning aggregate.
-- If a legacy flat route such as `/api/eventos/...` must remain for compatibility, preserve behavior intentionally and document the compatibility choice in the technical description.
-- Reject route additions that leak internal persistence details into the API contract.
-- Keep all backend HTTP endpoints under `/api` or within the existing backend routing conventions.
+
+- Prefer day-scoped routes for owned resources: `/dias/{data_iso}/eventos/...`.
+- Frontend data calls must use `/api/...`.
+- Flat `/api/eventos/{evento_id}/...` routes are acceptable for event-level commands already established by the codebase.
+- Do not add a second style for the same resource unless the compatibility reason is explicit.
+- Validate parent-child ownership for nested day/event/partida resources.
 
 ### SQLAlchemy and Alembic
-- Update SQLAlchemy models and Pydantic schemas together when persistence changes.
-- Use Alembic for every schema change; do not rely on `Base.metadata.create_all` as the delivery mechanism.
-- Keep migrations deterministic, safe, and aligned with existing revision naming.
-- Review enum changes carefully because they affect ORM mapping, persisted values, and tests.
-- If the task changes persistence without changing the API contract, still review serializers, derived state, workspace outputs, and polling payloads.
 
-### Domain consistency
-- Preserve or intentionally evolve the hierarchy `Jogadores -> Dias -> Evento/Aula -> Times -> Partidas -> Estatisticas`.
-- Treat `Aula` as the current persisted event aggregate unless the task explicitly includes migration toward the canonical `Evento`.
-- Keep status transitions explicit and validated. Reject invalid transitions with the existing HTTP error style.
-- Rebuild or refresh derived state when commands affect team composition, snapshots, workspace/version payloads, warnings, or score aggregation.
-- Prevent duplication of business rules between routers and services; move shared logic into service/helper code when multiple endpoints need it.
+- Update SQLAlchemy models, Pydantic schemas, tests, and Alembic together for persistence changes.
+- Use Alembic for every schema change.
+- Consider PostgreSQL behavior even when local tests use SQLite.
+- Review enum changes carefully.
+- Preserve existing data during upgrades unless a breaking migration is explicitly planned.
 
-### Refactor-specific rules
-- Structural changes must follow the target backend architecture defined in `target-architecture.md`.
-- New backend domains should prefer `modules/<domain>/models.py`, `schemas.py`, `service.py`, and `routes.py`.
-- Shared config/security belongs in `app/core/`.
-- Shared database infrastructure belongs in `app/db/`.
-- Legacy naming may coexist temporarily, but new logic should move toward the target canonical domain model.
-- Every significant refactor must include a migration path, compatibility note, and rollback awareness.
+### State and synchronization
 
-### Authentication, users, and platform constraints
-- Do not alter JWT strategy, refresh flow, invite flow, or RBAC unless explicitly requested.
-- Do not introduce public registration.
-- Do not move critical auth or authorization logic to the frontend.
-- Do not expose FastAPI publicly outside the intended NGINX `/api` gateway model.
-- Respect the hosting and security constraints in `platform-rules.md`.
+- For team composition and workspace flows, follow:
+  `local immediate state -> persisted command/event -> polling now -> WebSocket future`.
+- Keep `TeamConfig`, `EventoEquipesEstado`, workspace versions, warnings, and rotation consistent.
+- Do not duplicate business rules between routers and services.
 
-### Testing and edge cases
-- Add or update focused backend tests for every behavior change.
-- Prefer API tests for contract changes and service/unit-style tests for domain calculations.
-- Cover at least:
-  - not found
-  - invalid status transition
-  - empty/precondition failure
-  - ownership mismatch
-  - idempotency concerns when applicable
-  - versioning or aggregate consistency where applicable
-- Reuse the in-memory SQLite test harness only when it matches the behavior under test; call out PostgreSQL-specific risks when SQLite cannot validate them.
+### Auth and platform
 
-## Change Planning Heuristics
+- Keep critical authorization in the backend.
+- Do not introduce public registration or bypass RBAC.
+- Preserve `/api` gateway assumptions.
+- Do not require public FastAPI or PostgreSQL exposure.
 
-- Start from the owning aggregate and work outward:
-  `models -> schemas -> services -> routers -> tests -> migration`
-- If the request changes payload shape without changing persistence, skip Alembic.
-- If the request changes persistence, review migration strategy, naming compatibility, and derived outputs.
-- If the request touches `TeamConfig`, `WorkspaceAula`, presence, seeding, or match scoring, inspect version calculation and warnings side effects.
-- If the request touches authentication, users, or invite flow, review RBAC, token lifecycle, and backend-only enforcement.
+### Testing
 
-## Expected Output
+- Add or update focused tests for behavior changes.
+- Prefer API tests for route contracts and service tests for domain calculations.
+- Cover not found, invalid transitions, ownership mismatch, empty/precondition failures, idempotency, and version consistency when relevant.
 
-End with these three deliverables unless the user asks for something narrower:
+## Expected Closeout
 
-- Ready code in the workspace.
-- A short technical description covering:
-  - domain impact
-  - files changed
-  - compatibility and migration decisions
-- A validation checklist with executed checks and remaining risks.
+End with:
 
-## Linear and GitHub
-
-- Use Linear tools when the user asks to create, update, or sync delivery tracking.
-- Keep issue text tied to:
-  - domain change
-  - affected aggregates
-  - routes
-  - migration impact
-  - validation plan
-- Use GitHub tools when the user asks for PR work.
-- Keep the PR structured with:
-  - context
-  - implementation summary
-  - migration/testing notes
-  - rollout and compatibility notes
-- Do not create tracking artifacts by default.
-
-## Guardrails
-
-- Do not duplicate logic already present in shared backend services/helpers.
-- Do not introduce a second route style for the same resource without an explicit compatibility reason.
-- Do not change domain semantics silently; mention semantic changes in the technical description.
-- Do not finish after code generation alone; validate edge cases and list anything not executed.
-- Do not use refactor mode as an excuse for uncontrolled rewrites.
+- what changed and why;
+- domain/API/migration impact;
+- files changed;
+- checks executed;
+- risks or follow-ups that remain.

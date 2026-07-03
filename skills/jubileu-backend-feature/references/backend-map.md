@@ -1,99 +1,122 @@
 # Backend Map
 
-Use this file to orient yourself quickly before editing.
+Use this file to orient before backend edits.
 
 ## Stack
 
-- API: FastAPI in `backend/jubileu-api-fastapi/app/main.py`
-- ORM: SQLAlchemy models in `backend/jubileu-api-fastapi/app/models/`
-- Migrations: Alembic in `backend/jubileu-api-fastapi/alembic/`
-- Tests: pytest + FastAPI TestClient in `backend/jubileu-api-fastapi/tests/`
+- API: `backend/jubileu-api-fastapi/app/main.py`
+- ORM: `backend/jubileu-api-fastapi/app/models/`
+- Schemas: `backend/jubileu-api-fastapi/app/schemas/`
+- Services: `backend/jubileu-api-fastapi/app/services/` and `app/modules/*/service.py`
+- Migrations: `backend/jubileu-api-fastapi/alembic/`
+- Tests: `backend/jubileu-api-fastapi/tests/`
+- Generated map: `docs/generated/code-map.md`
 
 ## Current backend shape
 
-The current backend is still organized mostly by technical layer and legacy domain naming:
-- routers under `app/routers/`
-- models under `app/models/`
-- schemas under `app/schemas/`
-- services under `app/services/`
+The backend is partially modularized:
 
-The project is not yet fully reorganized into the target modular layout.
+- current routers still live in `app/routers/`;
+- extracted modules live in `app/modules/`;
+- dashboard APIs live in `app/api/dashboards/`;
+- shared config/database pieces live in `app/core/`, `app/db/`, and `app/database.py`.
 
 ## Primary files
 
-- `backend/jubileu-api-fastapi/app/main.py`
-  Registers routers for `dias`, `eventos`, `partidas`, `jogadores`, `turmas`, auth-related flows, and dashboards.
+- `app/main.py`
+  Registers health routes, request id middleware, CORS, public/compat routers, `/api` aliases, auth, users, and dashboards.
 
-- `backend/jubileu-api-fastapi/app/routers/dias.py`
-  Main nested day workflow. Contains routes under `/dias/{data_iso}/aulas/...` and workspace/state endpoints.
+- `app/routers/dias.py`
+  Day-scoped event workflow: `/dias/{data_iso}/eventos`, teams, status, state, workspace, and presence confirmation.
 
-- `backend/jubileu-api-fastapi/app/routers/eventos.py`
-  Legacy or parallel event-oriented API under `/api/eventos/...` and `/api/partidas/...`.
+- `app/routers/partidas.py`
+  Day/event-scoped partidas and per-player stats.
 
-- `backend/jubileu-api-fastapi/app/models/dia_aula.py`
-  Core aggregate definitions around the current event persistence model:
-  `Dia`, `Aula`, `TimeAula`, `JogadorAula`, `Partida`, `EstatisticaJogadorPartida`, `EventoParticipante`, and `Lance`.
+- `app/routers/eventos.py`
+  `/api/eventos/{evento_id}/...` commands for RSVP, check-in, lifecycle, seed, lances, and rotation.
 
-- `backend/jubileu-api-fastapi/app/services/estado_equipes.py`
+- `app/routers/jogadores.py`, `app/routers/turmas.py`, `app/routers/usuarios.py`
+  CRUD/profile surfaces for players, classes/groups, and current user profile.
+
+- `app/models/dia_evento_core.py`
+  `Dia`, `Evento`, `EventoEquipesEstado`, `TeamConfig`, `TimeEvento`, and `JogadorEvento`.
+
+- `app/models/dia_evento_event.py`
+  `EventoParticipante` and `Lance`.
+
+- `app/models/dia_evento_match.py`
+  `Partida` and `EstatisticaJogadorPartida`.
+
+- `app/models/dia_evento_rotation.py`
+  Rotation state and draw/audit records.
+
+- `app/models/jogador_turma.py`, `app/models/usuario.py`
+  Player, turma, membership, and user identity models.
+
+- `app/services/estado_equipes.py`
   Team snapshot rebuilding and active `TeamConfig` version management.
 
-- `backend/jubileu-api-fastapi/app/services/workspace_aula.py`
-  Derived workspace payload, KPI calculation, warnings, and combined version logic.
-
-- `backend/jubileu-api-fastapi/alembic/env.py`
-  Alembic entrypoint and metadata integration for migrations.
+- `app/services/workspace_evento.py`
+  Workspace read-model, KPIs, warnings, and combined version logic.
 
 ## Test entry points
 
-- `backend/jubileu-api-fastapi/tests/conftest.py`
-  In-memory SQLite fixture and dependency override for FastAPI tests.
+- `tests/test_smoke_api.py` and `tests/test_api_standardization_aliases.py`
+  Startup, aliases, `/api`, and contract checks.
 
-- `backend/jubileu-api-fastapi/tests/test_eventos_api.py`
-  Event flow coverage for RSVP, check-in, seeding, and lance creation.
+- `tests/test_eventos_api.py`, `tests/test_eventos_rotacao_api.py`, `tests/test_partidas_lifecycle_api.py`
+  Event operations, rotation, lances, and partida lifecycle.
 
-- `backend/jubileu-api-fastapi/tests/test_workspace_aula.py`
+- `tests/test_workspace_evento.py`
   Workspace versioning, warnings, and KPI coverage.
 
-- `backend/jubileu-api-fastapi/tests/test_mvp_flow.py`
-  Cross-feature flow coverage.
+- `tests/test_auth_jwt_rbac.py`, `tests/test_usuarios_api.py`
+  Auth, RBAC, and profile flows.
+
+- `tests/test_mvp_flow.py`
+  Cross-feature flow; may require `DATABASE_URL_TEST`.
 
 ## Reading order by task
 
-### Add a new endpoint
-Read:
-1. `main.py`
+### Add or change an endpoint
+
+1. `app/main.py`
 2. target router
 3. related schema
-4. related service or helper
-5. target tests
+4. related service/helper
+5. related tests
+6. `docs/current/API.md`
+7. `docs/generated/code-map.md`
 
 ### Change persistence
-Read:
+
 1. target model
-2. related schemas
-3. migration history in `alembic/versions/`
+2. related schema and service
+3. Alembic history
 4. affected tests
-5. any service that derives state from that model
+5. `docs/current/DOMAIN_MODEL.md`
+6. generated code map
 
-### Change team or workspace behavior
-Read:
-1. `routers/dias.py`
-2. `services/estado_equipes.py`
-3. `services/workspace_aula.py`
-4. workspace/version tests
+### Change team/workspace/rotation
 
-### Change auth or users
-Read:
-1. auth-related routes and dependencies
-2. security/config code
-3. user model/schema paths
-4. auth tests
-5. platform rules before changing behavior
+1. `app/routers/dias.py` or `app/routers/eventos.py`
+2. `app/services/estado_equipes.py`
+3. `app/services/workspace_evento.py`
+4. `app/modules/eventos/service.py`
+5. workspace/rotation tests
 
-## Important note
+### Change auth/users
 
-This file describes the current backend, not the target architecture.  
-When the task involves refactor or convergence toward the desired structure, also read:
-- `target-architecture.md`
-- `refactor-rules.md`
-- `platform-rules.md`
+1. `app/modules/auth/`
+2. `app/routers/usuarios.py`
+3. `app/models/usuario.py`
+4. auth/user tests
+5. platform rules
+
+## Docs sync
+
+After changing active models, routes, frontend services, or route contracts, run:
+
+```bash
+python3 scripts/docs/generate_code_map.py
+```

@@ -1,4 +1,4 @@
-﻿# Projeto Jubileu
+# Projeto Jubileu
 
 Projeto Jubileu e uma aplicacao web para gerenciamento de eventos esportivos, organizacao de jogadores, criacao de partidas e acompanhamento de estatisticas de jogo.
 
@@ -44,7 +44,11 @@ Se voce quer rodar o Jubileu localmente, contribuir com codigo ou evoluir a apli
    - Linux/macOS: [docs/runbooks/setup-linux.md](docs/runbooks/setup-linux.md)
 3. Entenda o projeto:
    - [docs/current/ARCHITECTURE.md](docs/current/ARCHITECTURE.md) - arquitetura geral
+   - [docs/current/FRONTEND.md](docs/current/FRONTEND.md) - frontend React/Vite
+   - [docs/current/INFRASTRUCTURE.md](docs/current/INFRASTRUCTURE.md) - Docker, NGINX e runtime
    - [docs/current/DOMAIN_MODEL.md](docs/current/DOMAIN_MODEL.md) - dominio da aplicacao
+   - [docs/generated/code-map.md](docs/generated/code-map.md) - mapa gerado de entidades, rotas e chamadas API
+   - [docs/current/DOCS_SYNC.md](docs/current/DOCS_SYNC.md) - regra de sincronizacao codigo-docs
    - [docs/uml/Diagramas.md](docs/uml/Diagramas.md) - diagramas UML
 4. Contribua: consulte [CONTRIBUTING.md](CONTRIBUTING.md) para padroes de contribuicao quando esse arquivo for formalizado.
 
@@ -67,6 +71,7 @@ Recomendacao: comece por [docs/README.md](docs/README.md) para escolher o caminh
 Recursos principais de documentacao do projeto:
 
 - [docs/current/](docs/current/) - fonte viva do projeto
+- [docs/generated/code-map.md](docs/generated/code-map.md) - inventario gerado do codigo
 - [docs/plans/v0.3/](docs/plans/v0.3/) - plano do ciclo atual
 - [docs/adr/](docs/adr/) - decisoes arquiteturais
 - [docs/runbooks/](docs/runbooks/) - setup, migrations e release

@@ -48,3 +48,13 @@ O ciclo `v0.3.x` deve fechar:
 - smoke integrado via NGINX.
 
 O ciclo nao deve abrir `v0.4` nem adicionar framework visual novo.
+
+## Documentacao E Rastreabilidade
+
+- `docs/current/` e a fonte humana viva.
+- `docs/current/FRONTEND.md` descreve a arquitetura React/Vite, rotas, services, estado e checks.
+- `docs/current/INFRASTRUCTURE.md` descreve Docker, NGINX, runtime dev/server, env e smoke.
+- `docs/generated/code-map.md` e o espelho gerado do codigo para entidades, rotas e chamadas API.
+- `docs/current/DOCS_SYNC.md` define quando atualizar docs e como rodar o gerador.
+- `docs/current/CHAT_CONTEXT.md` e a memoria curta recomendada para novas conversas e agentes.
+- Mudancas de model, rota ou service frontend devem rodar `python3 scripts/docs/generate_code_map.py`.

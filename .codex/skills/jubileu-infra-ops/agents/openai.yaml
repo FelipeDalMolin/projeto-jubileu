@@ -1,0 +1,7 @@
+interface:
+  display_name: "Jubileu Infra Ops"
+  short_description: "Infra Jubileu com Docker e NGINX"
+  default_prompt: "Use $jubileu-infra-ops para implementar ou analisar uma mudanca de infraestrutura no Projeto Jubileu."
+
+policy:
+  allow_implicit_invocation: true

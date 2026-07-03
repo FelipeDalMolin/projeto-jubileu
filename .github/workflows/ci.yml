@@ -9,6 +9,22 @@ on:
       - jubileu-v2
 
 jobs:
+  docs-sync:
+    name: Docs sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check generated code map
+        run: python scripts/docs/generate_code_map.py --check
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
