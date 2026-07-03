@@ -32,6 +32,9 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
 
 ## Regras De Evolucao
 
+- No app-host, trate `/srv/apps/jubileu-dev` como checkout canonico de desenvolvimento. O workspace remoto/VS Code/Codex serve para trabalhar e ver portas expostas, mas PRs acontecem entre branches Git no GitHub.
+- Antes de editar, commitar ou rodar checks, confirme que o repo ativo e `/srv/apps/jubileu-dev`; se a sessao estiver em outro diretorio, use `git -C /srv/apps/jubileu-dev ...` ou mude para esse diretorio.
+- Fluxo esperado: branch em dev -> editar/testar no ambiente exposto -> commit -> push -> PR -> checks -> merge -> pull/deploy controlado. Nao copiar arquivos manualmente entre `/srv/apps/jubileu-dev`, `/srv/apps/jubileu-prod` e workspaces auxiliares.
 - Convergir telas do frontend para APIs reais do backend.
 - Preservar `/api` como prefixo de dados do gateway.
 - Manter autorizacao critica no backend.
