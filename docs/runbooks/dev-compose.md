@@ -32,7 +32,7 @@ docker compose -f compose.dev.yml config
 Quando autorizado a subir containers:
 
 ```sh
-docker compose --env-file .env.dev -f compose.dev.yml up --build
+scripts/dev/up_dev.sh
 ```
 
 A aplicacao web ficara em `http://127.0.0.1:8080`. O NGINX dev encaminha `/api` para `http://backend:8000` dentro da rede Docker e encaminha as demais rotas para `http://frontend-dev:5173`.
@@ -41,3 +41,14 @@ As portas diretas continuam disponiveis para investigacao:
 
 - Frontend Vite: `http://127.0.0.1:5173`
 - Backend FastAPI: `http://127.0.0.1:8000`
+
+## Operacao
+
+```sh
+scripts/dev/status_dev.sh
+scripts/dev/logs_dev.sh
+scripts/dev/smoke_dev.sh
+scripts/dev/down_dev.sh
+```
+
+No app-host/VS Code, encaminhe a porta `8080` para desenvolvimento. A porta `80` pertence ao runtime server/producao local e deve ficar reservada para o Cloudflare Tunnel.
