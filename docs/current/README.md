@@ -14,6 +14,7 @@ Arquivos desta pasta representam o estado atual do projeto e devem ser priorizad
 | [ROADMAP.md](ROADMAP.md) | Direcao e janela atual. |
 | [RELEASES.md](RELEASES.md) | Notas e criterios de release. |
 | [DECISIONS.md](DECISIONS.md) | Indice vivo de decisoes. |
+| [PLANNING_AUDIT.md](PLANNING_AUDIT.md) | Auditoria de drift entre planos, ADRs, Linear e estado atual. |
 | [PLAN_CODEMAP_REVIEW.md](PLAN_CODEMAP_REVIEW.md) | Cruzamento dos planos v0.3 com o mapa gerado do codigo. |
 
 ## Espelho Gerado Do Codigo
