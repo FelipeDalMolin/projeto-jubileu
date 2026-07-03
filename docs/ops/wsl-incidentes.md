@@ -68,6 +68,8 @@ Comandos úteis:
 - `docker logs --tail=120 jubileu-db`
 - `curl -i http://127.0.0.1/health`
 
+O runtime server oficial deve reportar o projeto Compose `jubileu-prod`. Se aparecer `jubileu-dev`, a stack foi iniciada pelo checkout de desenvolvimento e deve passar por cutover controlado.
+
 ### Local /health retorna 200, mas público falha
 
 Provável camada afetada:
