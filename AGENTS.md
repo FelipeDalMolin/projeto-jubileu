@@ -24,6 +24,15 @@ Stack oficial:
 
 ## Workflow De Mudanca
 
+### Workspace Dev, Git E Deploy
+
+- O workspace remoto/VS Code/Codex e a superficie de trabalho para enxergar o app rodando e expor portas do ambiente dev. Ele nao e o alvo de PR por si so.
+- O repositorio canonico de desenvolvimento neste app-host e `/srv/apps/jubileu-dev`. Antes de editar, commitar ou rodar checks, confirme `pwd` e `git rev-parse --show-toplevel`; eles devem apontar para `/srv/apps/jubileu-dev`.
+- Se a sessao Codex estiver em outro diretorio, como `/mnt/c/Users/Aluno/Documents/Codex/...`, execute Git e comandos do projeto explicitamente com `git -C /srv/apps/jubileu-dev ...` ou entre em `/srv/apps/jubileu-dev` primeiro.
+- PRs sao entre branches Git no GitHub, nao entre pastas. O fluxo esperado e: branch de trabalho em `/srv/apps/jubileu-dev` -> editar/testar vendo as portas dev -> commit -> push -> PR -> checks -> merge -> pull/deploy controlado em dev/prod.
+- `/srv/apps/jubileu-prod` deve receber codigo apenas por fluxo de merge/deploy/pull controlado; nao copie arquivos manualmente entre `dev`, `prod` e workspaces auxiliares.
+- Quando hashes local/remoto divergirem apos amend/rebase, compare conteudo antes de concluir divergencia funcional: `git diff HEAD..origin/<branch>` e, se necessario, `git rev-parse HEAD^{tree} origin/<branch>^{tree}`.
+
 1. Leia primeiro `docs/current/README.md`, `docs/current/DOMAIN_MODEL.md` e `docs/generated/code-map.md`.
 2. Para frontend, leia `docs/current/FRONTEND.md` e use `skills/jubileu-frontend-feature/`.
 3. Para backend/API, leia `docs/current/API.md` e use `skills/jubileu-backend-feature/`.
