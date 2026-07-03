@@ -5,15 +5,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 echo "==> Build frontend"
 
-cd "$ROOT_DIR/frontend/jubileu-web"
-npm ci
-npm run build
+"$ROOT_DIR/scripts/server/build_frontend.sh"
 
 cd "$ROOT_DIR"
 
 echo "==> Starting containers"
 
-docker compose --env-file .env.server -f compose.server.yml up -d --build
+if ! docker compose --env-file .env.server -f compose.server.yml up -d --build; then
+  echo "==> Compose build failed; trying classic Docker API build"
+  DOCKER_BUILDKIT=0 docker build -t jubileu-prod-jubileu-api ./backend/jubileu-api-fastapi
+  docker compose --env-file .env.server -f compose.server.yml up -d
+fi
 
 echo "==> Waiting API through NGINX"
 
