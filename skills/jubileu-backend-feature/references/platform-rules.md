@@ -1,35 +1,35 @@
 # Platform Rules
 
-This file captures the non-negotiable backend/platform constraints of the Jubileu project.
+This file captures backend/platform constraints for Projeto Jubileu.
 
 ## Runtime architecture
 
-The official runtime shape is:
+Official runtime shape:
 
-Cloudflare -> NGINX -> FastAPI -> PostgreSQL
+```text
+Cloudflare -> NGINX -> React SPA + FastAPI /api -> PostgreSQL
+```
 
 ## Public exposure rules
 
 - NGINX is the only public HTTP entrypoint.
-- FastAPI must not be publicly exposed directly.
+- FastAPI must not be publicly exposed directly in production.
 - PostgreSQL must never be publicly exposed.
 - Backend endpoints must remain compatible with the `/api` gateway model.
+- Frontend data calls must use `/api/...`; SPA navigation routes are separate.
 
 ## Authentication and users
 
 The project uses controlled authentication and user management.
 
-### Mandatory constraints
-- JWT-based authentication
-- refresh flow preserved
-- invite-based onboarding
-- no public register flow
-- RBAC enforced in backend
-- frontend must not be the source of truth for critical authorization
+Mandatory constraints:
 
-### User model direction
-The backend must preserve the user/auth domain while evolving sports/event features.
-Changes affecting users, roles, invite flow, or auth endpoints must be treated as high-risk.
+- JWT-compatible authentication must remain backend-controlled.
+- Legacy header compatibility may exist locally, but it is not a reason to move authorization to the frontend.
+- Do not introduce public registration.
+- Do not invent refresh or invite flows without an explicit product decision and docs/ADR update.
+- RBAC must be enforced in backend.
+- Frontend must not be the source of truth for critical authorization.
 
 ## Domain/platform coupling rules
 
@@ -40,19 +40,20 @@ Changes affecting users, roles, invite flow, or auth endpoints must be treated a
 
 ## Linux host and deployment awareness
 
-The project is intended to run on a Linux host with containerized services.
-That means backend changes must remain compatible with:
-- environment-variable based configuration
-- internal container networking
-- NGINX reverse proxying
-- PostgreSQL on internal network
-- migration-driven schema evolution
+Backend changes must remain compatible with:
+
+- environment-variable based configuration;
+- internal container networking;
+- NGINX reverse proxying;
+- PostgreSQL on an internal network;
+- migration-driven schema evolution.
 
 ## Safe defaults
 
 When uncertain:
-- keep auth unchanged
-- keep public exposure unchanged
-- keep `/api` routing assumptions intact
-- prefer backend-enforced access control
-- document infra-sensitive assumptions explicitly
+
+- keep auth unchanged;
+- keep public exposure unchanged;
+- keep `/api` routing assumptions intact;
+- prefer backend-enforced access control;
+- document infra-sensitive assumptions explicitly.

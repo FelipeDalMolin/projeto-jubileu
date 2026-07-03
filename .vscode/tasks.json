@@ -1,0 +1,65 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Jubileu: dev up",
+      "type": "shell",
+      "command": "scripts/dev/up_dev.sh",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Jubileu: dev status",
+      "type": "shell",
+      "command": "scripts/dev/status_dev.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "Jubileu: dev smoke",
+      "type": "shell",
+      "command": "scripts/dev/smoke_dev.sh",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Jubileu: dev down",
+      "type": "shell",
+      "command": "scripts/dev/down_dev.sh",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docs: generate code map",
+      "type": "shell",
+      "command": "python3 scripts/docs/generate_code_map.py",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docs: check code map",
+      "type": "shell",
+      "command": "python3 scripts/docs/generate_code_map.py --check",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Backend: pytest",
+      "type": "shell",
+      "command": "if [ -x .venv/bin/python ]; then .venv/bin/python -m pytest -q; else python3 -m pytest -q; fi",
+      "options": {
+        "cwd": "${workspaceFolder}/backend/jubileu-api-fastapi"
+      },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Frontend: lint build contract",
+      "type": "shell",
+      "command": "npm run lint && npm run build && npm run check:api-contract",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend/jubileu-web"
+      },
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

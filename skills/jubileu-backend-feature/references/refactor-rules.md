@@ -1,79 +1,71 @@
-
 # Refactor Rules
 
-Use this file when the task affects domain migration, structural refactor, module extraction, naming convergence, or transition from the legacy model toward the target model.
+Use this file for structural refactors, module extraction, naming cleanup, or duplicate contract consolidation.
 
 ## Refactor goal
 
-The backend should evolve safely from the current persistence-centered domain toward the canonical domain model:
+Move the backend toward clear domain modules while preserving the active domain:
 
-`Jogadores -> Dias -> Eventos -> Times -> Partidas -> Estatisticas`
+```text
+Usuarios -> Jogadores -> Dias -> Eventos -> Times -> Partidas -> Estatisticas
+```
 
-## Legacy to target convergence
+## Current cleanup direction
 
-### Current legacy concepts
+The major Aula-to-Evento public migration has already happened in active code. Current refactor work should focus on:
+
+- reducing router/service mixing;
+- moving new domain logic into `app/modules/<domain>/`;
+- consolidating duplicate route/service surfaces;
+- removing stale Aula vocabulary from active docs, skills, types, and comments;
+- keeping generated docs synchronized with code.
+
+## Historical names
+
+Historical migrations may still contain names such as:
+
 - `Aula`
 - `TimeAula`
 - `JogadorAula`
-- `EventoParticipante`
+- `WorkspaceAula`
 
-### Target canonical concepts
-- `Evento`
-- `TimeEvento`
-- `ParticipacaoEvento`
+Do not rename historical migrations just to make wording cleaner. Do prevent those names from guiding new active code.
 
 ## Core rules
 
 - Do not perform blind renames.
-- Do not replace legacy concepts everywhere in one uncontrolled step.
-- Use controlled coexistence when needed.
-- Every meaningful rename or convergence step must include:
-  - migration planning
-  - compatibility note
-  - test updates
-  - technical explanation
-
-## Coexistence strategy
-
-It is acceptable to:
-- preserve current persistence naming temporarily
-- introduce service-level canonical naming first
-- add compatibility bridges before removing legacy structures
-
-It is not acceptable to:
-- deepen legacy semantics without explicit reason
-- duplicate rule ownership between old and new paths
-- silently diverge the API contract from the domain model
+- Do not combine unrelated cleanup with feature delivery unless it reduces direct risk.
+- Preserve behavior before moving code.
+- Move shared rules out of routers into services.
+- Keep compatibility choices explicit and documented.
+- Every meaningful persistence refactor needs migration planning, tests, docs sync, and rollback/risk notes.
 
 ## Structural extraction rules
 
 When refactor mode is active:
-- move shared rule logic out of routers into services
-- move new domain work toward `app/modules/`
-- place config/security into `app/core/`
-- place session/base infrastructure into `app/db/`
+
+- put new domain code in `app/modules/<domain>/`;
+- keep shared config/security in `app/core/`;
+- keep shared database/session infrastructure in `app/db/` or the existing `app/database.py` bridge until deliberately migrated;
+- keep route registration clear in `app/main.py`;
+- avoid creating a second owner for the same business rule.
 
 ## Compatibility rules
 
 If current routes, schemas, or DB naming must remain temporarily:
-- keep them intentionally
-- document the compatibility choice
-- identify the follow-up cleanup step
+
+- keep them intentionally;
+- document the compatibility choice;
+- identify the follow-up cleanup step;
+- keep frontend calls on `/api/...`.
 
 ## Migration rules
 
 Any DB-affecting refactor must consider:
-- Alembic revision strategy
-- existing rows and defaults
-- enum compatibility
-- nullable-to-non-null transitions
-- rollback awareness
-- production PostgreSQL behavior even when tests use SQLite
 
-## Delivery expectation for refactor work
-
-Refactor tasks should explicitly state:
-- what legacy concept exists today
-- what target concept is desired
-- what was changed now
-- what remains for the next step
+- Alembic revision strategy;
+- existing rows and defaults;
+- enum compatibility;
+- nullable-to-non-null transitions;
+- rollback awareness;
+- PostgreSQL behavior even when tests use SQLite.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jubileu Frontend Feature"
+  short_description: "Frontend Jubileu com rotas e contratos"
+  default_prompt: "Use $jubileu-frontend-feature para implementar ou analisar uma mudanca frontend no Projeto Jubileu."

@@ -1,0 +1,40 @@
+{
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/jubileu-api-fastapi/.venv/bin/python",
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "backend/jubileu-api-fastapi/tests"
+  ],
+  "eslint.workingDirectories": [
+    {
+      "directory": "frontend/jubileu-web",
+      "changeProcessCWD": true
+    }
+  ],
+  "typescript.tsdk": "frontend/jubileu-web/node_modules/typescript/lib",
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "frontend/jubileu-web/dist": true,
+    ".env": true,
+    ".env.dev": true,
+    ".env.server": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.mypy_cache": true,
+    "frontend/jubileu-web/dist": true,
+    "backups": true,
+    ".env": true,
+    ".env.dev": true,
+    ".env.server": true
+  },
+  "files.associations": {
+    "compose*.yml": "dockercompose",
+    "docker-compose.yml": "dockercompose"
+  }
+}
