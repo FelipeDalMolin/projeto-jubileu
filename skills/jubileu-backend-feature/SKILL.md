@@ -11,6 +11,7 @@ Read only the references needed for the task:
 
 - Read [`references/backend-map.md`](./references/backend-map.md) to locate routers, models, schemas, services, tests, migrations, docs sync, and current structure.
 - Read [`references/domain-rules.md`](./references/domain-rules.md) before changing Dia, Evento, teams, presence, partidas, lances, statistics, workspace, rotation, or aggregate invariants.
+- Read [`../../docs/current/COMMAND_SAFETY.md`](../../docs/current/COMMAND_SAFETY.md) before changing any mutating command, especially teams, presence, partidas, lances, statistics, workspace, or rotation.
 - Read [`references/target-architecture.md`](./references/target-architecture.md) when changing folders, module boundaries, layering, or service extraction.
 - Read [`references/refactor-rules.md`](./references/refactor-rules.md) when removing legacy naming, consolidating duplicate surfaces, or moving code toward modules.
 - Read [`references/platform-rules.md`](./references/platform-rules.md) when changing auth, users, `/api`, deployment, Docker, NGINX, public exposure, or security.
@@ -95,6 +96,7 @@ python3 scripts/docs/generate_code_map.py
 - Add or update focused tests for behavior changes.
 - Prefer API tests for route contracts and service tests for domain calculations.
 - Cover not found, invalid transitions, ownership mismatch, empty/precondition failures, idempotency, and version consistency when relevant.
+- Mutating commands must declare command safety: idempotency/retry, duplicate submit, concurrency, locks/constraints, or `expected_version`.
 
 ## Expected Closeout
 

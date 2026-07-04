@@ -26,6 +26,9 @@
 - Local interaction can update immediately for responsiveness.
 - Persist commands through backend routes.
 - Refresh workspace/state through version-aware polling or TanStack Query.
+- Disable duplicate submits where useful, but treat backend command safety as the integrity layer.
+- Preserve stable client ids for retryable appends such as lances.
+- Send `expected_version` on snapshot/read-modify-write commands when the current version is available.
 - Avoid fan-out polling, hidden-tab churn, and repeated `401` loops.
 - WebSocket/MQTT is future work, not the current default.
 

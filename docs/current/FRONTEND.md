@@ -72,6 +72,9 @@ Aplicacao pratica:
 - interacoes de equipes podem atualizar localmente para responsividade;
 - comandos persistem via services para backend;
 - workspace/estado usa polling com versao ou TanStack Query;
+- a UI deve bloquear duplo clique quando possivel, mas integridade depende do backend;
+- comandos de snapshot devem enviar `expected_version` quando o service tiver a versao atual;
+- appends como lances devem manter o mesmo `client_event_id` durante retry da mesma intencao;
 - evitar fan-out, hidden-tab churn e loops repetidos de `401`;
 - WebSocket/MQTT permanece futuro, nao default atual.
 

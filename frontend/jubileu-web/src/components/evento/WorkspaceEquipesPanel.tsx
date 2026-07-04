@@ -55,6 +55,7 @@ export default function WorkspaceEquipesPanel({
   const [filtroNome, setFiltroNome] = useState<string>("");
   const [statusError, setStatusError] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [isAddingEquipe, setIsAddingEquipe] = useState(false);
   const [teamSizeInput, setTeamSizeInput] = useState<string>(teamSizeRef != null ? String(teamSizeRef) : "8");
 
   useEffect(() => {
@@ -123,6 +124,8 @@ export default function WorkspaceEquipesPanel({
   };
 
   const handleAdicionarEquipe = async () => {
+    if (isAddingEquipe) return;
+    setIsAddingEquipe(true);
     try {
       const idx = times.length + 1;
       const nome = `Time ${idx}`;
@@ -131,6 +134,9 @@ export default function WorkspaceEquipesPanel({
     } catch (err) {
       console.error(err);
       alert("Erro ao criar equipe. Veja o console para detalhes.");
+      await onRefresh();
+    } finally {
+      setIsAddingEquipe(false);
     }
   };
 
@@ -412,10 +418,10 @@ export default function WorkspaceEquipesPanel({
                 Arraste jogadores da lista para montar os times. Para tirar alguem, clique em remover.
               </p>
               <div className="flex gap-2">
-                <Button type="button" size="sm" onClick={handleAdicionarEquipe}>
-                  + Adicionar equipe
+                <Button type="button" size="sm" onClick={handleAdicionarEquipe} disabled={isAddingEquipe}>
+                  {isAddingEquipe ? "Adicionando..." : "+ Adicionar equipe"}
                 </Button>
-                <Button type="button" size="sm" variant="outline" onClick={handleLimparEquipes}>
+                <Button type="button" size="sm" variant="outline" onClick={handleLimparEquipes} disabled={isAddingEquipe}>
                   Limpar equipes
                 </Button>
               </div>

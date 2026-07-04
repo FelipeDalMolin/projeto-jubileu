@@ -43,6 +43,13 @@ Descrever o objetivo do PR em uma frase.
 
 -
 
+## Concorrencia/idempotencia
+
+- [ ] Comandos mutaveis classificados conforme `docs/current/COMMAND_SAFETY.md`
+- [ ] Duplo clique/retry nao cria duplicata, ou justificativa registrada
+- [ ] `expected_version`, idempotency key, lock ou constraint aplicados quando necessario
+- [ ] Teste cobre repeticao/conflito para fluxo sensivel
+
 ## Release notes
 
 -
@@ -56,6 +63,7 @@ Descrever o objetivo do PR em uma frase.
 - [ ] Sem reintroduzir Aula como entidade publica
 - [ ] Escolhas de UI/dependencias justificadas quando o PR tocar UX
 - [ ] `/api` preservado como gateway
+- [ ] Command safety revisado para fluxos mutaveis
 - [ ] Docs atualizadas
 ```
 

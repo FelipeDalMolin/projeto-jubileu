@@ -10,6 +10,7 @@ Arquivos desta pasta representam o estado atual do projeto e devem ser priorizad
 | [API.md](API.md) | Contratos publicos e rotas canonicas. |
 | [DOMAIN_MODEL.md](DOMAIN_MODEL.md) | Modelo de dominio. |
 | [CALENDAR_EVENT_LOGIC.md](CALENDAR_EVENT_LOGIC.md) | Reconciliacao produto/arquitetura para Calendario, Dia e Evento. |
+| [COMMAND_SAFETY.md](COMMAND_SAFETY.md) | Politica para concorrencia, idempotencia e comandos mutaveis. |
 | [DOCS_SYNC.md](DOCS_SYNC.md) | Regra de sincronizacao entre codigo e docs. |
 | [CHAT_CONTEXT.md](CHAT_CONTEXT.md) | Memoria curta para chat e agentes. |
 | [ROADMAP.md](ROADMAP.md) | Direcao e janela atual. |

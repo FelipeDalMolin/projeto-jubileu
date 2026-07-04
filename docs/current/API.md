@@ -73,6 +73,7 @@ Operational notes:
 - Self actions require authenticated user with `jogador_id`.
 - Manual check-in, seed and event lifecycle actions require an administrative role.
 - Authorization stays server-side; frontend capability checks are only UI affordances.
+- Mutating commands must follow command safety rules in `COMMAND_SAFETY.md`.
 
 ## Partidas and Lances
 
@@ -94,7 +95,24 @@ Lifecycle contract:
 - invalid transitions return `409`.
 - event finalization is blocked while a partida is `EM_ANDAMENTO`.
 - lances are accepted only when both event and partida are `EM_ANDAMENTO`.
+- lances may send `client_event_id`; repeated requests with the same `partida_id` and `client_event_id`
+  return the existing lance instead of creating a duplicate.
+- each partida has a unique `ordem` inside its evento.
+- each player has at most one statistics row per partida.
 - frontend live state is derived only from partida `EM_ANDAMENTO`.
+
+## Command Safety
+
+Mutable APIs that write snapshots or read-modify-write state may accept `expected_version`.
+When the submitted version is stale, the backend returns `409` with `detail.code = "version_conflict"`.
+
+Current version-aware surfaces:
+
+- `PUT /dias/{data_iso}/eventos/{evento_id}/estado-equipes`
+- `PATCH /api/eventos/{evento_id}/rotacao/estado`
+
+Create/append commands should use backend constraints plus `Idempotency-Key`,
+`client_command_id` or a domain-specific id such as `client_event_id`.
 
 ## Auth and Usuario
 

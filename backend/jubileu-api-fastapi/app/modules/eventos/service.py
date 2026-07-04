@@ -164,6 +164,23 @@ def assert_jogador_na_evento(db: Session, evento_id: int, jogador_id: int) -> No
         raise HTTPException(status_code=404, detail="Jogador nao pertence ao evento")
 
 
+def _lock_evento_for_command(db: Session, evento_id: int) -> None:
+    db.query(EventoModel.id).filter(EventoModel.id == evento_id).with_for_update().one()
+
+
+def _version_conflict(resource: str, expected: int | None, current: int | None) -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail={
+            "code": "version_conflict",
+            "resource": resource,
+            "expected_version": expected,
+            "current_version": current,
+            "message": "Estado alterado no servidor. Recarregue antes de salvar novamente.",
+        },
+    )
+
+
 def get_or_create_participante(
     db: Session,
     evento_id: int,
@@ -190,7 +207,21 @@ def get_or_create_participante(
         rsvp_at=datetime.now(timezone.utc),
     )
     db.add(participante)
-    db.flush()
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        participante = (
+            db.query(EventoParticipanteModel)
+            .filter(
+                EventoParticipanteModel.evento_id == evento_id,
+                EventoParticipanteModel.jogador_id == jogador_id,
+            )
+            .first()
+        )
+        if participante:
+            return participante
+        raise
     return participante
 
 
@@ -393,6 +424,7 @@ def seed_primeira_partida_flow(
 
     evento = get_evento_or_404(db, evento_id)
     assert_evento_em_andamento(evento)
+    _lock_evento_for_command(db, evento.id)
 
     participantes = (
         db.query(EventoParticipanteModel)
@@ -423,6 +455,9 @@ def seed_primeira_partida_flow(
     )
     while len(times) < 2:
         idx = len(times) + 1
+        nomes_existentes = {time.nome for time in times}
+        while f"Time {idx}" in nomes_existentes:
+            idx += 1
         t = TimeEventoModel(evento_id=evento.id, nome=f"Time {idx}")
         db.add(t)
         db.flush()
@@ -456,7 +491,14 @@ def seed_primeira_partida_flow(
         inicio_at=datetime.now(timezone.utc),
     )
     db.add(partida)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Partida inicial mudou no servidor. Recarregue e tente novamente.",
+        ) from exc
     db.refresh(partida)
     return SeedPartidaOut(
         partida=PartidaSeedOut(
@@ -592,11 +634,24 @@ def create_lance_flow(
         client_event_id=payload.client_event_id,
         created_by_user_id=user.user_id,
     )
+    partida_id_value = int(partida.id)
     db.add(lance)
     try:
         db.commit()
     except IntegrityError as exc:
         db.rollback()
+        if payload.client_event_id:
+            existing = (
+                db.query(LanceModel)
+                .filter(
+                    LanceModel.partida_id == partida_id_value,
+                    LanceModel.client_event_id == payload.client_event_id,
+                    LanceModel.is_deleted.is_(False),
+                )
+                .first()
+            )
+            if existing:
+                return LanceCreateOut(lance=lance_out(db, existing))
         raise HTTPException(status_code=422, detail="Lance invalido para o estado atual dos dados") from exc
     db.refresh(lance)
     return LanceCreateOut(lance=lance_out(db, lance))
@@ -841,12 +896,16 @@ def _rotacao_estado_out(
     )
 
 
-def _get_or_init_rotacao_estado(db: Session, evento: EventoModel) -> EventoRotacaoEstadoModel:
-    estado = (
-        db.query(EventoRotacaoEstadoModel)
-        .filter(EventoRotacaoEstadoModel.evento_id == evento.id)
-        .first()
-    )
+def _get_or_init_rotacao_estado(
+    db: Session,
+    evento: EventoModel,
+    *,
+    for_update: bool = False,
+) -> EventoRotacaoEstadoModel:
+    query = db.query(EventoRotacaoEstadoModel).filter(EventoRotacaoEstadoModel.evento_id == evento.id)
+    if for_update:
+        query = query.with_for_update()
+    estado = query.first()
     if estado:
         return estado
 
@@ -937,8 +996,11 @@ def update_rotacao_estado_flow(
     evento = get_evento_or_404(db, evento_id)
     _assert_evento_tipo_com_rotacao(evento)
     _expire_previews_if_needed(db, evento.id)
+    _lock_evento_for_command(db, evento.id)
 
-    estado = _get_or_init_rotacao_estado(db, evento)
+    estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
+    if payload.expected_version is not None and payload.expected_version != int(estado.version):
+        raise _version_conflict("rotacao", payload.expected_version, int(estado.version))
     partida_ativa = _buscar_partida_em_andamento(db, evento.id)
     presentes_ids = _listar_jogadores_presentes_ids(db, evento)
     em_campo_ids = _listar_jogadores_em_campo_ids(db, evento.id, partida_ativa)
@@ -1087,6 +1149,7 @@ def confirm_rotacao_sorteio_flow(
     evento = get_evento_or_404(db, evento_id)
     _assert_evento_tipo_com_rotacao(evento)
     _expire_previews_if_needed(db, evento.id)
+    _lock_evento_for_command(db, evento.id)
 
     record = (
         db.query(EventoRotacaoSorteioModel)
@@ -1094,6 +1157,7 @@ def confirm_rotacao_sorteio_flow(
             EventoRotacaoSorteioModel.evento_id == evento.id,
             EventoRotacaoSorteioModel.token == token,
         )
+        .with_for_update()
         .first()
     )
     if not record:
@@ -1105,7 +1169,7 @@ def confirm_rotacao_sorteio_flow(
         db.commit()
         raise HTTPException(status_code=409, detail="Preview expirado")
 
-    estado = _get_or_init_rotacao_estado(db, evento)
+    estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
     partida_ativa = _buscar_partida_em_andamento(db, evento.id)
     presentes_ids = _listar_jogadores_presentes_ids(db, evento)
     em_campo_ids = _listar_jogadores_em_campo_ids(db, evento.id, partida_ativa)

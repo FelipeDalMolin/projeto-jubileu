@@ -106,3 +106,5 @@ Na pratica atual:
 - Chamadas frontend para `/api/dias/{diaId}/equipes` foram removidas como legado; equipes
   devem permanecer no contrato por evento via `estado-equipes`.
 - `TeamConfig`, workspace e rotacao sao superficies sensiveis porque combinam estado derivado, versao e regras de partida.
+- Comandos mutaveis devem seguir `COMMAND_SAFETY.md`: idempotencia para creates/appends,
+  `expected_version` para snapshots e constraints/locks para invariantes de banco.

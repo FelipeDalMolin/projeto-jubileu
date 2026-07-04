@@ -15,6 +15,7 @@ Discussao detalhada pode existir no Linear, mas a regra ativa para implementacao
 | CORE-4 | Status e tipo | Ativa, superseded em nome | Status/tipo sao regras de dominio impostas pelo backend em `Evento`. |
 | CORE-5 | Presenca e check-in | Ativa | RSVP, check-in e jogador vinculado sao fluxos de dominio. |
 | CORE-6 | UI modular e indicadores | Ativa | Telas operacionais devem ser modulares, densas, escaneaveis e sem polling descontrolado. |
+| CORE-10 | Command safety | Ativa | Comandos mutaveis devem declarar e testar concorrencia, idempotencia, retry e conflito de versao quando aplicavel. |
 
 ## Regras Canonicas
 
@@ -24,6 +25,7 @@ Discussao detalhada pode existir no Linear, mas a regra ativa para implementacao
 - A rota frontend canonica e `/dias/:dataIso/eventos/:eventoId`.
 - Nao reintroduzir `/dias/:dataIso/aulas/:aulaId`, `aulaId`, `aula_id` ou `WorkspaceAula` em codigo ativo.
 - Referencias antigas a Aula nos docs arquivados sao historicas e nao devem guiar implementacao nova.
+- Comandos mutaveis nao podem depender apenas de debounce/frontend para integridade; seguir `COMMAND_SAFETY.md`.
 
 ## Quando Criar Nova ADR
 

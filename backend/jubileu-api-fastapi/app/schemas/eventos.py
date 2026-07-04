@@ -140,6 +140,7 @@ class RotacaoEstadoUpdateIn(BaseModel):
     duracao_partida_segundos: int | None = Field(default=None, ge=60, le=7200)
     fila_jogadores_ids: list[int] | None = None
     proximos_times: list[RotacaoGrupoPatchIn] | None = None
+    expected_version: int | None = None
 
 
 class RotacaoPreviewIn(BaseModel):

@@ -42,6 +42,7 @@ export function QuickAddLance({
   const [detalhe, setDetalhe] = useState("");
   const [jogadorId, setJogadorId] = useState("");
   const [jogadorSecundarioId, setJogadorSecundarioId] = useState("");
+  const [draftClientEventId, setDraftClientEventId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -97,17 +98,23 @@ export function QuickAddLance({
     }
   }, [timeId, jogadorId, jogadorSecundarioId, jogadoresDoTime]);
 
+  useEffect(() => {
+    setDraftClientEventId(null);
+  }, [partidaId, tipo, minute, detalhe, jogadorId, jogadorSecundarioId, timeId]);
+
   async function submit() {
     if (!auth || !partidaId) return;
     setIsSubmitting(true);
     setError(null);
     setInfo(null);
+    const clientEventId = draftClientEventId ?? makeClientEventId();
+    setDraftClientEventId(clientEventId);
     try {
       const parsedMinute = Number(minute);
       if (!Number.isFinite(parsedMinute) || parsedMinute < 0) {
-      setError("Informe um minuto valido.");
-      setIsSubmitting(false);
-      return;
+        setError("Informe um minuto valido.");
+        setIsSubmitting(false);
+        return;
       }
       if (!timeId) {
         setError("Selecione a equipe do lance.");
@@ -129,11 +136,12 @@ export function QuickAddLance({
           tipo,
           payload: parsed,
           jogador_id: Number(jogadorId),
-          client_event_id: makeClientEventId(),
+          client_event_id: clientEventId,
         },
         auth,
       );
       setInfo("Lance registrado");
+      setDraftClientEventId(null);
       setDetalhe("");
       setJogadorId("");
       setJogadorSecundarioId("");

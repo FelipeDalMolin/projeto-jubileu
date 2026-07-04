@@ -4,10 +4,13 @@ from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
 from app.models.dia_evento import (
+    Evento as EventoModel,
     EstatisticaJogadorPartida as EstatisticaModel,
     JogadorEvento as JogadorEventoModel,
     Partida as PartidaModel,
@@ -41,6 +44,10 @@ def _obter_partida_na_evento_or_404(db: Session, evento_id: int, partida_id: int
     if not partida:
         raise HTTPException(status_code=404, detail="Partida nao encontrada para esta evento")
     return partida
+
+
+def _lock_evento_for_command(db: Session, evento_id: int) -> None:
+    db.query(EventoModel.id).filter(EventoModel.id == evento_id).with_for_update().one()
 
 
 @router.get("/{data_iso}/eventos/{evento_id}/partidas", response_model=List[PartidaOut])
@@ -88,6 +95,7 @@ def criar_partida(
 ) -> PartidaOut:
     evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
     dias_service.assert_evento_editavel(evento)
+    _lock_evento_for_command(db, evento.id)
     partidas_service.validar_times_na_evento(
         db,
         evento_id=evento.id,
@@ -97,7 +105,8 @@ def criar_partida(
 
     ordem = payload.ordem
     if ordem is None:
-        ordem = db.query(PartidaModel).filter(PartidaModel.evento_id == evento.id).count() + 1
+        ultima_ordem = db.query(func.max(PartidaModel.ordem)).filter(PartidaModel.evento_id == evento.id).scalar()
+        ordem = int(ultima_ordem or 0) + 1
 
     ids_jogadores = [e.jogador_evento_id for e in payload.estatisticas]
     jogadores_por_id = partidas_service.mapear_jogadores_da_evento(db, evento.id, ids_jogadores)
@@ -130,7 +139,14 @@ def criar_partida(
         )
 
     db.add(nova_partida)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Ordem de partida mudou no servidor. Recarregue e tente novamente.",
+        ) from exc
     db.refresh(nova_partida, attribute_names=["estatisticas"])
     return _to_partida_out(nova_partida)
 
@@ -197,7 +213,14 @@ def atualizar_partida(
     partida.gols_time_a = gols_a
     partida.gols_time_b = gols_b
 
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Partida ou estatisticas mudaram no servidor. Recarregue e tente novamente.",
+        ) from exc
     db.refresh(partida, attribute_names=["estatisticas"])
     return _to_partida_out(partida)
 
@@ -254,8 +277,31 @@ def atualizar_stats_jogador_partida(
         estat.chiliques = payload.chiliques
         estat.faltas = payload.faltas
 
-    db.flush()
-    ids_jogadores = [e.jogador_evento_id for e in partida.estatisticas] + [jogador.id]
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
+        partida = _obter_partida_na_evento_or_404(db, evento.id, partida_id)
+        estat = (
+            db.query(EstatisticaModel)
+            .filter(
+                EstatisticaModel.partida_id == partida.id,
+                EstatisticaModel.jogador_evento_id == jogador_evento_id,
+            )
+            .first()
+        )
+        if estat is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Estatisticas mudaram no servidor. Recarregue e tente novamente.",
+            )
+        estat.gols = payload.gols
+        estat.assistencias = payload.assistencias
+        estat.chiliques = payload.chiliques
+        estat.faltas = payload.faltas
+        db.flush()
+    ids_jogadores = [e.jogador_evento_id for e in partida.estatisticas] + [jogador_evento_id]
     jogadores_por_id = partidas_service.mapear_jogadores_da_evento(db, evento.id, ids_jogadores)
     gols_a, gols_b = partidas_service.calcular_placar(
         partida.estatisticas,

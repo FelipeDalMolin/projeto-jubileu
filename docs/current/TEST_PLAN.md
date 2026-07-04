@@ -39,6 +39,20 @@ Esta revisao PR2 adicionou `coverage` como dependencia de auditoria/testes, move
 | UC09 | Registrar lances/estatisticas | Validar lances, filtros, placar e estatisticas de jogo. |
 | UC10 | Consultar dashboards/indicadores | Validar dashboards e indicadores agregados. |
 
+## Command Safety
+
+Todo PR que altera comando mutavel deve avaliar concorrencia, retry e duplo clique conforme
+`docs/current/COMMAND_SAFETY.md`.
+
+Casos obrigatorios quando o fluxo for tocado:
+
+- CT-CS-01: duplo create nao gera recurso duplicado incoerente.
+- CT-CS-02: retry com mesmo `client_event_id` ou idempotency key retorna o recurso existente.
+- CT-CS-03: snapshot com `expected_version` stale retorna `409 version_conflict`.
+- CT-CS-04: dois operadores alterando fila/equipes/rotacao nao sobrescrevem silenciosamente.
+- CT-CS-05: upsert ou constraint preserva uma linha por recurso naturalmente unico.
+- CT-CS-06: check-in/arrival order preserva participante unico e ordem estavel.
+
 ## Playwright / E2E
 
 A camada Playwright foi adicionada ao frontend para validar experiencia de usuario e integracao browser -> Vite -> `/api` -> backend. Ela complementa, mas nao substitui, os testes `pytest`: seed por API prepara cenario, mas nao conta como cobertura E2E de fluxo de usuario.
