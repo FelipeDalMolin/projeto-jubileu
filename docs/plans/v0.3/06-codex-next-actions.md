@@ -6,16 +6,13 @@ Executar a sequencia release-safe em branches finais com o padrao real do projet
 
 1. Fechar `dev-41-docs-validacao-final` com docs vivos, code-map, logica calendario/evento
    e reconciliacao de branch/release.
-2. Remover o legado `/api/dias/{diaId}/equipes` em branch `chore/frontend-remove-equipes-dia-legacy`
-   ou issue DEV equivalente.
-3. Validar smokes pendentes de `DEV-39` e `DEV-32`.
-4. Executar `DEV-42` por slices de UI/UX operacional.
-5. Fechar `CORE-8/DEV-43`, `CORE-9/DEV-44` e `ops-v030-release-smoke`.
+2. Validar smokes pendentes de `DEV-39` e `DEV-32`.
+3. Executar `DEV-42` por slices de UI/UX operacional.
+4. Fechar `CORE-8/DEV-43`, `CORE-9/DEV-44` e `ops-v030-release-smoke`.
 
 ## Branches Recomendadas
 
 - `dev-41-docs-validacao-final`
-- `chore/frontend-remove-equipes-dia-legacy`
 - `dev-41-smoke-validacao-final`
 - `dev-42-ui-ux-cleanup-v03`
 - `core-8-auth-security-baseline-v03`

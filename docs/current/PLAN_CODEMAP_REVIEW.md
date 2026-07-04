@@ -28,7 +28,7 @@ no frontend e nao comprova sozinho gates de PostgreSQL, UI, auth, polling ou rel
 | Slice 01 - ADR Evento canonico | `Evento`, `EventoParticipante`, `TimeEvento`, `Partida`, `Lance` e rotas `/eventos` aparecem como superficie ativa; rota SPA canonica e `/dias/:dataIso/eventos/:eventoId`. | Alinhado. Parece concluido no repo, faltando reconciliar Linear/estado de PR. | Marcar como done/review depois de confirmar Linear. |
 | Slice 02 - PostgreSQL migration gate | O mapa mostra tabelas e FKs, mas nao valida Alembic em PostgreSQL limpo/migrado. | Coerente e ainda valido. O code-map nao substitui migration gate. | Criar/rodar gate PostgreSQL com `DATABASE_URL_TEST` ou service Postgres no CI. |
 | Slice 03 - Backend Evento-only | Rotas publicas ativas usam `/api/dias/{data_iso}/eventos...`, `/api/eventos...`, `/api/partidas...`; nao ha rota publica `/api/aulas`. Existem rotas sem `/api` por compatibilidade. | Majoritariamente alinhado. As rotas sem `/api` nao sao contradicao se permanecerem compatibilidade interna/local. | Manter regra: novo frontend chama apenas `/api/...`; validar grep excluindo docs historicos e DB binario local. |
-| Slice 04 - Frontend Evento-only | Rotas SPA usam `/dias/:dataIso/eventos/:eventoId`; chamadas API usam `/api/...`; nao ha chamada ativa detectada para `/api/aulas`. | Alinhado, com uma excecao suspeita: `equipesService.ts` chama `/api/dias/{diaId}/equipes`, rota que nao existe no backend efetivo. | Tratar `equipesService.ts`/`types/equipes.ts` como legado/codigo morto ou migrar para `estado-equipes` por evento. |
+| Slice 04 - Frontend Evento-only | Rotas SPA usam `/dias/:dataIso/eventos/:eventoId`; chamadas API usam `/api/...`; nao ha chamada ativa detectada para `/api/aulas` nem `/api/dias/{diaId}/equipes`. | Alinhado depois da remocao do legado de equipes por dia. | Manter o contrato canonico `estado-equipes` por evento. |
 | Slice 05 - Usuario persistido e pagina Usuario | Entidade `Usuario`, rota backend `/api/usuarios/me` e rota frontend `/usuario` existem no mapa. | Coerente. Existencia estrutural esta confirmada; comportamento ainda precisa smoke/evidencia. | Validar `/usuario`, usuario com `jogador_id` e historico em runtime. |
 | Slice 06 - Tailwind-only UI cleanup | O code-map nao avalia CSS. Grep encontrou classes Bootstrap-like ativas em dashboards, evento, jogador, turma e usuario. | Ainda valido e nao concluido. | Manter DEV-40/DEV-42 pendentes; priorizar dashboard/workspace/turmas conforme impacto. |
 | Slice 07 - Auth hardening v0.3 | O code-map mostra auth login/me. Grep encontrou `JWT_SECRET = CHANGE_ME`, hash de senha via `sha256` e token em `localStorage`. | Ainda valido e importante. | Definir baseline de segredo/hash/sessao antes de release. |
@@ -49,9 +49,9 @@ O mapa gerado confirma que `Evento` e o centro persistido e operacional:
 
 Isso sustenta os planos que dizem para nao reintroduzir `Aula` como entidade publica.
 
-### 2. Ha uma chamada frontend sem rota backend correspondente
+### 2. Chamada frontend legada removida
 
-O code-map lista chamada frontend:
+O code-map apontava a chamada frontend:
 
 ```text
 /api/dias/{diaId}/equipes
@@ -63,14 +63,14 @@ Mas as rotas backend efetivas usam:
 /api/dias/{data_iso}/eventos/{evento_id}/estado-equipes
 ```
 
-Origem encontrada:
+Origem encontrada e removida no cleanup:
 
 - `frontend/jubileu-web/src/services/equipesService.ts`
 - `frontend/jubileu-web/src/types/equipes.ts`
+- `frontend/jubileu-web/src/services/equipes.ts`
 
-Esse service parece legado/codigo morto, porque as telas ativas usam `salvarEstadoEquipesEvento`
-de `diasService.ts`. Ainda assim, enquanto existir, o `code-map` corretamente sinaliza drift
-potencial entre frontend e backend.
+As telas ativas usam `salvarEstadoEquipesEvento` de `diasService.ts`, preservando
+`/api/dias/{data_iso}/eventos/{evento_id}/estado-equipes` como contrato canonico.
 
 ### 3. Usuario esta estruturalmente presente
 
@@ -117,16 +117,15 @@ padrao acima antes de abrir PR para `jubileu-v2`.
 | `06-codex-next-actions.md` recomenda primeiro PR documental v0.3 | ADRs, planos e docs vivos ja existem; a branch final deve ser `dev-41-docs-validacao-final`. | Reescrever como reconciliacao atual, nao como primeiro PR historico. |
 | `ROADMAP.md` e `TEST_PLAN.md` citam commits antigos como marco atual | A base integrada e `origin/jubileu-v2` em `3210dd8`; o fechamento documental usa `dev-41-docs-validacao-final`. | Separar marco historico de estado atual. |
 | `05-pr-template.md` nao explicava o padrao real de branch | O PR deve usar padrao do projeto. | Documentar `dev-NN-*`, `core-NN-*`, `chore/*`, `ops/*` e `docs/*`. |
-| `/api/dias/{diaId}/equipes` em service frontend | Nao existe rota backend efetiva equivalente. | Remover se morto ou migrar para `estado-equipes` por evento. |
+| `/api/dias/{diaId}/equipes` em service frontend | Legado morto removido. | Manter guarda contra retorno dessa chamada no code-map. |
 | Release plan com tags dev sequenciais | Pode nao refletir tags/branches reais atuais. | Verificar tags Git e Linear antes de seguir nomenclatura. |
 
 ## Sequencia Recomendada
 
 1. Corrigir docs de fluxo: `05-pr-template.md`, `06-codex-next-actions.md`, `ROADMAP.md` e `TEST_PLAN.md`.
 2. Atualizar `ADR-0002` para igualar a topologia de infra viva.
-3. Resolver ou arquivar `equipesService.ts` e `types/equipes.ts` se forem legado.
-4. Reconciliar Linear quando o conector destravar.
-5. Priorizar proximos slices ainda comprovadamente validos:
+3. Reconciliar Linear quando o conector destravar.
+4. Priorizar proximos slices ainda comprovadamente validos:
    - PostgreSQL migration gate;
    - auth hardening;
    - polling/auth hardening;

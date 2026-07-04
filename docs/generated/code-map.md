@@ -292,7 +292,6 @@ erDiagram
 | `URL` | `/api/dias/{dataIso}/eventos/{eventoId}/times/{timeId}` |
 | `URL` | `/api/dias/{dataIso}/eventos/{eventoId}/workspace{query}` |
 | `URL` | `/api/dias/{dataIso}/eventos/{eventoId}/{action}` |
-| `URL` | `/api/dias/{diaId}/equipes` |
 | `POST` | `/api/eventos/{eventoId}/cancel` |
 | `DELETE` | `/api/eventos/{eventoId}/checkin` |
 | `POST` | `/api/eventos/{eventoId}/checkin` |
