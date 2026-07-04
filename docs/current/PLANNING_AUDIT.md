@@ -8,7 +8,8 @@ Use-o antes de executar novos slices para reduzir drift.
 ## Estado Verificado No Repo
 
 - Checkout canonico de dev no app-host: `/srv/apps/jubileu-dev`.
-- Branch atual da revisao: `codex/docs-skills-sync`.
+- Branch original da revisao era um rascunho assistido; branch final de PR recomendada:
+  `dev-41-docs-validacao-final`.
 - Base integrada mais recente observada: `origin/jubileu-v2` em `3210dd8`.
 - Commits locais recentes de docs:
   - `d12370a docs: synchronize architecture memory`
@@ -21,8 +22,8 @@ Use-o antes de executar novos slices para reduzir drift.
 | Area | Documento | Situacao | Acao Recomendada |
 |---|---|---|---|
 | Branch/marco atual | `docs/current/ROADMAP.md`, `docs/current/TEST_PLAN.md` | Ainda citam `jubileu-v2`, `94d4f45`, `4ec4284` e PR2 como marco atual. | Atualizar para separar `estado base integrado` de `branch de trabalho atual`; nao tratar commits antigos como HEAD atual. |
-| Fluxo de branch | `docs/plans/v0.3/05-pr-template.md` | Diz para nao usar `codex/*`, mas a branch operacional atual e `codex/docs-skills-sync`. | Decidir padrao: permitir `codex/*` para trabalho assistido e exigir PR para `jubileu-v2`, ou renomear branches antes de PR. |
-| Proximas acoes | `docs/plans/v0.3/06-codex-next-actions.md` | Ainda recomenda o primeiro PR documental `dev-20-v03-docs-organization-and-planning`, que parece ter sido absorvido por docs/ADRs ja presentes. | Marcar como historico ou atualizar para proxima acao real: reconciliar Linear, fechar docs de estado atual e abrir PR da branch atual. |
+| Fluxo de branch | `docs/plans/v0.3/05-pr-template.md` | Precisava refletir o padrao real: `dev-NN-*`, `core-NN-*`, `chore/*`, `ops/*` e `docs/*`. | Branch final de PR deve seguir o padrao do projeto. |
+| Proximas acoes | `docs/plans/v0.3/06-codex-next-actions.md` | Deve apontar para a sequencia release-safe atual, nao para o primeiro PR documental historico. | Manter como guia da proxima sequencia: `dev-41`, cleanup legado, smokes, UI/UX, auth/CI/release. |
 | ADR runtime | `docs/adr/ADR-0002-runtime-gateway.md` | Topologia omite explicitamente React SPA, enquanto docs atuais usam `Cloudflare -> NGINX -> React SPA + FastAPI /api -> PostgreSQL`. | Atualizar ADR-0002 para igualar a topologia de `INFRASTRUCTURE.md`. |
 | Plano v0.3 | `docs/plans/v0.3/*` | Mistura metas ja realizadas, metas ainda validas e propostas novas. | Criar uma tabela de reconciliacao por slice: `done`, `still-valid`, `superseded`, `blocked`. |
 | Tailwind-only | `docs/plans/v0.3/slices/dev-dashboard-tailwind-v1.md` e codigo | Grep ainda encontra muitas classes Bootstrap-like em dashboard, jogador, turma, workspace e usuario. | Manter DEV-40/DEV-42 como pendente; nao declarar UI Tailwind-only como concluida. |
@@ -61,7 +62,7 @@ Quando o conector estiver funcional, comparar pelo menos:
 
 ## Proxima Sequencia Recomendada
 
-1. Atualizar `ROADMAP.md`, `TEST_PLAN.md`, `ADR-0002` e `05-pr-template.md` com o fluxo app-host/branch atual.
+1. Atualizar `ROADMAP.md`, `TEST_PLAN.md`, `ADR-0002` e `05-pr-template.md` com o fluxo app-host/branch final.
 2. Destravar Linear e reconciliar issues conforme esta auditoria.
-3. Abrir PR da branch atual para `jubileu-v2`, deixando GitHub Actions validar docs/backend/frontend.
+3. Abrir PR de `dev-41-docs-validacao-final` para `jubileu-v2`, deixando GitHub Actions validar docs/backend/frontend.
 4. Depois atacar os gaps ainda validos: PostgreSQL gate, Tailwind-only, polling/auth e smoke release.

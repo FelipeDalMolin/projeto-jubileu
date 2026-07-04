@@ -33,7 +33,7 @@ no frontend e nao comprova sozinho gates de PostgreSQL, UI, auth, polling ou rel
 | Slice 06 - Tailwind-only UI cleanup | O code-map nao avalia CSS. Grep encontrou classes Bootstrap-like ativas em dashboards, evento, jogador, turma e usuario. | Ainda valido e nao concluido. | Manter DEV-40/DEV-42 pendentes; priorizar dashboard/workspace/turmas conforme impacto. |
 | Slice 07 - Auth hardening v0.3 | O code-map mostra auth login/me. Grep encontrou `JWT_SECRET = CHANGE_ME`, hash de senha via `sha256` e token em `localStorage`. | Ainda valido e importante. | Definir baseline de segredo/hash/sessao antes de release. |
 | Slice 08 - Polling/auth hardening | O code-map mostra workspace/rotacao. Grep encontrou `refetchInterval`, `staleTime: 1000` e chamadas `{ force: true }`. | Ainda valido. | Revisar fan-out, backoff, pausa em 401 e cache por canal. |
-| Slice 09 - CI release gate v0.3 | `.github/workflows/ci.yml` tem docs-sync, backend coverage/smoke/contract, frontend lint/build/check e Playwright preflight. | Parcial. CI existe, mas nao inclui PostgreSQL real e roda oficialmente para PR/push em `jubileu-v2`. | Adicionar PostgreSQL/migration gate e garantir PR da branch atual para `jubileu-v2`. |
+| Slice 09 - CI release gate v0.3 | `.github/workflows/ci.yml` tem docs-sync, backend coverage/smoke/contract, frontend lint/build/check e Playwright preflight. | Parcial. CI existe, mas nao inclui PostgreSQL real e roda oficialmente para PR/push em `jubileu-v2`. | Adicionar PostgreSQL/migration gate e garantir PR da branch final para `jubileu-v2`. |
 | Slice 10 - Infra MVP e release smoke | Code-map nao valida runtime. Docs vivos apontam Cloudflare -> NGINX -> React SPA + FastAPI `/api` -> PostgreSQL. | Coerente como objetivo, mas depende de smoke operacional. | Atualizar ADR-0002 para incluir React SPA e registrar smoke via NGINX. |
 
 ## Achados Objetivos
@@ -97,23 +97,26 @@ O code-map nao prova:
 Portanto, planos de PostgreSQL gate, E2E, auth hardening, UI cleanup e release smoke ainda
 sao validos mesmo com a arquitetura principal ja materializada.
 
-### 5. O plano de branches precisa ser atualizado
+### 5. O plano de branches precisa seguir o padrao real do projeto
 
-`docs/plans/v0.3/05-pr-template.md` diz para nao usar `codex/*`, mas o trabalho atual esta em
-`codex/docs-skills-sync`. A regra mais coerente com o fluxo atual e:
+O historico recente mostra varios padroes em uso:
 
-- permitir `codex/*` como branch de trabalho assistido;
-- exigir PR para `jubileu-v2`;
-- deixar GitHub Actions validar a branch por PR;
-- usar nomes `dev-*` quando a branch representar diretamente uma issue Linear.
+- `dev-NN-*` para entregas ligadas a issues DEV;
+- `core-NN-*` para decisoes CORE;
+- `chore/*` para manutencao/runtime sem issue direta;
+- `ops/*` para operacao e runbooks;
+- `docs/*` para documentacao sem issue DEV direta.
+
+Se um rascunho herdado existir fora desse padrao, ele deve ser renomeado ou recriado no
+padrao acima antes de abrir PR para `jubileu-v2`.
 
 ## Itens Que Parecem Equivocados Ou Antigos
 
 | Item | Por que parece antigo/equivocado | Ajuste sugerido |
 |---|---|---|
-| `06-codex-next-actions.md` recomenda primeiro PR documental v0.3 | ADRs, planos e docs vivos ja existem; a branch atual tem novos commits de docs. | Reescrever como reconciliacao atual, nao como primeiro PR historico. |
-| `ROADMAP.md` e `TEST_PLAN.md` citam commits antigos como marco atual | HEAD atual e `codex/docs-skills-sync`; base integrada e `origin/jubileu-v2` em `3210dd8`. | Separar marco historico de estado atual. |
-| `05-pr-template.md` proibe `codex/*` | Contradiz o fluxo real de Codex via workspace/IDE. | Trocar para regra condicional: `codex/*` permitido para trabalho assistido, PR obrigatorio para branch alvo. |
+| `06-codex-next-actions.md` recomenda primeiro PR documental v0.3 | ADRs, planos e docs vivos ja existem; a branch final deve ser `dev-41-docs-validacao-final`. | Reescrever como reconciliacao atual, nao como primeiro PR historico. |
+| `ROADMAP.md` e `TEST_PLAN.md` citam commits antigos como marco atual | A base integrada e `origin/jubileu-v2` em `3210dd8`; o fechamento documental usa `dev-41-docs-validacao-final`. | Separar marco historico de estado atual. |
+| `05-pr-template.md` nao explicava o padrao real de branch | O PR deve usar padrao do projeto. | Documentar `dev-NN-*`, `core-NN-*`, `chore/*`, `ops/*` e `docs/*`. |
 | `/api/dias/{diaId}/equipes` em service frontend | Nao existe rota backend efetiva equivalente. | Remover se morto ou migrar para `estado-equipes` por evento. |
 | Release plan com tags dev sequenciais | Pode nao refletir tags/branches reais atuais. | Verificar tags Git e Linear antes de seguir nomenclatura. |
 

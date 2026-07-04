@@ -14,7 +14,10 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 ## Estado Atual
 
-Branch de trabalho: `jubileu-v2`.
+Base integrada: `origin/jubileu-v2`.
+
+Branch final de trabalho para docs/validacao deste fechamento: `dev-41-docs-validacao-final`.
+Branches assistidas ou rascunhos locais nao devem ser usadas como branch final de PR.
 
 Marco tecnico mais recente: `94d4f45 chore(server): enable init for api container`.
 
@@ -64,7 +67,9 @@ Foco:
 - migrar services gradualmente para `apiClient`, sem big bang;
 - manter `npm run check:api-contract`;
 - adicionar `data-testid` apenas como camada minima de testabilidade;
-- evitar refatoracao visual fora de escopo;
+- evitar refatoracao visual fora de escopo; quando o slice for de UI/UX, justificar a
+  escolha de Tailwind puro, biblioteca existente ou dependencia nova por consistencia,
+  acessibilidade, manutencao, velocidade e risco;
 - ampliar Playwright para fluxos reais pela UI.
 
 ### Testes e Qualidade

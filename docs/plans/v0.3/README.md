@@ -17,8 +17,8 @@ Fechar o ciclo `v0.3.x` com a base operacional pronta para release: `Evento` can
 
 - Abrir `v0.4`.
 - Reintroduzir `Aula` como entidade publica.
-- Instalar Bootstrap.
-- Instalar shadcn/ui.
+- Introduzir dependencia de UI sem justificativa explicita de custo, consistencia,
+  acessibilidade, manutencao e risco.
 - Migrar para WebSocket/MQTT como caminho principal.
 
 ## Ordem De Execucao

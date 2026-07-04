@@ -3,7 +3,8 @@
 ## Estado analisado
 
 - Repositorio: `FelipeDalMolin/projeto-jubileu`
-- Branch local: `jubileu-v2`
+- Base integrada: `origin/jubileu-v2`
+- Branch final de docs/validacao: `dev-41-docs-validacao-final`
 - Marco tecnico de runtime/API analisado: `94d4f45 chore(server): enable init for api container`
 - Base local deste PR2: `4ec4284 ci: adiciona gate minimo e atualiza evidencias`
 - Data desta revisao: 2026-06-09

@@ -44,6 +44,6 @@ Falha qualquer item que:
 
 - reintroduza Aula como entidade publica;
 - exponha FastAPI ou PostgreSQL publicamente;
-- dependa de Bootstrap ou shadcn/ui;
+- introduza dependencia de UI sem motivacao, trade-offs e validacao visual documentados;
 - aceite segredo inseguro em producao;
 - publique release sem migration gate PostgreSQL.

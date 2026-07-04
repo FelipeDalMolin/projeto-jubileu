@@ -74,7 +74,7 @@ Resultado esperado da busca: sem ocorrencias.
 ## Fora de escopo
 
 - Alterar backend ou contratos dos services.
-- Instalar Bootstrap, shadcn/ui, lucide, recharts ou qualquer dependencia nova.
+- Introduzir dependencia nova sem justificar motivacao, trade-offs, manutencao e risco.
 - Refatorar `DashboardFilters` e `RankingTable`.
 - Redesenhar dashboards secundarios.
 - Reintroduzir ranking de trofeu com dados mockados.

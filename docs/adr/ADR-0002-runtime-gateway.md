@@ -9,7 +9,7 @@ Aceita para o ciclo `v0.3.x`.
 A topologia oficial de execucao e:
 
 ```text
-Cloudflare -> NGINX -> FastAPI -> PostgreSQL
+Cloudflare -> NGINX -> React SPA + FastAPI /api -> PostgreSQL
 ```
 
 NGINX e o unico servico exposto publicamente.
@@ -18,6 +18,7 @@ NGINX e o unico servico exposto publicamente.
 
 - FastAPI deve ficar acessivel apenas na rede interna do runtime.
 - PostgreSQL deve ficar acessivel apenas na rede interna do runtime.
+- React SPA deve ser servido pelo NGINX no runtime server, com fallback de rota SPA.
 - `/api` deve ser roteado via NGINX.
 - Health/login/refresh/accept-invite sao as unicas excecoes planejadas para rotas sem autenticacao quando formalizadas.
 - Release `v0.3.0` deve ter smoke integrado passando por NGINX.

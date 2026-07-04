@@ -78,7 +78,7 @@
 | Branch | `dev-40-ui-operacional-geral` ou `dev-NN-tailwind-only-ui-cleanup` |
 | Objetivo | Remover classes Bootstrap-like e consolidar componentes Tailwind. |
 | Arquivos provaveis | dashboards, jogadores, turmas, sessao |
-| Fora de escopo | Instalar Bootstrap ou shadcn/ui. |
+| Fora de escopo | Introduzir dependencia de UI sem justificativa explicita. |
 | Aceite | Grep sem classes Bootstrap-like em `src`; UI responsiva e consistente. |
 | Validacao | `npm run lint`, `npm run build`, grep de classes proibidas. |
 | Risco | Refactor visual grande demais para um PR. |
