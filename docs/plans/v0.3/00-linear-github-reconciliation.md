@@ -22,7 +22,7 @@ Nao ha issues nem PRs abertos em `FelipeDalMolin/projeto-jubileu`. GitHub deve s
 | DEV-37 | Done/In Review | Atualizar e fechar se lint/build passarem | Frontend ja usa rota canonica de Evento; manter validacao de regressao. | `dev-37-frontend-evento-only` |
 | DEV-38 | Done/In Review | Atualizar e fechar apos validar `/api/usuarios/me` | Usuario persistido existe; falta release gate. | `dev-38-usuario-persistido` |
 | DEV-39 | Done/In Review | Atualizar e fechar apos smoke `/usuario` | Pagina existe; validar historico e estados vazios. | `dev-39-pagina-usuario` |
-| DEV-40 | Em Progresso | Manter e refocar em Tailwind-only | UI geral esta parcial; precisa cleanup Bootstrap-like. | `dev-40-ui-operacional-geral` |
+| DEV-40 | Em Progresso | Manter como insumo de DEV-42 UI/UX operacional | UI geral esta parcial; precisa cleanup Bootstrap-like e decisao tecnica explicita. | `dev-42-ui-ux-cleanup-v03` |
 | DEV-41 | Em Progresso | Manter como release/docs gate | Fecha docs, checklist, release notes e smoke final. | `dev-41-docs-validacao-final` |
 | DEV-32 | Em Progresso | Manter e atualizar | Polling/auth hardening ainda e risco real. | `dev-32-polling-auth-hardening-por-canal` |
 | DEV-27 | Backlog | Manter | Infra/gateway/release smoke ainda pendente. | `dev-27-infra-runtime-gateway-deploy-mvp` |

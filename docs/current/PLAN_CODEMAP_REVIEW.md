@@ -29,8 +29,8 @@ no frontend e nao comprova sozinho gates de PostgreSQL, UI, auth, polling ou rel
 | Slice 02 - PostgreSQL migration gate | O mapa mostra tabelas e FKs, mas nao valida Alembic em PostgreSQL limpo/migrado. | Coerente e ainda valido. O code-map nao substitui migration gate. | Criar/rodar gate PostgreSQL com `DATABASE_URL_TEST` ou service Postgres no CI. |
 | Slice 03 - Backend Evento-only | Rotas publicas ativas usam `/api/dias/{data_iso}/eventos...`, `/api/eventos...`, `/api/partidas...`; nao ha rota publica `/api/aulas`. Existem rotas sem `/api` por compatibilidade. | Majoritariamente alinhado. As rotas sem `/api` nao sao contradicao se permanecerem compatibilidade interna/local. | Manter regra: novo frontend chama apenas `/api/...`; validar grep excluindo docs historicos e DB binario local. |
 | Slice 04 - Frontend Evento-only | Rotas SPA usam `/dias/:dataIso/eventos/:eventoId`; chamadas API usam `/api/...`; nao ha chamada ativa detectada para `/api/aulas` nem `/api/dias/{diaId}/equipes`. | Alinhado depois da remocao do legado de equipes por dia. | Manter o contrato canonico `estado-equipes` por evento. |
-| Slice 05 - Usuario persistido e pagina Usuario | Entidade `Usuario`, rota backend `/api/usuarios/me` e rota frontend `/usuario` existem no mapa. | Coerente. Existencia estrutural esta confirmada; comportamento ainda precisa smoke/evidencia. | Validar `/usuario`, usuario com `jogador_id` e historico em runtime. |
-| Slice 06 - Tailwind-only UI cleanup | O code-map nao avalia CSS. Grep encontrou classes Bootstrap-like ativas em dashboards, evento, jogador, turma e usuario. | Ainda valido e nao concluido. | Manter DEV-40/DEV-42 pendentes; priorizar dashboard/workspace/turmas conforme impacto. |
+| Slice 05 - Usuario persistido e pagina Usuario | Entidade `Usuario`, rota backend `/api/usuarios/me` e rota frontend `/usuario` existem no mapa. | Coerente e validado em smoke DEV-41 no compose dev. | Manter evidencia em PR/Linear: login, `/usuario`, `/api/usuarios/me`, historico vazio e erro operacional sem flood. |
+| Slice 06 - UI/UX cleanup operacional | O code-map nao avalia CSS. Grep encontrou classes Bootstrap-like ativas em dashboards, evento, jogador, turma e usuario. | Ainda valido e nao concluido. | Executar DEV-42 por fluxo, justificando Tailwind puro, biblioteca existente ou dependencia nova por consistencia, acessibilidade, manutencao, velocidade e risco. |
 | Slice 07 - Auth hardening v0.3 | O code-map mostra auth login/me. Grep encontrou `JWT_SECRET = CHANGE_ME`, hash de senha via `sha256` e token em `localStorage`. | Ainda valido e importante. | Definir baseline de segredo/hash/sessao antes de release. |
 | Slice 08 - Polling/auth hardening | O code-map mostra workspace/rotacao. Grep encontrou `refetchInterval`, `staleTime: 1000` e chamadas `{ force: true }`. | Ainda valido. | Revisar fan-out, backoff, pausa em 401 e cache por canal. |
 | Slice 09 - CI release gate v0.3 | `.github/workflows/ci.yml` tem docs-sync, backend coverage/smoke/contract, frontend lint/build/check e Playwright preflight. | Parcial. CI existe, mas nao inclui PostgreSQL real e roda oficialmente para PR/push em `jubileu-v2`. | Adicionar PostgreSQL/migration gate e garantir PR da branch final para `jubileu-v2`. |
@@ -80,22 +80,23 @@ O mapa confirma:
 - rota backend `/api/usuarios/me`;
 - rota frontend `/usuario`.
 
-Logo, o plano de usuario nao deve ser tratado como inexistente. O que falta e evidencia de
-comportamento: usuario autenticado, `jogador_id`, historico e estados vazios.
+Logo, o plano de usuario nao deve ser tratado como inexistente. A branch
+`dev-41-smoke-validacao-final` adicionou evidencia browser para login, `/usuario`,
+`/api/usuarios/me`, historico/estado vazio e erro 503 sem novas chamadas apos erro.
 
 ### 4. Gates tecnicos ainda nao foram todos provados
 
 O code-map nao prova:
 
 - Alembic em PostgreSQL limpo/migrado;
-- Playwright completo;
+- Playwright completo para todos os UCs;
 - smoke manual/publico;
 - politica de release/tag;
 - seguranca de auth;
-- qualidade visual Tailwind-only.
+- qualidade visual/UI cleanup.
 
-Portanto, planos de PostgreSQL gate, E2E, auth hardening, UI cleanup e release smoke ainda
-sao validos mesmo com a arquitetura principal ja materializada.
+Portanto, planos de PostgreSQL gate, E2E amplo, auth hardening, UI cleanup e release smoke
+ainda sao validos mesmo com a arquitetura principal ja materializada.
 
 ### 5. O plano de branches precisa seguir o padrao real do projeto
 
@@ -129,5 +130,5 @@ padrao acima antes de abrir PR para `jubileu-v2`.
    - PostgreSQL migration gate;
    - auth hardening;
    - polling/auth hardening;
-   - Tailwind-only cleanup;
+   - UI/UX cleanup operacional;
    - release smoke via NGINX.

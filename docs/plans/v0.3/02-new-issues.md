@@ -4,7 +4,7 @@ Criar apenas se a reconciliacao confirmar lacuna real.
 
 | Titulo | Tipo | Descricao | Aceite | Branch | Dependencias | Substitui |
 |---|---|---|---|---|---|---|
-| Tailwind-only UI cleanup | DEV | Remover classes Bootstrap-like e consolidar componentes proprios Tailwind. | Grep sem classes Bootstrap-like; lint/build verdes; telas principais revisadas. | `dev-NN-tailwind-only-ui-cleanup` | DEV-40 | parte de DEV-40 se ficar amplo demais |
+| UI/UX cleanup operacional | DEV | Remover inconsistencias Bootstrap-like e consolidar componentes/estilos com decisao tecnica explicita. | Grep sem classes Bootstrap-like obvias; lint/build verdes; telas principais revisadas; decisao UI justificada no PR. | `dev-42-ui-ux-cleanup-v03` | DEV-40/DEV-42 | a escolha pode ser Tailwind puro, biblioteca existente ou dependencia nova motivada |
 | Auth hardening v0.3 | DEV | Endurecer segredo, hashing, storage de token e fallback legado. | Sem segredo inseguro em prod; hash robusto; sessao segura; testes auth. | `dev-NN-auth-hardening-v03` | Usuario persistido | nova |
 | CI release gate v0.3 | DEV | Criar CI com pytest, Alembic em PostgreSQL, lint e build. | Workflow verde em PR; docs de gate atualizadas. | `dev-NN-ci-release-gate-v03` | migrations estaveis | parte de DEV-41 |
 | Release smoke v0.3.0 | DEV | Executar smoke integrado via NGINX e fechar tag. | Smoke login/usuario/AULA/JOGO_LIVRE/dashboard; release notes. | `dev-NN-v030-release-smoke` | DEV-27, CI gate | parte de DEV-41 |

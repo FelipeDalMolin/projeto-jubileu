@@ -17,6 +17,14 @@ npm run lint
 npm run build
 ```
 
+## Playwright Dev Container
+
+```bash
+docker exec jubileu-dev-frontend-dev-1 sh -lc 'apk add --no-cache chromium'
+docker exec jubileu-dev-frontend-dev-1 sh -lc 'E2E_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser E2E_REUSE_EXISTING_SERVER=1 E2E_BASE_URL=http://frontend-dev:5173 E2E_API_URL=http://backend:8000 npm run test:e2e -- --project=chromium e2e/dev41-smoke.spec.ts --reporter=list'
+docker exec jubileu-dev-frontend-dev-1 sh -lc 'E2E_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser E2E_REUSE_EXISTING_SERVER=1 E2E_BASE_URL=http://frontend-dev:5173 E2E_API_URL=http://backend:8000 npm run test:e2e -- --project=chromium e2e/contract.spec.ts e2e/uc01-login.spec.ts e2e/uc10-dashboard.spec.ts --reporter=list --workers=1 --timeout=90000'
+```
+
 ## Buscas Obrigatorias
 
 ```bash

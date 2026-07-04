@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Fechar o ciclo `v0.3.x` com a base operacional pronta para release: `Evento` canonico, `Usuario` persistido, migrations validadas em PostgreSQL, UI Tailwind-only, auth/polling endurecidos, CI/release gate e smoke integrado.
+Fechar o ciclo `v0.3.x` com a base operacional pronta para release: `Evento` canonico, `Usuario` persistido, migrations validadas em PostgreSQL, UI/UX operacional consistente, auth/polling endurecidos, CI/release gate e smoke integrado.
 
 ## Escopo
 
