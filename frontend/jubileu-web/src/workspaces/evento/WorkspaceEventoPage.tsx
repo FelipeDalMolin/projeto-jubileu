@@ -68,6 +68,11 @@ function toRequestAuth(
   };
 }
 
+function retryAuthenticatedChannel(failureCount: number, error: Error): boolean {
+  if (error.message.startsWith("401")) return false;
+  return failureCount < 1;
+}
+
 export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props) {
   const navigate = useNavigate();
   const auth = useAuthSession();
@@ -149,6 +154,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       ]);
       return { participants, presentes };
     },
+    retry: retryAuthenticatedChannel,
     refetchInterval: () => (document.hidden ? false : 3000),
   });
 
@@ -169,6 +175,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       });
       return lances.map(mapLanceToTimelineItem);
     },
+    retry: retryAuthenticatedChannel,
     refetchInterval: () => (document.hidden ? false : 2200),
   });
 
@@ -188,6 +195,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       });
       return lances.map(mapLanceToTimelineItem);
     },
+    retry: retryAuthenticatedChannel,
     refetchInterval: () => (document.hidden ? false : 3000),
   });
 
@@ -202,6 +210,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       if (!requestAuth || !eventoIdNum) return null;
       return await obterEstadoRotacaoEvento(eventoIdNum, requestAuth);
     },
+    retry: retryAuthenticatedChannel,
     refetchInterval: () => (document.hidden ? false : 3000),
   });
 

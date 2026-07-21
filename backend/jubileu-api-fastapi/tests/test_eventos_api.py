@@ -57,6 +57,26 @@ def _criar_evento_jogo_livre(db_session):
     return evento.id, jogador_1.id, jogador_2.id
 
 
+def _criar_evento_jogo_livre_sem_snapshot(db_session):
+    dia = DiaModel(data_iso="2026-03-11")
+    jogador = JogadorModel(nome="Jogador RSVP publico", status="ativo", ativo=True)
+    db_session.add_all([dia, jogador])
+    db_session.flush()
+    evento = EventoModel(
+        dia_id=dia.id,
+        turma_id=None,
+        turma_nome=None,
+        numero_evento_na_turma=None,
+        tipo=TipoEventoEnum.JOGO_LIVRE,
+        horario_inicio="19:00",
+        horario_fim="20:00",
+        status=StatusEventoEnum.PLANEJADO,
+    )
+    db_session.add(evento)
+    db_session.commit()
+    return evento.id, jogador.id
+
+
 def _criar_evento_evento_com_partida_para_lance(db_session):
     dia = DiaModel(data_iso="2026-03-02")
     turma = TurmaModel(nome="Turma Evento Lance")
@@ -358,6 +378,55 @@ def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     assert len(items) == 1
     assert items[0]["tipo"] == "GOL"
     assert items[0]["jogador_nome"] == "Jogador 1"
+
+
+@pytest.mark.uc06
+def test_jogo_livre_rsvp_materializa_snapshot_do_jogador_vinculado(client: TestClient, db_session):
+    evento_id, jogador_id = _criar_evento_jogo_livre_sem_snapshot(db_session)
+    headers = {
+        "X-User-Id": "e2e-jogo-livre",
+        "X-Role": "user",
+        "X-Jogador-Id": str(jogador_id),
+    }
+
+    primeiro = client.post(f"/api/eventos/{evento_id}/rsvp", headers=headers)
+    retry = client.post(f"/api/eventos/{evento_id}/rsvp", headers=headers)
+
+    assert primeiro.status_code == 200, primeiro.text
+    assert retry.status_code == 200, retry.text
+    snapshots = (
+        db_session.query(JogadorEventoModel)
+        .filter(
+            JogadorEventoModel.evento_id == evento_id,
+            JogadorEventoModel.jogador_id == jogador_id,
+        )
+        .all()
+    )
+    assert len(snapshots) == 1
+    assert snapshots[0].nome == "Jogador RSVP publico"
+
+
+@pytest.mark.uc06
+def test_checkin_self_nao_materializa_jogador_em_aula(client: TestClient, db_session):
+    evento_id, jogador_id = _criar_evento_jogo_livre_sem_snapshot(db_session)
+    evento = db_session.get(EventoModel, evento_id)
+    evento.tipo = TipoEventoEnum.AULA
+    evento.status = StatusEventoEnum.EM_ANDAMENTO
+    db_session.commit()
+
+    response = client.post(
+        f"/api/eventos/{evento_id}/checkin",
+        headers={
+            "X-User-Id": "e2e-aula-self",
+            "X-Role": "user",
+            "X-Jogador-Id": str(jogador_id),
+        },
+    )
+
+    assert response.status_code == 409, response.text
+    assert db_session.query(JogadorEventoModel).filter(
+        JogadorEventoModel.evento_id == evento_id,
+    ).count() == 0
 
 
 @pytest.mark.uc06

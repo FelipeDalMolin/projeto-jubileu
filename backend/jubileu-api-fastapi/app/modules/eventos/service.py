@@ -29,6 +29,7 @@ from app.models.dia_evento import (
     TimeEvento as TimeEventoModel,
     TipoEventoEnum,
 )
+from app.models.jogador_turma import Jogador as JogadorModel
 from app.schemas.eventos import (
     EventoActionOut,
     EventoOut,
@@ -168,6 +169,46 @@ def assert_jogador_na_evento(db: Session, evento_id: int, jogador_id: int) -> No
         raise HTTPException(status_code=404, detail="Jogador nao pertence ao evento")
 
 
+def ensure_jogador_no_jogo_livre(
+    db: Session,
+    evento_id: int,
+    jogador_id: int,
+) -> JogadorEventoModel:
+    """Materializa o snapshot do jogador quando ele entra no JOGO_LIVRE."""
+    _lock_evento_for_command(db, evento_id)
+    snapshot = (
+        db.query(JogadorEventoModel)
+        .filter(
+            JogadorEventoModel.evento_id == evento_id,
+            JogadorEventoModel.jogador_id == jogador_id,
+        )
+        .first()
+    )
+    if snapshot:
+        return snapshot
+
+    jogador = (
+        db.query(JogadorModel)
+        .filter(
+            JogadorModel.id == jogador_id,
+            JogadorModel.ativo.is_(True),
+        )
+        .first()
+    )
+    if not jogador:
+        raise HTTPException(status_code=404, detail="Jogador vinculado nao encontrado ou inativo")
+
+    snapshot = JogadorEventoModel(
+        evento_id=evento_id,
+        jogador_id=jogador.id,
+        nome=jogador.nome,
+        status=StatusPresencaEnum.so_treino,
+    )
+    db.add(snapshot)
+    db.flush()
+    return snapshot
+
+
 def _lock_evento_for_command(db: Session, evento_id: int) -> None:
     db.query(EventoModel.id).filter(EventoModel.id == evento_id).with_for_update().one()
 
@@ -247,7 +288,7 @@ def rsvp_self_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, Eve
     if user.jogador_id is None:
         raise HTTPException(status_code=403, detail="User sem jogador associado")
 
-    assert_jogador_na_evento(db, evento.id, user.jogador_id)
+    ensure_jogador_no_jogo_livre(db, evento.id, user.jogador_id)
     participante = get_or_create_participante(db, evento.id, user.jogador_id, user.user_id)
     if participante.status == EventoParticipanteStatusEnum.CHECKED_IN:
         db.commit()
@@ -289,11 +330,12 @@ def rsvp_self_cancel_flow(db: Session, evento_id: int, user: AuthUser) -> dict[s
 
 def checkin_self_flow(db: Session, evento_id: int, user: AuthUser) -> dict[str, EventoParticipanteOut]:
     evento = get_evento_or_404(db, evento_id)
+    assert_evento_tipo_jogo_livre(evento)
     assert_evento_em_andamento(evento)
     if user.jogador_id is None:
         raise HTTPException(status_code=403, detail="User sem jogador associado")
 
-    assert_jogador_na_evento(db, evento.id, user.jogador_id)
+    ensure_jogador_no_jogo_livre(db, evento.id, user.jogador_id)
     participante = get_or_create_participante(db, evento.id, user.jogador_id, user.user_id)
     if participante.status != EventoParticipanteStatusEnum.CHECKED_IN:
         participante.status = EventoParticipanteStatusEnum.CHECKED_IN
