@@ -16,15 +16,14 @@ jq -e '.status == "ready"' <<<"$READY_JSON" >/dev/null
 jq -e --arg expected "$(jq -r .git_sha "$MANIFEST")" '.git_sha == $expected' <<<"$VERSION_JSON" >/dev/null
 jq -e --arg expected "$(jq -r .alembic_head "$MANIFEST")" '.schema_revision == $expected' <<<"$VERSION_JSON" >/dev/null
 
-if docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$RELEASE_ENV_FILE" \
-  -f "$ROOT_DIR/compose.release.yml" port jubileu-db 5432 | grep -q .; then
-  echo "PostgreSQL must not publish a host port." >&2
-  exit 1
-fi
-if docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$RELEASE_ENV_FILE" \
-  -f "$ROOT_DIR/compose.release.yml" port jubileu-api 8000 | grep -q .; then
-  echo "FastAPI must not publish a host port." >&2
-  exit 1
-fi
+for service in jubileu-db jubileu-api; do
+  container_id="$(docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$RELEASE_ENV_FILE" \
+    -f "$ROOT_DIR/compose.release.yml" ps -q "$service")"
+  if docker inspect "$container_id" | jq -e \
+    '.[0].NetworkSettings.Ports | to_entries | any(.value != null)' >/dev/null; then
+    echo "$service must not publish a host port." >&2
+    exit 1
+  fi
+done
 
 echo "Release smoke OK: identity, readiness, frontend and private service ports verified."
