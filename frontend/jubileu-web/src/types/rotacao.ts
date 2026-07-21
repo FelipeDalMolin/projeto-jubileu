@@ -60,3 +60,24 @@ export type RotacaoConfirmResult = {
   estado: EventoRotacaoEstado;
   audit: RotacaoAuditRecord;
 };
+
+export type ProximaPartidaPayload = {
+  partida_origem_id: number;
+  time_a_id: number;
+  time_b_id: number;
+  expected_rotation_version: number;
+  client_command_id: string;
+};
+
+export type ProximaPartidaResult = {
+  partida: {
+    id: number;
+    evento_id: number;
+    ordem: number;
+    status: "EM_ANDAMENTO";
+    time_a_id: number;
+    time_b_id: number;
+  };
+  rotation_version: number;
+  fila_resultante: RotacaoGrupo[];
+};

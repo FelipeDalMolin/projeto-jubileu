@@ -53,4 +53,6 @@ ao inves de criar duplicata.
 - Lances usam `client_event_id` por partida para retry idempotente.
 - Partidas usam ordem unica por evento.
 - Estatisticas usam uma linha por jogador em cada partida.
+- Proxima partida usa `client_command_id`, hash do payload e snapshot da resposta; o lock segue
+  `Evento -> EventoRotacaoEstado -> filhos`, e um indice parcial protege a partida ativa.
 - `estado-equipes` e rotacao aceitam `expected_version` e retornam `409 version_conflict`.

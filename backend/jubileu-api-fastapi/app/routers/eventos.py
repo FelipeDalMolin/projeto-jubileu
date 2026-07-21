@@ -15,6 +15,8 @@ from app.schemas.eventos import (
     LanceListOut,
     LanceCreateIn,
     LanceCreateOut,
+    ProximaPartidaIn,
+    ProximaPartidaOut,
     RotacaoConfirmIn,
     RotacaoConfirmOut,
     RotacaoEstadoOut,
@@ -112,6 +114,27 @@ def seed_primeira_partida(
     user: AuthUser = Depends(get_current_user),
 ) -> SeedPartidaOut:
     return eventos_service.seed_primeira_partida_flow(db, evento_id, payload, user)
+
+
+@router.post("/eventos/{evento_id}/partidas/proxima", response_model=ProximaPartidaOut)
+def criar_proxima_partida(
+    evento_id: int,
+    payload: ProximaPartidaIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> ProximaPartidaOut:
+    return eventos_service.criar_proxima_partida_flow(db, evento_id, payload, user)
+
+
+@router.post("/dias/{data_iso}/eventos/{evento_id}/partidas/proxima", response_model=ProximaPartidaOut)
+def criar_proxima_partida_contextual(
+    data_iso: str,
+    evento_id: int,
+    payload: ProximaPartidaIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> ProximaPartidaOut:
+    return eventos_service.criar_proxima_partida_flow(db, evento_id, payload, user, data_iso=data_iso)
 
 
 @router.get("/eventos/{evento_id}/participants", response_model=EventoParticipantesListOut)

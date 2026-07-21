@@ -356,17 +356,38 @@ def iniciar_partida(
 ) -> CommandOkOut:
     evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
     dias_service.assert_evento_editavel(evento)
+    _lock_evento_for_command(db, evento.id)
     partida = _obter_partida_na_evento_or_404(db, evento.id, partida_id)
 
     if evento.status != StatusEventoEnum.EM_ANDAMENTO:
         raise HTTPException(status_code=409, detail="Evento precisa estar EM_ANDAMENTO para iniciar partida")
     if partida.status != PartidaStatusEnum.PLANEJADA:
         raise HTTPException(status_code=409, detail="Partida nao pode iniciar neste status")
+    partida_ativa = (
+        db.query(PartidaModel.id)
+        .filter(
+            PartidaModel.evento_id == evento.id,
+            PartidaModel.status == PartidaStatusEnum.EM_ANDAMENTO,
+        )
+        .first()
+    )
+    if partida_ativa:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "active_match_conflict", "message": "Ja existe partida em andamento."},
+        )
 
     partida.status = PartidaStatusEnum.EM_ANDAMENTO
     partida.inicio_at = partida.inicio_at or datetime.now(timezone.utc)
     partida.fim_at = None
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "active_match_conflict", "message": "Outra partida foi iniciada."},
+        ) from exc
     current_version = partidas_service.calcular_version_atual(db, evento)
     return CommandOkOut(status="ok", version=current_version)
 

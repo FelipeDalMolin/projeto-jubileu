@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, JSON, String, UniqueConstraint, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,7 +13,17 @@ from app.models.dia_evento_enums import PartidaStatusEnum
 
 class Partida(Base):
     __tablename__ = "partidas"
-    __table_args__ = (UniqueConstraint("evento_id", "ordem", name="uq_partidas_evento_ordem"),)
+    __table_args__ = (
+        UniqueConstraint("evento_id", "ordem", name="uq_partidas_evento_ordem"),
+        UniqueConstraint("evento_id", "client_command_id", name="uq_partidas_evento_client_command"),
+        Index(
+            "uq_partidas_evento_em_andamento",
+            "evento_id",
+            unique=True,
+            postgresql_where=text("status = 'EM_ANDAMENTO'"),
+            sqlite_where=text("status = 'EM_ANDAMENTO'"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False)
@@ -30,6 +40,11 @@ class Partida(Base):
     time_b_id: Mapped[int] = mapped_column(Integer, ForeignKey("times_evento.id"), nullable=False)
     gols_time_a: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     gols_time_b: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    client_command_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    client_command_payload_hash: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    partida_origem_id: Mapped[Optional[int]] = mapped_column(ForeignKey("partidas.id"), nullable=True)
+    command_rotation_version: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    command_result_queue: Mapped[Optional[list[dict]]] = mapped_column(JSON, nullable=True)
 
     evento: Mapped["Evento"] = relationship("Evento", back_populates="partidas")
     estatisticas: Mapped[List["EstatisticaJogadorPartida"]] = relationship(

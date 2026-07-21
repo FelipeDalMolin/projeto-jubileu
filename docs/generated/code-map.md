@@ -17,7 +17,7 @@ Nao edite manualmente; atualize o codigo ou os docs vivos e gere novamente.
 | `Jogador` | `jogadores` | - |
 | `JogadorEvento` | `jogadores_evento` | evento_id -> eventos.id, jogador_id -> jogadores.id, time_id -> times_evento.id |
 | `Lance` | `lances` | partida_id -> partidas.id, evento_id -> eventos.id, jogador_id -> jogadores.id |
-| `Partida` | `partidas` | evento_id -> eventos.id, time_a_id -> times_evento.id, time_b_id -> times_evento.id |
+| `Partida` | `partidas` | evento_id -> eventos.id, time_a_id -> times_evento.id, time_b_id -> times_evento.id, partida_origem_id -> partidas.id |
 | `TeamConfig` | `team_configs` | evento_id -> eventos.id |
 | `TimeEvento` | `times_evento` | evento_id -> eventos.id |
 | `Turma` | `turmas` | - |
@@ -116,6 +116,7 @@ erDiagram
   eventos ||--o{ partidas : "evento_id"
   times_evento ||--o{ partidas : "time_a_id"
   times_evento ||--o{ partidas : "time_b_id"
+  partidas ||--o{ partidas : "partida_origem_id"
   eventos ||--o{ team_configs : "evento_id"
   eventos ||--o{ times_evento : "evento_id"
   turmas ||--o{ turmas_jogadores : "turma_id"
@@ -165,6 +166,7 @@ erDiagram
 | `POST` | `/api/dias/{data_iso}/eventos` |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/finish` |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas` |
+| `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/proxima` |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end` |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start` |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/start` |
@@ -173,6 +175,7 @@ erDiagram
 | `POST` | `/api/eventos/{evento_id}/checkin` |
 | `POST` | `/api/eventos/{evento_id}/end` |
 | `POST` | `/api/eventos/{evento_id}/participants/{jogador_id}/checkin` |
+| `POST` | `/api/eventos/{evento_id}/partidas/proxima` |
 | `POST` | `/api/eventos/{evento_id}/partidas/seed` |
 | `POST` | `/api/eventos/{evento_id}/rotacao/confirmar-sorteio` |
 | `POST` | `/api/eventos/{evento_id}/rotacao/preview-sorteio` |
@@ -300,6 +303,7 @@ erDiagram
 | `GET` | `/api/eventos/{eventoId}/lances{suffix}` |
 | `GET` | `/api/eventos/{eventoId}/participants` |
 | `POST` | `/api/eventos/{eventoId}/participants/{jogadorId}/checkin` |
+| `POST` | `/api/eventos/{eventoId}/partidas/proxima` |
 | `POST` | `/api/eventos/{eventoId}/partidas/seed` |
 | `GET` | `/api/eventos/{eventoId}/presentes?order=arrival` |
 | `POST` | `/api/eventos/{eventoId}/rotacao/confirmar-sorteio` |
