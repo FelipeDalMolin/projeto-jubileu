@@ -64,7 +64,6 @@ function toRequestAuth(
     userId: current.userId,
     role: current.role,
     jogadorId: current.jogadorId,
-    accessToken: current.accessToken,
   };
 }
 

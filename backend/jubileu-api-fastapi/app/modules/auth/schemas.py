@@ -10,12 +10,6 @@ class AuthLoginIn(BaseModel):
     password: str
 
 
-class AuthTokenOut(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: int
-
-
 class AuthMeOut(BaseModel):
     user_id: str
     username: Optional[str] = None
@@ -23,3 +17,4 @@ class AuthMeOut(BaseModel):
     email: Optional[str] = None
     role: str
     jogador_id: Optional[int] = None
+    expires_in: Optional[int] = None

@@ -8,6 +8,15 @@ This document summarizes the public contracts used by the current MVP.
 
 `/api` is the backend gateway prefix for canonical infrastructure-facing routes. NGINX remains the production entrypoint and PostgreSQL must not be exposed publicly.
 
+## Auth v0.3
+
+- `POST /api/auth/login` define cookies HttpOnly de access/refresh e retorna o usuario, nunca o token.
+- `POST /api/auth/refresh` rotaciona a sessao; exige CSRF assinado e pode retornar `409 refresh_already_rotated` para corrida imediata.
+- `POST /api/auth/logout` revoga somente a sessao atual e remove seus cookies.
+- `GET /api/auth/me` aceita cookie ou Bearer; contextos divergentes retornam `401 auth_context_conflict`.
+- CSRF e obrigatorio somente para comandos autenticados por cookie. Bearer exclusivo permanece adequado para clientes tecnicos.
+- Headers `X-User-*` sao compatibilidade exclusiva de development/test.
+
 ## Compatibility Model
 
 Current state:

@@ -1,4 +1,5 @@
 import type { RequestAuth } from "../context/AuthContext";
+import { apiFetch } from "../lib/apiClient";
 import type { EventoStatus, EventoTipo, EventoParticipanteStatus } from "../types/evento";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -45,24 +46,9 @@ async function safeText(resp: Response) {
   }
 }
 
-function authHeaders(auth: RequestAuth): Record<string, string> {
-  if (auth.accessToken) {
-    return { Authorization: `Bearer ${auth.accessToken}` };
-  }
-  const headers: Record<string, string> = {
-    "X-User-Id": auth.userId,
-    "X-Role": auth.role,
-  };
-  if (auth.jogadorId != null) {
-    headers["X-Jogador-Id"] = String(auth.jogadorId);
-  }
-  return headers;
-}
-
-export async function obterUsuarioMe(auth: RequestAuth): Promise<UsuarioMeResponse> {
-  const resp = await fetch(buildUrl("/api/usuarios/me"), {
-    headers: authHeaders(auth),
-  });
+export async function obterUsuarioMe(_auth: RequestAuth): Promise<UsuarioMeResponse> {
+  void _auth;
+  const resp = await apiFetch(buildUrl("/api/usuarios/me"));
   if (!resp.ok) {
     throw new Error(`Erro ao carregar usuario: ${resp.status} ${await safeText(resp)}`);
   }
@@ -70,13 +56,13 @@ export async function obterUsuarioMe(auth: RequestAuth): Promise<UsuarioMeRespon
 }
 
 export async function atualizarUsuarioJogador(
-  auth: RequestAuth,
+  _auth: RequestAuth,
   jogadorId: number | null,
 ): Promise<UsuarioMeResponse> {
-  const resp = await fetch(buildUrl("/api/usuarios/me/jogador"), {
+  void _auth;
+  const resp = await apiFetch(buildUrl("/api/usuarios/me/jogador"), {
     method: "PUT",
     headers: {
-      ...authHeaders(auth),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ jogador_id: jogadorId }),

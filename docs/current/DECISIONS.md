@@ -16,6 +16,7 @@ Discussao detalhada pode existir no Linear, mas a regra ativa para implementacao
 | CORE-5 | Presenca e check-in | Ativa | RSVP, check-in e jogador vinculado sao fluxos de dominio. |
 | CORE-6 | UI modular e indicadores | Ativa | Telas operacionais devem ser modulares, densas, escaneaveis e sem polling descontrolado. |
 | CORE-10 | Command safety | Ativa | Comandos mutaveis devem declarar e testar concorrencia, idempotencia, retry e conflito de versao quando aplicavel. |
+| CORE-8 | Auth security baseline v0.3 | Ativa | Browser usa cookies HttpOnly, refresh rotativo e CSRF vinculado a sessao; senhas migram para Argon2id sem destruir o hash legado durante a janela de rollback v0.3. |
 
 ## Regras Canonicas
 
@@ -26,6 +27,8 @@ Discussao detalhada pode existir no Linear, mas a regra ativa para implementacao
 - Nao reintroduzir `/dias/:dataIso/aulas/:aulaId`, `aulaId`, `aula_id` ou `WorkspaceAula` em codigo ativo.
 - Referencias antigas a Aula nos docs arquivados sao historicas e nao devem guiar implementacao nova.
 - Comandos mutaveis nao podem depender apenas de debounce/frontend para integridade; seguir `COMMAND_SAFETY.md`.
+- Access JWT expira em 5 minutos. Logout revoga refresh e cookies imediatamente, mas um access token roubado pode continuar valido ate o TTL terminar.
+- Contas padrao so podem ser semeadas explicitamente em development/test e ficam inativas por migration em bancos existentes.
 
 ## Quando Criar Nova ADR
 

@@ -1,19 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import {
-  getCurrentUser,
-  loginAuth,
-  type UserRole,
-} from "../services/authService";
-
-export type AuthMode = "jwt" | "legacy";
+import { getCurrentUser, loginAuth, logoutAuth, type AuthMeResponse, type UserRole } from "../services/authService";
 
 export type UserSession = {
   userId: string;
@@ -21,157 +9,77 @@ export type UserSession = {
   email?: string | null;
   role: UserRole;
   jogadorId: number | null;
-  accessToken: string | null;
-  authMode: AuthMode;
   displayName: string;
 };
 
-export type RequestAuth = {
-  userId: string;
-  role: UserRole;
-  jogadorId?: number;
-  accessToken?: string | null;
-};
+export type RequestAuth = { userId: string; role: UserRole; jogadorId?: number };
 
 type AuthContextType = {
   user: UserSession | null;
   loading: boolean;
   login: (username: string, senha: string) => Promise<void>;
-  logout: () => void;
-  setRole: (role: UserRole) => void;
-  setJogadorId: (jogadorId: number | null) => void;
+  logout: () => Promise<void>;
   getRequestAuth: () => RequestAuth | null;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = "jubileu:authSession";
-
-function parseStoredSession(raw: string | null): UserSession | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<UserSession>;
-    if (!parsed.userId || !parsed.role) return null;
-    return {
-      userId: parsed.userId,
-      role: parsed.role,
-      username: parsed.username ?? null,
-      email: parsed.email ?? null,
-      jogadorId: parsed.jogadorId ?? null,
-      accessToken: parsed.accessToken ?? null,
-      authMode: parsed.authMode ?? "legacy",
-      displayName: parsed.displayName ?? parsed.userId,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function persistSession(session: UserSession | null) {
-  if (!session) {
-    localStorage.removeItem(STORAGE_KEY);
-    return;
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+function toSession(me: AuthMeResponse): UserSession {
+  return {
+    userId: me.user_id,
+    username: me.username,
+    email: me.email,
+    role: me.role,
+    jogadorId: me.jogador_id,
+    displayName: me.display_name ?? me.username ?? me.user_id,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserSession | null>(() =>
-    parseStoredSession(localStorage.getItem(STORAGE_KEY)),
-  );
-  const loading = false;
+  const [user, setUser] = useState<UserSession | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const restore = useCallback(async () => {
+    try {
+      setUser(toSession(await getCurrentUser()));
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void restore();
+    const expired = () => setUser(null);
+    window.addEventListener("jubileu:session-expired", expired);
+    return () => window.removeEventListener("jubileu:session-expired", expired);
+  }, [restore]);
 
   async function login(username: string, senha: string) {
-    const normalized = username.trim();
-    if (!normalized || !senha) {
-      throw new Error("Informe usuario e senha.");
-    }
+    if (!username.trim() || !senha) throw new Error("Informe usuario e senha.");
+    setUser(toSession(await loginAuth(username.trim(), senha)));
+  }
 
+  async function logout() {
     try {
-      const token = await loginAuth(normalized, senha);
-      const me = await getCurrentUser(token.access_token);
-
-      const session: UserSession = {
-        userId: me.user_id,
-        username: me.username ?? normalized,
-        email: me.email ?? null,
-        role: me.role,
-        jogadorId: me.jogador_id ?? null,
-        accessToken: token.access_token,
-        authMode: "jwt",
-        displayName: me.display_name ?? me.username ?? normalized,
-      };
-
-      setUser(session);
-      persistSession(session);
-      return;
-    } catch {
-      const fallback: UserSession = {
-        userId: normalized,
-        username: normalized,
-        email: null,
-        role: "user",
-        jogadorId: null,
-        accessToken: null,
-        authMode: "legacy",
-        displayName: normalized,
-      };
-      setUser(fallback);
-      persistSession(fallback);
+      await logoutAuth();
+    } finally {
+      setUser(null);
     }
   }
 
-  function logout() {
-    setUser(null);
-    persistSession(null);
-  }
-
-  function setRole(role: UserRole) {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, role };
-      persistSession(next);
-      return next;
-    });
-  }
-
-  function setJogadorId(jogadorId: number | null) {
-    setUser((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, jogadorId };
-      persistSession(next);
-      return next;
-    });
-  }
-
-  const value = useMemo<AuthContextType>(
-    () => ({
-      user,
-      loading,
-      login,
-      logout,
-      setRole,
-      setJogadorId,
-      getRequestAuth: () =>
-        user
-          ? {
-              userId: user.userId,
-              role: user.role,
-              jogadorId: user.jogadorId ?? undefined,
-              accessToken: user.accessToken,
-            }
-          : null,
-    }),
-    [loading, user],
+  const getRequestAuth = useCallback(
+    () => user ? { userId: user.userId, role: user.role, jogadorId: user.jogadorId ?? undefined } : null,
+    [user],
   );
 
+  const value = useMemo(() => ({ user, loading, login, logout, getRequestAuth }), [user, loading, getRequestAuth]);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextType {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth deve ser usado dentro de AuthProvider");
-  }
-  return ctx;
+  const value = useContext(AuthContext);
+  if (!value) throw new Error("useAuth deve ser usado dentro de AuthProvider");
+  return value;
 }
