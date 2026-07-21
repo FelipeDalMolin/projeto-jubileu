@@ -194,6 +194,7 @@ erDiagram
 | `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/start` |
 | `PUT` | `/api/jogadores/{jogador_id}` |
 | `PUT` | `/api/turmas/{turma_id}` |
+| `PUT` | `/api/usuarios/me/jogador` |
 
 ### Internas/Compatibilidade
 
@@ -316,6 +317,7 @@ erDiagram
 | `FETCH` | `/api/turmas/{turmaId}/jogadores` |
 | `FETCH` | `/api/turmas/{turmaId}/jogadores/{jogadorId}` |
 | `URL` | `/api/usuarios/me` |
+| `URL` | `/api/usuarios/me/jogador` |
 
 ## Leitura Arquitetural
 
