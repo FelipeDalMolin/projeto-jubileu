@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from datetime import timedelta
+import hashlib
+import json
 import random
 import uuid
 
@@ -36,6 +38,8 @@ from app.schemas.eventos import (
     LanceCreateOut,
     LanceOut,
     LanceListOut,
+    ProximaPartidaIn,
+    ProximaPartidaOut,
     RotacaoAuditRecordOut,
     RotacaoConfirmOut,
     RotacaoEstadoOut,
@@ -984,6 +988,211 @@ def get_rotacao_estado_flow(db: Session, evento_id: int, user: AuthUser) -> Rota
         updated_at=estado.updated_at,
         updated_by_user_id=estado.updated_by_user_id,
     )
+
+
+def _proxima_partida_payload_hash(payload: ProximaPartidaIn) -> str:
+    canonical = json.dumps(payload.model_dump(), sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _partida_proxima_out(partida: PartidaModel) -> ProximaPartidaOut:
+    return ProximaPartidaOut(
+        partida=PartidaSeedOut(
+            id=partida.id,
+            evento_id=partida.evento_id,
+            ordem=partida.ordem,
+            status=partida.status,
+            time_a_id=partida.time_a_id,
+            time_b_id=partida.time_b_id,
+        ),
+        rotation_version=int(partida.command_rotation_version or 0),
+        fila_resultante=partida.command_result_queue or [],
+    )
+
+
+def criar_proxima_partida_flow(
+    db: Session,
+    evento_id: int,
+    payload: ProximaPartidaIn,
+    user: AuthUser,
+    *,
+    data_iso: str | None = None,
+) -> ProximaPartidaOut:
+    require_roles(user, "admin", "treinador", "auxiliar")
+    evento = get_evento_or_404(db, evento_id)
+    _assert_evento_tipo_com_rotacao(evento)
+    _lock_evento_for_command(db, evento.id)
+
+    if data_iso is not None and evento.dia.data_iso != data_iso:
+        raise HTTPException(status_code=404, detail="Evento nao pertence ao dia informado")
+
+    estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
+    payload_hash = _proxima_partida_payload_hash(payload)
+    comando_existente = (
+        db.query(PartidaModel)
+        .filter(
+            PartidaModel.evento_id == evento.id,
+            PartidaModel.client_command_id == payload.client_command_id,
+        )
+        .first()
+    )
+    if comando_existente:
+        if comando_existente.client_command_payload_hash != payload_hash:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "code": "idempotency_conflict",
+                    "message": "client_command_id ja foi usado com outro payload.",
+                },
+            )
+        return _partida_proxima_out(comando_existente)
+
+    if payload.expected_rotation_version != int(estado.version):
+        raise _version_conflict("rotacao", payload.expected_rotation_version, int(estado.version))
+    if evento.status != StatusEventoEnum.EM_ANDAMENTO:
+        raise HTTPException(status_code=409, detail="Evento nao esta EM_ANDAMENTO")
+    if payload.time_a_id == payload.time_b_id:
+        raise HTTPException(status_code=422, detail="Os times do confronto devem ser distintos")
+    if _buscar_partida_em_andamento(db, evento.id):
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "active_match_conflict", "message": "Ja existe partida em andamento."},
+        )
+
+    partida_origem = (
+        db.query(PartidaModel)
+        .filter(
+            PartidaModel.id == payload.partida_origem_id,
+            PartidaModel.evento_id == evento.id,
+        )
+        .with_for_update()
+        .first()
+    )
+    if not partida_origem:
+        raise HTTPException(status_code=404, detail="Partida de origem nao encontrada no evento")
+    if partida_origem.status != PartidaStatusEnum.ENCERRADA:
+        raise HTTPException(status_code=409, detail="Partida de origem precisa estar ENCERRADA")
+
+    times = (
+        db.query(TimeEventoModel)
+        .filter(
+            TimeEventoModel.evento_id == evento.id,
+            TimeEventoModel.id.in_([payload.time_a_id, payload.time_b_id]),
+        )
+        .with_for_update()
+        .all()
+    )
+    times_por_id = {int(time.id): time for time in times}
+    if set(times_por_id) != {payload.time_a_id, payload.time_b_id}:
+        raise HTTPException(status_code=404, detail="Time selecionado nao pertence ao evento")
+
+    jogadores_por_time: dict[int, list[int]] = {}
+    envolvidos = {
+        partida_origem.time_a_id,
+        partida_origem.time_b_id,
+        payload.time_a_id,
+        payload.time_b_id,
+    }
+    for time_id in envolvidos:
+        rows = (
+            db.query(JogadorEventoModel.id)
+            .filter(JogadorEventoModel.evento_id == evento.id, JogadorEventoModel.time_id == time_id)
+            .order_by(JogadorEventoModel.id.asc())
+            .all()
+        )
+        jogadores_por_time[int(time_id)] = [int(row.id) for row in rows]
+
+    selecionados = {payload.time_a_id, payload.time_b_id}
+    grupos_resultantes: list[dict] = []
+    times_canonicos_vistos: set[int] = set()
+    for grupo in _sanitize_grupos(estado.proximos_times):
+        grupo_id = str(grupo["grupo_id"])
+        if not grupo_id.startswith("time:"):
+            grupos_resultantes.append(grupo)
+            continue
+        try:
+            time_id = int(grupo_id.split(":", 1)[1])
+        except ValueError:
+            grupos_resultantes.append(grupo)
+            continue
+        if time_id in selecionados or time_id in times_canonicos_vistos:
+            continue
+        time_valido = db.query(TimeEventoModel.id).filter(
+            TimeEventoModel.id == time_id,
+            TimeEventoModel.evento_id == evento.id,
+        ).first()
+        if not time_valido:
+            continue
+        grupos_resultantes.append({"grupo_id": f"time:{time_id}", "jogadores_ids": jogadores_por_time.get(time_id, grupo["jogadores_ids"])})
+        times_canonicos_vistos.add(time_id)
+
+    for time_id in (partida_origem.time_a_id, partida_origem.time_b_id):
+        if time_id in selecionados or time_id in times_canonicos_vistos:
+            continue
+        grupos_resultantes.append(
+            {"grupo_id": f"time:{time_id}", "jogadores_ids": jogadores_por_time.get(time_id, [])}
+        )
+        times_canonicos_vistos.add(time_id)
+
+    jogadores_selecionados = {
+        jogador_id
+        for time_id in selecionados
+        for jogador_id in jogadores_por_time.get(time_id, [])
+    }
+    jogadores_reenfileirados = [
+        jogador_id
+        for time_id in (partida_origem.time_a_id, partida_origem.time_b_id)
+        if time_id not in selecionados
+        for jogador_id in jogadores_por_time.get(time_id, [])
+    ]
+    fila_resultante = [
+        int(jogador_id)
+        for jogador_id in (estado.fila_jogadores_ids or [])
+        if int(jogador_id) not in jogadores_selecionados
+        and int(jogador_id) not in set(jogadores_reenfileirados)
+    ]
+    fila_resultante.extend(jogadores_reenfileirados)
+
+    ultima_ordem = db.query(func.max(PartidaModel.ordem)).filter(PartidaModel.evento_id == evento.id).scalar()
+    nova_partida = PartidaModel(
+        evento_id=evento.id,
+        ordem=int(ultima_ordem or 0) + 1,
+        status=PartidaStatusEnum.EM_ANDAMENTO,
+        inicio_at=datetime.now(timezone.utc),
+        time_a_id=payload.time_a_id,
+        time_b_id=payload.time_b_id,
+        client_command_id=payload.client_command_id,
+        client_command_payload_hash=payload_hash,
+        partida_origem_id=partida_origem.id,
+    )
+    estado.fila_jogadores_ids = fila_resultante
+    estado.proximos_times = grupos_resultantes
+    estado.version = int(estado.version) + 1
+    estado.updated_by_user_id = user.user_id
+    fila_out = _rotacao_estado_out(
+        evento_id=evento.id,
+        team_size_ref=int(estado.team_size_ref),
+        duracao_partida_segundos=int(estado.duracao_partida_segundos),
+        fila_ids=fila_resultante,
+        grupos=grupos_resultantes,
+        em_campo_count=len(jogadores_selecionados),
+        version=int(estado.version),
+        updated_at=estado.updated_at,
+        updated_by_user_id=user.user_id,
+    ).proximos_times
+    nova_partida.command_rotation_version = int(estado.version)
+    nova_partida.command_result_queue = [item.model_dump() for item in fila_out]
+    db.add(nova_partida)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "active_match_conflict", "message": "Outra partida foi iniciada."},
+        ) from exc
+    db.refresh(nova_partida)
+    return _partida_proxima_out(nova_partida)
 
 
 def update_rotacao_estado_flow(

@@ -304,3 +304,86 @@ def test_checkin_repetido_preserva_participante_e_arrival_seq(client: TestClient
         .count()
     )
     assert count == 1
+
+
+@pytest.mark.uc08
+def test_proxima_partida_e_idempotente_e_rejeita_payload_divergente(client: TestClient, db_session):
+    _, evento_id, ids = _criar_evento_base(
+        db_session,
+        data_iso="2026-07-10",
+        status=StatusEventoEnum.EM_ANDAMENTO,
+        with_partida=True,
+    )
+    partida_origem = db_session.get(PartidaModel, ids["partida"])
+    partida_origem.status = PartidaStatusEnum.ENCERRADA
+    db_session.commit()
+    headers = {"X-User-Id": "coach", "X-Role": "treinador"}
+    rotacao = client.get(f"/api/eventos/{evento_id}/rotacao/estado", headers=headers).json()
+    payload = {
+        "partida_origem_id": ids["partida"],
+        "time_a_id": ids["time_a"],
+        "time_b_id": ids["time_b"],
+        "expected_rotation_version": rotacao["version"],
+        "client_command_id": "next-match-1",
+    }
+
+    first = client.post(f"/api/eventos/{evento_id}/partidas/proxima", json=payload, headers=headers)
+    retry = client.post(f"/api/eventos/{evento_id}/partidas/proxima", json=payload, headers=headers)
+
+    assert first.status_code == 200, first.text
+    assert retry.status_code == 200, retry.text
+    assert retry.json() == first.json()
+    assert first.json()["rotation_version"] == rotacao["version"] + 1
+
+    divergent = client.post(
+        f"/api/eventos/{evento_id}/partidas/proxima",
+        json={**payload, "time_a_id": ids["time_b"], "time_b_id": ids["time_a"]},
+        headers=headers,
+    )
+    assert divergent.status_code == 409, divergent.text
+    assert divergent.json()["detail"]["code"] == "idempotency_conflict"
+
+
+@pytest.mark.uc08
+def test_proxima_partida_reenfileira_apenas_time_substituido(client: TestClient, db_session):
+    _, evento_id, ids = _criar_evento_base(
+        db_session,
+        data_iso="2026-07-11",
+        status=StatusEventoEnum.EM_ANDAMENTO,
+        with_partida=True,
+    )
+    time_c = TimeEventoModel(evento_id=evento_id, nome="Time C")
+    jogador_3 = JogadorModel(nome="Jogador CS 3", status="ativo", ativo=True)
+    db_session.add_all([time_c, jogador_3])
+    db_session.flush()
+    jogador_evento_3 = JogadorEventoModel(
+        evento_id=evento_id,
+        jogador_id=jogador_3.id,
+        nome=jogador_3.nome,
+        status=StatusPresencaEnum.presente,
+        time_id=time_c.id,
+    )
+    db_session.add(jogador_evento_3)
+    partida_origem = db_session.get(PartidaModel, ids["partida"])
+    partida_origem.status = PartidaStatusEnum.ENCERRADA
+    db_session.commit()
+
+    headers = {"X-User-Id": "coach", "X-Role": "treinador"}
+    rotacao = client.get(f"/api/eventos/{evento_id}/rotacao/estado", headers=headers).json()
+    resp = client.post(
+        f"/api/eventos/{evento_id}/partidas/proxima",
+        json={
+            "partida_origem_id": ids["partida"],
+            "time_a_id": ids["time_a"],
+            "time_b_id": time_c.id,
+            "expected_rotation_version": rotacao["version"],
+            "client_command_id": "next-match-replace-one",
+        },
+        headers=headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    grupos = resp.json()["fila_resultante"]
+    assert any(grupo["grupo_id"] == f"time:{ids['time_b']}" for grupo in grupos)
+    assert all(grupo["grupo_id"] != f"time:{ids['time_a']}" for grupo in grupos)
+    assert all(grupo["grupo_id"] != f"time:{time_c.id}" for grupo in grupos)

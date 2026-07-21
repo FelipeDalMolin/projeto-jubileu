@@ -89,6 +89,9 @@ Na pratica atual:
 - Lances so devem ser aceitos quando evento e partida estao em andamento.
 - Estatisticas por jogador atualizam placar, dashboards, workspace e warnings derivados.
 - Encerramento de evento deve bloquear quando existir partida em andamento.
+- A proxima partida e criada e iniciada atomicamente a partir de uma partida de origem explicitamente encerrada.
+- Grupos canonicos de fila usam `time:{id}`. Times selecionados saem da fila e times da partida anterior
+  nao selecionados retornam ao final, preservando as demais entradas e sem inferir vencedor.
 
 ## Invariantes Protegidas
 
@@ -99,6 +102,7 @@ Na pratica atual:
 - Nao reintroduzir `/aulas`, `aula_id`, `aulaId`, `WorkspaceAula`, `TimeAula` ou `JogadorAula` em codigo ativo.
 - Migrations historicas podem citar nomes antigos; elas nao definem a linguagem publica atual.
 - PostgreSQL e o banco oficial; SQLite em teste local nao substitui validacao de comportamento especifico de PostgreSQL.
+- Existe no maximo uma partida `EM_ANDAMENTO` por Evento, protegida por indice parcial no PostgreSQL.
 
 ## Zonas De Atencao
 

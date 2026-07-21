@@ -4,7 +4,13 @@ import Modal from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui/card";
 import type { TimeDia } from "../../../types/dia";
-import type { EventoRotacaoEstado, RotacaoGrupoPatch, RotacaoPreview } from "../../../types/rotacao";
+import type { PartidaEstado } from "../../../types/eventoEstado";
+import type {
+  EventoRotacaoEstado,
+  ProximaPartidaResult,
+  RotacaoGrupoPatch,
+  RotacaoPreview,
+} from "../../../types/rotacao";
 
 type Props = {
   estado: EventoRotacaoEstado | null;
@@ -14,6 +20,14 @@ type Props = {
   onSaveQueues: (payload: { fila_jogadores_ids: number[]; proximos_times: RotacaoGrupoPatch[] }) => Promise<void>;
   onPreview: (grupoId: string) => Promise<RotacaoPreview>;
   onConfirm: (token: string) => Promise<void>;
+  ultimaPartidaEncerrada: PartidaEstado | null;
+  onCreateNextMatch: (payload: {
+    partidaOrigemId: number;
+    timeAId: string;
+    timeBId: string;
+    clientCommandId: string;
+  }) => Promise<ProximaPartidaResult>;
+  onConvertLegacyGroup: (grupo: RotacaoGrupoPatch) => Promise<TimeDia>;
 };
 
 function toNome(id: number, map: Record<number, string>) {
@@ -41,12 +55,19 @@ export function RotacaoFilaPanel({
   onSaveQueues,
   onPreview,
   onConfirm,
+  ultimaPartidaEncerrada,
+  onCreateNextMatch,
+  onConvertLegacyGroup,
 }: Props) {
   const [preview, setPreview] = useState<RotacaoPreview | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const [isSavingQueue, setIsSavingQueue] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [nextMatchOpen, setNextMatchOpen] = useState(false);
+  const [nextTimeAId, setNextTimeAId] = useState("");
+  const [nextTimeBId, setNextTimeBId] = useState("");
+  const [nextCommandId, setNextCommandId] = useState("");
 
   const hasIncompleteGroup = useMemo(
     () => Boolean(estado?.proximos_times.some((g) => !g.completo)),
@@ -151,6 +172,64 @@ export function RotacaoFilaPanel({
     await salvarFilaTimes(next);
   }
 
+  async function handleConvertLegacyGroup(index: number) {
+    const grupo = filaTimes[index];
+    if (!grupo || timeIdFromGrupoId(grupo.grupo_id)) return;
+    try {
+      setError(null);
+      setIsSavingQueue(true);
+      const time = await onConvertLegacyGroup(grupo);
+      setInfo(`${grupo.grupo_id} convertido em ${time.nome}.`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao converter grupo legado");
+    } finally {
+      setIsSavingQueue(false);
+    }
+  }
+
+  function openNextMatchDialog() {
+    setNextTimeAId("");
+    setNextTimeBId("");
+    setNextCommandId(crypto.randomUUID());
+    setNextMatchOpen(true);
+  }
+
+  const nextQueuePreview = useMemo(() => {
+    if (!ultimaPartidaEncerrada || !nextTimeAId || !nextTimeBId || nextTimeAId === nextTimeBId) return [];
+    const selected = new Set([nextTimeAId, nextTimeBId]);
+    const result = filaTimes.filter((grupo) => {
+      const timeId = timeIdFromGrupoId(grupo.grupo_id);
+      return !timeId || !selected.has(timeId);
+    });
+    const existing = new Set(result.map((grupo) => timeIdFromGrupoId(grupo.grupo_id)).filter(Boolean));
+    for (const previousId of [ultimaPartidaEncerrada.timeAId, ultimaPartidaEncerrada.timeBId]) {
+      if (selected.has(previousId) || existing.has(previousId)) continue;
+      const time = times.find((item) => item.id === previousId);
+      if (time) result.push({ grupo_id: `time:${time.id}`, jogadores_ids: [...time.jogadoresIds] });
+    }
+    return result;
+  }, [filaTimes, nextTimeAId, nextTimeBId, times, ultimaPartidaEncerrada]);
+
+  async function handleCreateNextMatch() {
+    if (!ultimaPartidaEncerrada || !nextTimeAId || !nextTimeBId || nextTimeAId === nextTimeBId) return;
+    try {
+      setError(null);
+      setIsBusy(true);
+      const result = await onCreateNextMatch({
+        partidaOrigemId: ultimaPartidaEncerrada.id,
+        timeAId: nextTimeAId,
+        timeBId: nextTimeBId,
+        clientCommandId: nextCommandId,
+      });
+      setInfo(`Partida #${result.partida.id} iniciada. Rotacao v${result.rotation_version}.`);
+      setNextMatchOpen(false);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao iniciar proxima partida");
+    } finally {
+      setIsBusy(false);
+    }
+  }
+
   async function onDropTimeCard(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     const timeId = e.dataTransfer.getData("application/x-jubileu-time-id");
@@ -174,6 +253,21 @@ export function RotacaoFilaPanel({
           <div className="text-sm text-muted-foreground">Carregando estado de rotacao...</div>
         ) : (
           <>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-slate-50 p-3">
+              <div>
+                <div className="text-sm font-medium">Proximo confronto</div>
+                <div className="text-xs text-muted-foreground">
+                  Escolha os dois lados; o sistema nao presume vencedor ou permanencia.
+                </div>
+              </div>
+              <Button
+                type="button"
+                onClick={openNextMatchDialog}
+                disabled={!ultimaPartidaEncerrada || Boolean(partidaAtivaTimeIds.length)}
+              >
+                Montar proxima partida
+              </Button>
+            </div>
             <div className="grid gap-2 text-sm md:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-md border p-2">
                 <div className="text-xs text-muted-foreground">Jogadores em campo</div>
@@ -290,6 +384,7 @@ export function RotacaoFilaPanel({
                     const timeId = timeIdFromGrupoId(grupo.grupo_id);
                     const timeMatch = timeId ? times.find((t) => t.id === timeId) : null;
                     const isAtivo = Boolean(timeId && partidaAtivaSet.has(timeId));
+                    const isLegacy = !timeId;
                     return (
                       <div key={`fila-time-${grupo.grupo_id}-${idx}`} className="rounded-md border bg-white p-2">
                         <div className="mb-1 flex items-center justify-between gap-2">
@@ -302,11 +397,16 @@ export function RotacaoFilaPanel({
                                 Em campo
                               </span>
                             ) : null}
+                            {isLegacy ? (
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800">
+                                Grupo legado
+                              </span>
+                            ) : null}
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => void handleMoveQueueItem(idx, -1)}
-                              disabled={idx === 0 || isSavingQueue}
+                              disabled={idx === 0 || isSavingQueue || isLegacy}
                             >
                               Subir
                             </Button>
@@ -314,7 +414,7 @@ export function RotacaoFilaPanel({
                               size="sm"
                               variant="outline"
                               onClick={() => void handleMoveQueueItem(idx, 1)}
-                              disabled={idx === filaTimes.length - 1 || isSavingQueue}
+                              disabled={idx === filaTimes.length - 1 || isSavingQueue || isLegacy}
                             >
                               Descer
                             </Button>
@@ -326,6 +426,15 @@ export function RotacaoFilaPanel({
                             >
                               Remover
                             </Button>
+                            {isLegacy ? (
+                              <Button
+                                size="sm"
+                                onClick={() => void handleConvertLegacyGroup(idx)}
+                                disabled={isSavingQueue || grupo.jogadores_ids.length === 0}
+                              >
+                                Converter em time
+                              </Button>
+                            ) : null}
                           </div>
                         </div>
                         <div className="flex flex-wrap gap-1">
@@ -371,7 +480,9 @@ export function RotacaoFilaPanel({
                       {grupo.completo ? "Time completo" : `Incompleto: faltam ${grupo.faltam} jogador(es)`}
                     </div>
                     <div className="mb-2 text-[11px] text-slate-600">
-                      Complemento usa somente jogadores da fila global fora de campo.
+                      {timeIdFromGrupoId(grupo.grupo_id)
+                        ? "Time persistido e elegivel para proximas partidas."
+                        : "Grupo legado somente leitura: converta em time ou remova na fila acima."}
                     </div>
                     <div className="mb-2 flex flex-wrap gap-1">
                       {grupo.jogadores_ids.map((id) => (
@@ -383,7 +494,7 @@ export function RotacaoFilaPanel({
                         </span>
                       ))}
                     </div>
-                    {!grupo.completo ? (
+                    {!grupo.completo && timeIdFromGrupoId(grupo.grupo_id) ? (
                       <Button
                         size="sm"
                         onClick={() => void handlePreview(grupo.grupo_id)}
@@ -451,6 +562,61 @@ export function RotacaoFilaPanel({
             </div>
           </div>
         ) : null}
+      </Modal>
+
+      <Modal open={nextMatchOpen} title="Confirmar proxima partida" onClose={() => setNextMatchOpen(false)}>
+        <div className="space-y-4 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="space-y-1">
+              <span className="text-xs font-medium">Time A</span>
+              <select
+                className="w-full rounded-md border border-input bg-white px-2 py-2"
+                value={nextTimeAId}
+                onChange={(event) => setNextTimeAId(event.target.value)}
+              >
+                <option value="">Selecione</option>
+                {times.map((time) => <option key={`next-a-${time.id}`} value={time.id}>{time.nome}</option>)}
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs font-medium">Time B</span>
+              <select
+                className="w-full rounded-md border border-input bg-white px-2 py-2"
+                value={nextTimeBId}
+                onChange={(event) => setNextTimeBId(event.target.value)}
+              >
+                <option value="">Selecione</option>
+                {times.map((time) => <option key={`next-b-${time.id}`} value={time.id}>{time.nome}</option>)}
+              </select>
+            </label>
+          </div>
+          {nextTimeAId && nextTimeAId === nextTimeBId ? (
+            <div className="rounded-md bg-red-50 p-2 text-red-700">Escolha times distintos.</div>
+          ) : null}
+          <div className="rounded-md border p-3">
+            <div className="mb-2 font-medium">Fila resultante</div>
+            {nextQueuePreview.length === 0 ? (
+              <div className="text-xs text-muted-foreground">Selecione o confronto para visualizar a fila.</div>
+            ) : (
+              <ol className="space-y-1 text-xs">
+                {nextQueuePreview.map((grupo, index) => {
+                  const timeId = timeIdFromGrupoId(grupo.grupo_id);
+                  const time = timeId ? times.find((item) => item.id === timeId) : null;
+                  return <li key={`next-queue-${grupo.grupo_id}-${index}`}>{index + 1}. {time?.nome ?? grupo.grupo_id}</li>;
+                })}
+              </ol>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setNextMatchOpen(false)} disabled={isBusy}>Cancelar</Button>
+            <Button
+              onClick={() => void handleCreateNextMatch()}
+              disabled={isBusy || !nextTimeAId || !nextTimeBId || nextTimeAId === nextTimeBId}
+            >
+              Confirmar e iniciar
+            </Button>
+          </div>
+        </div>
       </Modal>
     </Card>
   );

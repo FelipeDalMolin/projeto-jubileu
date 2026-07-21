@@ -71,6 +71,20 @@ class SeedPartidaOut(BaseModel):
     teams: list[TimeSeedOut]
 
 
+class ProximaPartidaIn(BaseModel):
+    partida_origem_id: int
+    time_a_id: int
+    time_b_id: int
+    expected_rotation_version: int
+    client_command_id: str = Field(..., min_length=1, max_length=100)
+
+
+class ProximaPartidaOut(BaseModel):
+    partida: PartidaSeedOut
+    rotation_version: int
+    fila_resultante: list["RotacaoGrupoOut"] = Field(default_factory=list)
+
+
 class LanceCreateIn(BaseModel):
     tipo: str
     payload: dict[str, Any] = Field(default_factory=dict)

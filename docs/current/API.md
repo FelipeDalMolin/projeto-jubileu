@@ -61,6 +61,7 @@ Active canonical surfaces:
 - `POST /api/eventos/{evento_id}/end`
 - `POST /api/eventos/{evento_id}/cancel`
 - `POST /api/eventos/{evento_id}/partidas/seed`
+- `POST /api/eventos/{evento_id}/partidas/proxima`
 - `GET /api/eventos/{evento_id}/lances`
 - `GET /api/eventos/{evento_id}/rotacao/estado`
 - `PATCH /api/eventos/{evento_id}/rotacao/estado`
@@ -100,6 +101,15 @@ Lifecycle contract:
 - each partida has a unique `ordem` inside its evento.
 - each player has at most one statistics row per partida.
 - frontend live state is derived only from partida `EM_ANDAMENTO`.
+- `POST /api/eventos/{evento_id}/partidas/proxima` is the canonical transactional command for the
+  next confrontation. The contextual alias
+  `POST /api/dias/{data_iso}/eventos/{evento_id}/partidas/proxima` calls the same service.
+- The next-match payload contains `partida_origem_id`, `time_a_id`, `time_b_id`,
+  `expected_rotation_version`, and `client_command_id`. A successful response includes the active
+  partida, `rotation_version`, and `fila_resultante`.
+- Repeating the same command and payload returns the stored response. Reusing the command ID with
+  another payload returns `409 idempotency_conflict`; stale rotation returns `409 version_conflict`.
+- At most one partida may be `EM_ANDAMENTO` per Evento, enforced by PostgreSQL partial index.
 
 ## Command Safety
 
@@ -110,6 +120,7 @@ Current version-aware surfaces:
 
 - `PUT /dias/{data_iso}/eventos/{evento_id}/estado-equipes`
 - `PATCH /api/eventos/{evento_id}/rotacao/estado`
+- `POST /api/eventos/{evento_id}/partidas/proxima`
 
 Create/append commands should use backend constraints plus `Idempotency-Key`,
 `client_command_id` or a domain-specific id such as `client_event_id`.

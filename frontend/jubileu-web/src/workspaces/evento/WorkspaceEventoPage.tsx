@@ -6,7 +6,13 @@ import { Button } from "../../components/ui/button";
 import WorkspaceEquipesPanel from "../../components/evento/WorkspaceEquipesPanel";
 import WorkspacePartidasPanel from "../../components/evento/WorkspacePartidasPanel";
 import { useAuthSession } from "../../hooks/useAuthSession";
-import { criarPartidaNoEvento, encerrarPartidaNoEvento, iniciarPartidaNoEvento } from "../../services/diasService";
+import {
+  criarPartidaNoEvento,
+  criarTimeNoEvento,
+  encerrarPartidaNoEvento,
+  iniciarPartidaNoEvento,
+  moverJogadorNoEvento,
+} from "../../services/diasService";
 import {
   listarLancesEvento,
   listarParticipantesEvento,
@@ -16,6 +22,7 @@ import {
   obterEstadoRotacaoEvento,
   previewSorteioRotacaoEvento,
   confirmarSorteioRotacaoEvento,
+  criarProximaPartidaEvento,
   type AuthHeaders,
 } from "../../services/eventosService";
 import { obterWorkspaceEvento } from "../../services/workspaceEventoService";
@@ -114,6 +121,10 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     if (!workspaceLegacy) return [];
     return workspaceLegacy.partidas.filter((p) => p.status === "ENCERRADA");
   }, [workspaceLegacy]);
+  const ultimaPartidaEncerrada = useMemo(
+    () => [...partidasEncerradas].sort((a, b) => b.ordem - a.ordem)[0] ?? null,
+    [partidasEncerradas],
+  );
   const partidasPanelMode = "history" as const;
   const partidasParaPainel = partidasEncerradas;
 
@@ -276,6 +287,37 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     },
     onSuccess: async () => {
       await Promise.all([workspaceQuery.refetch(), timelineQuery.refetch(), rotacaoQuery.refetch()]);
+      setSelectedTab("partida-atual");
+    },
+  });
+
+  const createNextPartidaMutation = useMutation({
+    mutationFn: async ({
+      partidaOrigemId,
+      timeAId,
+      timeBId,
+      clientCommandId,
+    }: {
+      partidaOrigemId: number;
+      timeAId: string;
+      timeBId: string;
+      clientCommandId: string;
+    }) => {
+      if (!requestAuth || !eventoIdNum || !rotacaoQuery.data) throw new Error("Rotacao indisponivel");
+      return await criarProximaPartidaEvento(
+        eventoIdNum,
+        {
+          partida_origem_id: partidaOrigemId,
+          time_a_id: Number(timeAId),
+          time_b_id: Number(timeBId),
+          expected_rotation_version: rotacaoQuery.data.version,
+          client_command_id: clientCommandId,
+        },
+        requestAuth,
+      );
+    },
+    onSuccess: async () => {
+      await Promise.all([workspaceQuery.refetch(), rotacaoQuery.refetch(), timelineQuery.refetch()]);
       setSelectedTab("partida-atual");
     },
   });
@@ -519,6 +561,38 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
             }}
             onConfirm={async (token: string) => {
               await confirmSorteioMutation.mutateAsync({ token });
+            }}
+            ultimaPartidaEncerrada={ultimaPartidaEncerrada}
+            onCreateNextMatch={async (payload) => await createNextPartidaMutation.mutateAsync(payload)}
+            onConvertLegacyGroup={async (grupo) => {
+              const time = await criarTimeNoEvento(workspaceLegacy.meta.data_iso, String(eventoIdNum), {
+                nome: `Time convertido ${workspaceLegacy.equipes.times.length + 1}`,
+              });
+              for (const jogadorEventoId of grupo.jogadores_ids) {
+                await moverJogadorNoEvento(
+                  workspaceLegacy.meta.data_iso,
+                  eventoIdNum,
+                  jogadorEventoId,
+                  time.id,
+                );
+              }
+              const refreshedRotation = await rotacaoQuery.refetch();
+              if (!requestAuth || !refreshedRotation.data) throw new Error("Rotacao indisponivel apos conversao");
+              await atualizarConfiguracaoRotacaoEvento(
+                eventoIdNum,
+                {
+                  fila_jogadores_ids: [...refreshedRotation.data.fila_jogadores_ids],
+                  proximos_times: refreshedRotation.data.proximos_times.map((item) =>
+                    item.grupo_id === grupo.grupo_id
+                      ? { grupo_id: `time:${time.id}`, jogadores_ids: [...grupo.jogadores_ids] }
+                      : { grupo_id: item.grupo_id, jogadores_ids: [...item.jogadores_ids] },
+                  ),
+                  expected_version: refreshedRotation.data.version,
+                },
+                requestAuth,
+              );
+              await Promise.all([workspaceQuery.refetch(), rotacaoQuery.refetch()]);
+              return { ...time, jogadoresIds: [...grupo.jogadores_ids] };
             }}
           />
           <div className="flex justify-between gap-2">

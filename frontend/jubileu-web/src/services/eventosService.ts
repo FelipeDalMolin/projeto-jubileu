@@ -19,6 +19,7 @@ export { listarLancesEvento, mapLanceToTimelineItem } from "./eventos/lancesQuer
 export {
   atualizarConfiguracaoRotacaoEvento,
   confirmarSorteioRotacaoEvento,
+  criarProximaPartidaEvento,
   obterEstadoRotacaoEvento,
   previewSorteioRotacaoEvento,
 } from "./eventos/rotacaoService";

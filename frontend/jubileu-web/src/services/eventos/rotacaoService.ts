@@ -3,11 +3,21 @@ import type {
   RotacaoConfirmResult,
   RotacaoGrupoPatch,
   RotacaoPreview,
+  ProximaPartidaPayload,
+  ProximaPartidaResult,
 } from "../../types/rotacao";
 import { getJson, patchJson, postJson, type AuthHeaders } from "./http";
 
 export async function obterEstadoRotacaoEvento(eventoId: number, auth: AuthHeaders): Promise<EventoRotacaoEstado> {
   return await getJson<EventoRotacaoEstado>(`/api/eventos/${eventoId}/rotacao/estado`, auth);
+}
+
+export async function criarProximaPartidaEvento(
+  eventoId: number,
+  payload: ProximaPartidaPayload,
+  auth: AuthHeaders,
+): Promise<ProximaPartidaResult> {
+  return await postJson<ProximaPartidaResult>(`/api/eventos/${eventoId}/partidas/proxima`, auth, payload);
 }
 
 export async function previewSorteioRotacaoEvento(
