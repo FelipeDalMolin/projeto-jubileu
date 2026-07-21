@@ -14,6 +14,7 @@ from app.models.dia_evento import (
 from app.models.jogador_turma import Jogador, Turma
 from app.services.dashboards.utils import cutoff_date, normalize_period
 from app.schemas.dashboards.jogadores import (
+    JogadorEventoContextoOut,
     JogadoresResumoOut,
     JogadoresRankingOut,
     JogadorRankingOut,
@@ -25,7 +26,7 @@ PRESENT_STATUSES = {"presente", "so_treino", "coringa"}
 
 def _date_filter(period: int):
     limite: date = cutoff_date(period)
-    return func.to_date(Dia.data_iso, "YYYY-MM-DD") >= limite
+    return Dia.data_iso >= limite.isoformat()
 
 
 def get_resumo(db: Session) -> JogadoresResumoOut:
@@ -81,6 +82,9 @@ def ranking(db: Session, periodo: int, turma_id: int | None) -> JogadoresRanking
             JogadorEvento.status.label("status"),
             Evento.turma_id.label("turma_id"),
             func.coalesce(Evento.turma_nome, Turma.nome).label("turma_nome"),
+            Evento.id.label("evento_id"),
+            Evento.tipo.label("evento_tipo"),
+            Dia.data_iso.label("data_iso"),
         )
         .join(Evento, JogadorEvento.evento_id == Evento.id)
         .join(Dia, Evento.dia_id == Dia.id)
@@ -137,8 +141,22 @@ def ranking(db: Session, periodo: int, turma_id: int | None) -> JogadoresRanking
                 assistencias=int(assist or 0),
             )
 
+        item = agregado[key]
+        item.eventos.append(
+            JogadorEventoContextoOut(
+                eventoId=row.evento_id,
+                dataIso=row.data_iso,
+                tipo=row.evento_tipo.value,
+                turmaNome=row.turma_nome,
+                presencas=presenca_val,
+                gols=int(gols or 0),
+                assistencias=int(assist or 0),
+            )
+        )
+
     for item in agregado.values():
         item.pontuacao = float(item.gols * 4 + item.assistencias * 3 + item.presencas)
+        item.eventos.sort(key=lambda evento: (evento.dataIso, evento.eventoId), reverse=True)
 
     ordenado: List[JogadorRankingOut] = sorted(
         agregado.values(),

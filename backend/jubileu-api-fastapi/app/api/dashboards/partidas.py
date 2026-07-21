@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
-from app.schemas.dashboards.partidas import PartidasResumoOut, SeriePorDiaOut
+from app.schemas.dashboards.partidas import PartidasListaOut, PartidasResumoOut, SeriePorDiaOut
 from app.services.dashboards import partidas_service
 
 
@@ -31,3 +31,13 @@ def serie_por_dia(
 ) -> SeriePorDiaOut:
     periodo_validado = _parse_periodo(periodo)
     return partidas_service.serie_por_dia(db, periodo=periodo_validado, turma_id=turma)
+
+
+@router.get("/lista", response_model=PartidasListaOut)
+def listar_partidas(
+    periodo: int | None = None,
+    turma: int | None = None,
+    db: Session = Depends(get_db),
+) -> PartidasListaOut:
+    periodo_validado = _parse_periodo(periodo)
+    return partidas_service.listar(db, periodo=periodo_validado, turma_id=turma)

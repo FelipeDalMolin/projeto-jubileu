@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import DashboardFilters from "../../components/dashboard/filters/DashboardFilters";
 import RankingTable from "../../components/dashboard/tables/RankingTable";
 import InfoCard from "../../components/dashboard/cards/InfoCard";
@@ -248,6 +248,28 @@ export default function DashboardJogadores() {
                   </div>
                   <div className="col-6 col-md-3">
                     <InfoCard title="Pontuação" value={`${selectedJogador.pontuacao.toFixed(1)}`} subtitle="Regra local" />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <h6 className="mb-2">Origem por Evento</h6>
+                  <div className="d-grid gap-2">
+                    {selectedJogador.eventos.map((evento) => (
+                      <Link
+                        key={`${evento.eventoId}-${evento.dataIso}`}
+                        to={`/dias/${evento.dataIso}/eventos/${evento.eventoId}`}
+                        className="rounded border p-3 text-decoration-none"
+                      >
+                        <div className="d-flex flex-wrap justify-content-between gap-2">
+                          <span>
+                            <strong>Evento #{evento.eventoId}</strong> · {evento.tipo}
+                          </span>
+                          <span>{new Date(`${evento.dataIso}T12:00:00`).toLocaleDateString("pt-BR")}</span>
+                        </div>
+                        <small className="text-muted">
+                          {evento.turmaNome ?? "Jogo livre"} · {evento.gols} gols · {evento.assistencias} assist. · {evento.presencas} presença
+                        </small>
+                      </Link>
+                    ))}
                   </div>
                 </div>
               </div>

@@ -16,12 +16,7 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 Base integrada: `origin/jubileu-v2`.
 
-Branch final de trabalho para docs/validacao deste fechamento: `dev-41-docs-validacao-final`.
-Branches assistidas ou rascunhos locais nao devem ser usadas como branch final de PR.
-
-Marco tecnico mais recente: `94d4f45 chore(server): enable init for api container`.
-
-O commit `94d4f45` e hardening operacional do runtime server: adiciona `init: true` ao container `jubileu-api` em `compose.server.yml`. Ele nao altera regras de negocio, models, migrations, contratos publicos ou cobertura funcional UC/CT.
+Marco integrado mais recente antes do ciclo de dashboards: `35e868c DEV-51: Close operational flow QA and reconciliation (#34)`.
 
 Estado consolidado:
 
@@ -31,7 +26,8 @@ Estado consolidado:
 - Frontend possui `apiClient` minimo com base relativa `/api` e `X-Request-ID`.
 - `npm run check:api-contract` valida separacao entre rotas SPA e chamadas de API.
 - `pytest` cobre smoke, contratos e fluxos backend/API.
-- Playwright esta configurado para E2E inicial; no compose dev, DEV-41 smoke, contrato `/api`, login e dashboard passam usando Chromium nativo do Alpine via `E2E_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser`.
+- Playwright cobre o fluxo operacional AULA/JOGO_LIVRE, polling/auth e dashboards no compose dev
+  usando Chromium nativo do Alpine via `E2E_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser`.
 - GitHub Actions passa a ser o gate oficial minimo de CI para backend, frontend e contratos.
 - Vercel pode aparecer no historico por integracao externa, mas nao e gate oficial de qualidade ou runtime do projeto.
 
@@ -100,16 +96,16 @@ Foco:
 |---|---|---|
 | Contrato `/api` | Implementado | `/api/health`, rotas canonicas e guarda contra `/api/api`. |
 | Correlacao de requests | Implementado | `X-Request-ID` no frontend/base client, middleware FastAPI e docs operacionais. |
-| Backend pytest | Operacional | Full pytest: `44 passed, 2 skipped`; skips por `DATABASE_URL_TEST`. |
+| Backend pytest | Operacional | Suite completa e contratos de dashboard executados em cada PR. |
 | Backend smoke | Operacional | Marker smoke: `4 passed`. |
 | Backend contract | Operacional | Marker contract: `5 passed`. |
 | Frontend lint/build | Operacional | `npm run lint` e `npm run build` passam. |
 | Contrato frontend/API | Operacional | `npm run check:api-contract` passa. |
 | Smoke server | Operacional | Smoke local em `127.0.0.1` e publico em `https://app.jubileuweb.com` passam pelo runtime NGINX/API. |
-| Playwright E2E | passed-e2e-dev/parcial | DEV-41 smoke, contrato `/api`, login e dashboard passam no compose dev; fluxos com seed/fixtures completas seguem pendentes. |
-| PostgreSQL real | pending | Requer `DATABASE_URL_TEST`; nao faz parte do CI minimo deste PR. |
-| GitHub Actions | pending | Workflow minimo criado para ser executado no GitHub. |
-| UC06-UC09 E2E | Pendente | Requer fixtures completas de participantes, equipes, partidas e lances. |
+| Playwright E2E | passed-e2e-dev | Fluxos AULA/JOGO_LIVRE e workspace operacional possuem fixtures executáveis. |
+| PostgreSQL real | passed-local/pending-CI | Concorrência de próxima partida passou localmente; falta tornar PostgreSQL gate do CI. |
+| GitHub Actions | Operacional | Backend, frontend, docs sync e preflight são gates de PR para `jubileu-v2`. |
+| UC06-UC09 E2E | passed-e2e-dev | Presença/RSVP, fila, partida, lance e próxima partida cobertos no compose dev. |
 
 ## Regras de Compatibilidade
 
@@ -123,33 +119,11 @@ Foco:
 
 ## Proximas Entregas
 
-1. Habilitar Playwright no ambiente/CI:
-   - instalar dependencias nativas (`npx playwright install-deps` ou equivalente);
-   - subir backend local saudavel em `E2E_API_URL`;
-   - executar `npm run test:e2e` ate pelo menos UC01/contrato passarem.
-
-2. Ampliar E2E de UC02 a UC05:
-   - criar jogador e turma pela UI;
-   - abrir dia pela UI;
-   - criar evento/aula pela UI;
-   - validar requests `/api/...` e ausencia de `/api/api`.
-
-3. Preparar fixtures completas para UC06-UC09:
-   - participantes e usuarios vinculados;
-   - presenca/check-in;
-   - equipes/rotacao;
-   - partidas em andamento;
-   - lances e estatisticas.
-
-4. Migrar services gradualmente para `apiClient`:
-   - manter headers de auth/compatibilidade;
-   - preservar `/api`;
-   - validar com `check:api-contract` e Playwright.
-
-5. Validar PostgreSQL real:
-   - definir `DATABASE_URL_TEST`;
-   - rodar testes hoje skipped;
-   - registrar evidencia no `TEST_PLAN.md`.
+1. Entregar rastreabilidade Dia -> Evento -> Partida nos dashboards (DEV-48).
+2. Corrigir o cleanup Tailwind dos dashboards em issue própria, sem rebranding.
+3. Executar auth hardening (DEV-43).
+4. Tornar PostgreSQL, Alembic e Playwright operacional gates bloqueantes do CI (DEV-44).
+5. Executar smoke e preparar a tag `v0.3.0` (DEV-45).
 
 ## Trabalho Adiado
 

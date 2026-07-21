@@ -1,5 +1,13 @@
 # Plano canonico de testes e rastreabilidade
 
+## Atualizacao DEV-48 em 2026-07-21
+
+- O ranking de jogadores preserva os agregados e expõe a contribuição de cada Evento.
+- A lista individual de partidas permite navegar de Dia/Evento/Partida ao workspace canônico.
+- `test_dashboards_traceability.py` cobre AULA, JOGO_LIVRE, evento sem turma, filtro por turma,
+  placar, nomes dos times e validação de período sem alterar os contratos agregados existentes.
+- O E2E de dashboard valida os links `/dias/:dataIso/eventos/:eventoId` para jogador e partida.
+
 ## Atualizacao DEV-51 em 2026-07-20
 
 - `operational-workspace.spec.ts` valida em Chromium nativo os cinco paineis do workspace e os

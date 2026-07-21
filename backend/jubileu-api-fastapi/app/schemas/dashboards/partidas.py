@@ -16,3 +16,25 @@ class SeriePorDiaItem(BaseModel):
 
 class SeriePorDiaOut(BaseModel):
     items: List[SeriePorDiaItem] = Field(default_factory=list)
+
+
+class PartidaListaItem(BaseModel):
+    partidaId: int
+    eventoId: int
+    dataIso: str
+    eventoTipo: str
+    eventoStatus: str
+    turmaId: int | None = None
+    turmaNome: str | None = None
+    ordem: int
+    partidaStatus: str
+    timeAId: int
+    timeANome: str
+    timeBId: int
+    timeBNome: str
+    golsTimeA: int = 0
+    golsTimeB: int = 0
+
+
+class PartidasListaOut(BaseModel):
+    items: List[PartidaListaItem] = Field(default_factory=list)
