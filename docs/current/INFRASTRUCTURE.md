@@ -61,6 +61,17 @@ Porta local do servidor:
 
 - `127.0.0.1:80:80`, normalmente consumida pelo Cloudflare Tunnel.
 
+## Runtime De Release Imutavel
+
+`compose.release.yml` e o runtime promovivel. Ele recebe `BACKEND_IMAGE` e
+`FRONTEND_IMAGE` completos com `@sha256:...`, nao possui build ou bind mount e cria volume
+de banco no escopo do project name. Migration e um job one-shot separado; a API so inicia
+depois dele e o NGINX aguarda `/api/ready`.
+
+Somente o NGINX publica porta, por padrao `127.0.0.1:18080`. API e PostgreSQL usam apenas
+a rede interna. RC e producao devem consumir o mesmo par de digests registrado em
+`release-manifest.json`; rebuild no servidor nao e promocao valida.
+
 Comandos principais:
 
 ```bash
@@ -76,13 +87,15 @@ scripts/server/down_server.sh
 
 - `infra/nginx/jubileu.dev.conf`: proxy `/api/` para `backend:8000` e `/` para Vite.
 - `infra/nginx/jubileu.conf`: serve React estatico, faz fallback SPA e proxy `/api/`.
-- `/health` testa backend pelo NGINX.
+- `/health` testa apenas que o processo backend esta vivo.
 - `/api/health` testa caminho de API pelo gateway.
+- `/api/ready` comprova PostgreSQL acessivel e revisao Alembic esperada.
+- `/api/version` informa release ref, SHA Git, digests e revisao de schema.
 - `/api/dias` redireciona para `/api/dias/`.
 
 ## Ambientes E Segredos
 
-- Versionar somente `.env.dev.example` e `.env.server.example`.
+- Versionar somente `.env.dev.example`, `.env.server.example` e `.env.release.example`.
 - Nunca versionar `.env.dev`, `.env.server` ou segredos reais.
 - Nao copiar valores reais de secrets para documentacao, issues, PRs ou respostas.
 - Arquivos locais de env devem permanecer ignorados e preferencialmente com permissao restrita.
@@ -102,6 +115,8 @@ Config compose:
 ```bash
 docker compose --env-file .env.dev -f compose.dev.yml config
 docker compose --env-file .env.server -f compose.server.yml config
+cp .env.release.example .env.release
+docker compose --env-file .env.release -f compose.release.yml config
 ```
 
 No CI, `Compose + Shell` tambem executa `bash -n` e ShellCheck 0.10.0 de forma deterministica.
@@ -130,6 +145,7 @@ npm run check:api-contract
 - `docs/runbooks/dev-compose.md`
 - `docs/runbooks/cloudflare-tunnel.md`
 - `docs/runbooks/postgres-migrations.md`
+- `docs/runbooks/release-v03.md`
 - `docs/runbooks/setup-linux.md`
 - `docs/runbooks/setup-windows.md`
 - `docs/ops/observabilidade.md`

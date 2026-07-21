@@ -46,6 +46,17 @@ git grep -nE "refetchInterval|staleTime|force: true" frontend/jubileu-web/src ||
 - Historico de eventos participados em `/usuario`.
 - Dashboard sem mocks criticos.
 
+## Release Candidate Imutavel
+
+- `RELEASE_REF` resolvido para SHA completa e ancestral de `origin/jubileu-v2`.
+- Backend e frontend publicados no GHCR e referenciados por digest.
+- `release-manifest.json` anexado ao RC com Alembic head e classe de migration.
+- Backup `pg_dump -Fc` validado por `pg_restore --list` e checksum SHA-256.
+- Migration one-shot concluida antes da API.
+- `/api/ready` e `/api/version` coincidem com o manifesto.
+- Somente NGINX publica porta na stack isolada.
+- Tag `v0.3.0` e producao aguardam aprovacao explicita.
+
 ## Criterio De Falha
 
 Falha qualquer item que:

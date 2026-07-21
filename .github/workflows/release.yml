@@ -1,0 +1,156 @@
+name: Release candidate
+
+on:
+  push:
+    tags:
+      - "v*-rc.*"
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Existing RC tag or commit from jubileu-v2
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish-and-smoke:
+    runs-on: ubuntu-latest
+    env:
+      REGISTRY: ghcr.io
+      BACKEND_REPOSITORY: felipedalmolin/projeto-jubileu-backend
+      FRONTEND_REPOSITORY: felipedalmolin/projeto-jubileu-frontend
+      ALEMBIC_HEAD: 0020_auth_sessions_rollback_safe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'push' && github.ref || inputs.release_ref }}
+      - name: Resolve release identity
+        id: identity
+        env:
+          REQUESTED_REF: ${{ github.event_name == 'push' && github.ref_name || inputs.release_ref }}
+        run: |
+          sha="$(scripts/release/resolve_release_ref.sh "$REQUESTED_REF")"
+          echo "sha=$sha" >>"$GITHUB_OUTPUT"
+          echo "release_ref=$REQUESTED_REF" >>"$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and publish backend once
+        id: backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/jubileu-api-fastapi
+          push: true
+          platforms: linux/amd64
+          tags: ${{ env.REGISTRY }}/${{ env.BACKEND_REPOSITORY }}:${{ steps.identity.outputs.sha }}
+          build-args: |
+            RELEASE_REF=${{ steps.identity.outputs.release_ref }}
+            GIT_SHA=${{ steps.identity.outputs.sha }}
+            ALEMBIC_EXPECTED_REVISION=${{ env.ALEMBIC_HEAD }}
+      - name: Build and publish frontend once
+        id: frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/jubileu-web/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_REPOSITORY }}:${{ steps.identity.outputs.sha }}
+          build-args: |
+            RELEASE_REF=${{ steps.identity.outputs.release_ref }}
+            GIT_SHA=${{ steps.identity.outputs.sha }}
+            ALEMBIC_EXPECTED_REVISION=${{ env.ALEMBIC_HEAD }}
+      - name: Generate release manifest
+        env:
+          RELEASE_REF: ${{ steps.identity.outputs.release_ref }}
+          RELEASE_SHA: ${{ steps.identity.outputs.sha }}
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+          FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
+        run: |
+          jq -n \
+            --arg release_ref "$RELEASE_REF" \
+            --arg git_sha "$RELEASE_SHA" \
+            --arg backend_image "$REGISTRY/$BACKEND_REPOSITORY@$BACKEND_DIGEST" \
+            --arg frontend_image "$REGISTRY/$FRONTEND_REPOSITORY@$FRONTEND_DIGEST" \
+            --arg backend_digest "$BACKEND_DIGEST" \
+            --arg frontend_digest "$FRONTEND_DIGEST" \
+            --arg alembic_head "$ALEMBIC_HEAD" \
+            --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{release_ref:$release_ref,git_sha:$git_sha,backend_image:$backend_image,frontend_image:$frontend_image,backend_digest:$backend_digest,frontend_digest:$frontend_digest,alembic_head:$alembic_head,generated_at:$generated_at,workflow:$workflow,migration_compatibility:"compatible_during_v0.3_transition"}' \
+            > release-manifest.json
+      - name: Start isolated RC from published digests
+        env:
+          RELEASE_REF: ${{ steps.identity.outputs.release_ref }}
+          RELEASE_SHA: ${{ steps.identity.outputs.sha }}
+          BACKEND_DIGEST: ${{ steps.backend.outputs.digest }}
+          FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
+        run: |
+          umask 077
+          jwt_secret="$(openssl rand -hex 32)"
+          refresh_secret="$(openssl rand -hex 32)"
+          db_password="$(openssl rand -hex 24)"
+          backend_image="$REGISTRY/$BACKEND_REPOSITORY@$BACKEND_DIGEST"
+          frontend_image="$REGISTRY/$FRONTEND_REPOSITORY@$FRONTEND_DIGEST"
+          {
+            echo "APP_ENV=test"
+            echo "AUTH_MODE=secure"
+            echo "COOKIE_SECURE=false"
+            echo "JWT_SECRET=$jwt_secret"
+            echo "REFRESH_TOKEN_HMAC_SECRET=$refresh_secret"
+            echo "POSTGRES_DB=jubileu_rc"
+            echo "POSTGRES_USER=jubileu_rc"
+            echo "POSTGRES_PASSWORD=$db_password"
+            echo "DATABASE_URL=postgresql+psycopg://jubileu_rc:$db_password@jubileu-db:5432/jubileu_rc"
+            echo "RELEASE_REF=$RELEASE_REF"
+            echo "GIT_SHA=$RELEASE_SHA"
+            echo "ALEMBIC_EXPECTED_REVISION=$ALEMBIC_HEAD"
+            echo "BACKEND_IMAGE_DIGEST=$BACKEND_DIGEST"
+            echo "FRONTEND_IMAGE_DIGEST=$FRONTEND_DIGEST"
+            echo "BACKEND_IMAGE=$backend_image"
+            echo "FRONTEND_IMAGE=$frontend_image"
+            echo "RELEASE_HTTP_PORT=18080"
+            echo "RELEASE_ENV_FILE=.env.release"
+          } >.env.release
+          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml up -d --wait
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/jubileu-web/package-lock.json
+      - name: Install Playwright
+        working-directory: frontend/jubileu-web
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Smoke release runtime and product flows
+        env:
+          COMPOSE_PROJECT_NAME: jubileu-rc-${{ github.run_id }}
+          RELEASE_BASE_URL: http://127.0.0.1:18080
+          E2E_BASE_URL: http://127.0.0.1:18080
+          E2E_API_URL: http://127.0.0.1:18080
+          E2E_REUSE_EXISTING_SERVER: "1"
+        run: |
+          scripts/release/smoke_release.sh
+          cd frontend/jubileu-web
+          npx playwright test e2e/contract.spec.ts e2e/auth-cookie.spec.ts e2e/dev41-smoke.spec.ts e2e/dashboard-traceability.spec.ts e2e/operational-workspace.spec.ts --project=chromium --workers=1
+      - name: Upload manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ steps.identity.outputs.sha }}
+          path: release-manifest.json
+      - name: Publish prerelease evidence
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "${{ steps.identity.outputs.release_ref }}" release-manifest.json --verify-tag --prerelease --title "${{ steps.identity.outputs.release_ref }}" --notes "Immutable RC built and smoke-tested from the attached digests."
+      - name: Runtime logs on failure
+        if: failure()
+        run: docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml logs --tail=300
+      - name: Remove isolated RC
+        if: always()
+        run: docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml down -v || true

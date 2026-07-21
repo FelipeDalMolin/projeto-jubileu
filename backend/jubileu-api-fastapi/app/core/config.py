@@ -8,6 +8,11 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "Jubileu API"
     APP_VERSION: str = "0.1.0"
     APP_ENV: str = "development"
+    RELEASE_REF: str = "development"
+    GIT_SHA: str = "unknown"
+    BACKEND_IMAGE_DIGEST: str = "unknown"
+    FRONTEND_IMAGE_DIGEST: str = "unknown"
+    ALEMBIC_EXPECTED_REVISION: str = "0020_auth_sessions_rollback_safe"
 
     DATABASE_URL: str | None = None
 

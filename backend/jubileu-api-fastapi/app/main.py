@@ -3,9 +3,12 @@ import time
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.database import engine
 from app.modules.auth import routes as auth_routes
 from app.routers import jogadores, dias, turmas, partidas, eventos, usuarios
 from app.api.dashboards import jogadores as dashboards_jogadores
@@ -61,6 +64,42 @@ def create_app() -> FastAPI:
     @app.get("/api/health")
     def health():
         return {"status": "ok"}
+
+    @app.get("/api/ready")
+    def readiness():
+        try:
+            with engine.connect() as connection:
+                revision = connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+                connection.execute(text("SELECT 1")).scalar_one()
+        except Exception:
+            logger.exception("readiness database check failed")
+            return JSONResponse(status_code=503, content={"status": "not_ready", "reason": "database"})
+
+        if revision != settings.ALEMBIC_EXPECTED_REVISION:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "status": "not_ready",
+                    "reason": "schema_revision",
+                    "schema_revision": revision,
+                    "expected_schema_revision": settings.ALEMBIC_EXPECTED_REVISION,
+                },
+            )
+        return {
+            "status": "ready",
+            "schema_revision": revision,
+            "git_sha": settings.GIT_SHA,
+        }
+
+    @app.get("/api/version")
+    def version():
+        return {
+            "release_ref": settings.RELEASE_REF,
+            "git_sha": settings.GIT_SHA,
+            "backend_image_digest": settings.BACKEND_IMAGE_DIGEST,
+            "frontend_image_digest": settings.FRONTEND_IMAGE_DIGEST,
+            "schema_revision": settings.ALEMBIC_EXPECTED_REVISION,
+        }
 
     app.include_router(jogadores.router)
     app.include_router(dias.router)
