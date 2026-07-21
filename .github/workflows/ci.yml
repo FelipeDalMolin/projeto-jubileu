@@ -175,6 +175,9 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: frontend/jubileu-web/package-lock.json
+      - name: Install browser before Compose mounts the workspace
+        working-directory: frontend/jubileu-web
+        run: npm ci && npx playwright install --with-deps chromium
       - name: Start canonical NGINX runtime
         run: |
           cp .env.dev.example .env.dev
@@ -182,9 +185,6 @@ jobs:
           for attempt in {1..60}; do curl -fsS http://127.0.0.1:8080/api/health && exit 0; sleep 2; done
           docker compose --env-file .env.dev -f compose.dev.yml logs
           exit 1
-      - name: Install browser
-        working-directory: frontend/jubileu-web
-        run: npm ci && npx playwright install --with-deps chromium
       - name: Cookie auth through NGINX
         working-directory: frontend/jubileu-web
         env:
