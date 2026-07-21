@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import DashboardFilters from "../../components/dashboard/filters/DashboardFilters";
 import RankingTable from "../../components/dashboard/tables/RankingTable";
 import SectionHeader from "../../components/dashboard/common/SectionHeader";
@@ -7,6 +7,8 @@ import InfoCard from "../../components/dashboard/cards/InfoCard";
 import {
   obterResumoPartidas,
   obterSeriePorDia,
+  obterListaPartidas,
+  type PartidaListaItem,
   type ResumoPartidas,
   type SeriePorDiaItem,
 } from "../../services/dashboard/partidasDashboardService";
@@ -43,6 +45,7 @@ export default function DashboardPartidas() {
   const [error, setError] = useState<string | null>(null);
   const [resumo, setResumo] = useState<ResumoPartidas | null>(null);
   const [serie, setSerie] = useState<SeriePorDiaItem[]>([]);
+  const [partidas, setPartidas] = useState<PartidaListaItem[]>([]);
 
   const turmaId = useMemo(() => {
     const n = Number(turma);
@@ -62,12 +65,14 @@ export default function DashboardPartidas() {
       setLoading(true);
       setError(null);
       try {
-        const [resumoResp, serieResp] = await Promise.all([
+        const [resumoResp, serieResp, partidasResp] = await Promise.all([
           obterResumoPartidas({ force }),
           obterSeriePorDia({ periodo: period, turma: turmaId ?? undefined }, { force }),
+          obterListaPartidas({ periodo: period, turma: turmaId ?? undefined }, { force }),
         ]);
         setResumo(resumoResp);
         setSerie(serieResp.items ?? []);
+        setPartidas(partidasResp.items ?? []);
       } catch (err: unknown) {
         setError(errorMessage(err, "Erro ao carregar partidas."));
       } finally {
@@ -86,6 +91,26 @@ export default function DashboardPartidas() {
     if (!term) return serie;
     return serie.filter((p) => p.data.toLowerCase().includes(term));
   }, [serie, debouncedSearch]);
+
+  const partidasFiltradas = useMemo(() => {
+    const term = debouncedSearch.trim().toLowerCase();
+    if (!term) return partidas;
+    return partidas.filter((partida) =>
+      [
+        partida.dataIso,
+        partida.eventoTipo,
+        partida.turmaNome ?? "",
+        partida.timeANome,
+        partida.timeBNome,
+        `evento ${partida.eventoId}`,
+      ].some((value) => value.toLowerCase().includes(term)),
+    );
+  }, [partidas, debouncedSearch]);
+
+  const turmasDisponiveis = useMemo(
+    () => Array.from(new Set(partidas.flatMap((partida) => partida.turmaId ? [String(partida.turmaId)] : []))),
+    [partidas],
+  );
 
   const cards = useMemo(() => {
     const totalPartidas = resumo?.totalPartidas ?? filtered.reduce((acc, s) => acc + s.partidas, 0);
@@ -106,6 +131,30 @@ export default function DashboardPartidas() {
     { key: "gols", label: "Gols", numeric: true },
   ];
 
+  const partidaColumns = [
+    {
+      key: "eventoId",
+      label: "Evento",
+      render: (row: PartidaListaItem) => (
+        <Link to={`/dias/${row.dataIso}/eventos/${row.eventoId}`}>
+          Evento #{row.eventoId}
+        </Link>
+      ),
+    },
+    {
+      key: "dataIso",
+      label: "Data",
+      render: (row: PartidaListaItem) => new Date(`${row.dataIso}T12:00:00`).toLocaleDateString("pt-BR"),
+    },
+    { key: "eventoTipo", label: "Tipo" },
+    {
+      key: "confronto",
+      label: "Confronto",
+      render: (row: PartidaListaItem) => `${row.timeANome} ${row.golsTimeA} × ${row.golsTimeB} ${row.timeBNome}`,
+    },
+    { key: "partidaStatus", label: "Status" },
+  ];
+
   return (
     <div className="container py-4">
       <SectionHeader
@@ -124,7 +173,7 @@ export default function DashboardPartidas() {
         period={period}
         turma={turma}
         search={search}
-        turmasDisponiveis={[]}
+        turmasDisponiveis={turmasDisponiveis}
         onChangePeriod={setPeriod}
         onChangeTurma={setTurma}
         onChangeSearch={setSearch}
@@ -183,6 +232,24 @@ export default function DashboardPartidas() {
               </div>
             </div>
           )}
+
+          <div className="card border-0 shadow-sm mt-3">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <h5 className="mb-0">Partidas rastreáveis</h5>
+                <small className="text-muted">Abra o Evento para consultar o fluxo completo</small>
+              </div>
+              {partidasFiltradas.length > 0 ? (
+                <RankingTable
+                  columns={partidaColumns}
+                  data={partidasFiltradas}
+                  rowKey={(partida) => partida.partidaId}
+                />
+              ) : (
+                <p className="text-muted mb-0">Nenhuma partida corresponde aos filtros.</p>
+              )}
+            </div>
+          </div>
         </>
       )}
     </div>

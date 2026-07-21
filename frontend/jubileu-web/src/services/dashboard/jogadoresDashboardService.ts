@@ -20,6 +20,15 @@ export type RankingJogadorItem = {
   gols: number;
   assistencias: number;
   pontuacao: number;
+  eventos: Array<{
+    eventoId: number;
+    dataIso: string;
+    tipo: string;
+    turmaNome: string | null;
+    presencas: number;
+    gols: number;
+    assistencias: number;
+  }>;
 };
 
 export type RankingJogadores = {

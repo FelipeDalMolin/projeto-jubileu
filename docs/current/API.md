@@ -124,6 +124,17 @@ Current version-aware surfaces:
 - `PATCH /api/eventos/{evento_id}/rotacao/estado`
 - `POST /api/eventos/{evento_id}/partidas/proxima`
 
+## Dashboards rastreaveis
+
+- `GET /api/dashboards/jogadores/ranking?periodo={30|90|365}&turma={id}` preserva os totais
+  agregados e inclui `eventos` por jogador, com `eventoId`, `dataIso`, `tipo`, `turmaNome`,
+  presencas, gols e assistencias naquele Evento.
+- `GET /api/dashboards/partidas/lista?periodo={30|90|365}&turma={id}` retorna partidas
+  individuais com origem Dia/Evento, times, placar e status.
+- `eventoId` e o identificador canonico. Registros de AULA sao Eventos com `tipo = AULA`;
+  nenhuma rota ou propriedade publica `aula_id` e introduzida.
+- Os endpoints agregados de resumo e serie por dia permanecem compativeis.
+
 Create/append commands should use backend constraints plus `Idempotency-Key`,
 `client_command_id` or a domain-specific id such as `client_event_id`.
 
