@@ -182,7 +182,10 @@ jobs:
         run: |
           cp .env.dev.example .env.dev
           docker compose --env-file .env.dev -f compose.dev.yml up -d --build
-          for attempt in {1..60}; do curl -fsS http://127.0.0.1:8080/api/health && exit 0; sleep 2; done
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:8080/api/health >/dev/null && curl -fsS http://127.0.0.1:8080/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
           docker compose --env-file .env.dev -f compose.dev.yml logs
           exit 1
       - name: Cookie auth through NGINX
