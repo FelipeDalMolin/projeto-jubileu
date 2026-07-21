@@ -76,6 +76,8 @@ Aplicacao pratica:
 - comandos de snapshot devem enviar `expected_version` quando o service tiver a versao atual;
 - appends como lances devem manter o mesmo `client_event_id` durante retry da mesma intencao;
 - evitar fan-out, hidden-tab churn e loops repetidos de `401`;
+- queries autenticadas nao repetem respostas `401` no TanStack Query; o cliente HTTP limita a
+  renovacao/reexecucao a uma tentativa e a pagina apresenta um unico estado de sessao expirada;
 - WebSocket/MQTT permanece futuro, nao default atual.
 
 O workspace operacional de Evento usa cinco visoes: `Presenca`, `Equipes`, `Fila`,

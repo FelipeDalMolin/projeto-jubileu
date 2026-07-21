@@ -70,7 +70,9 @@ Active canonical surfaces:
 
 Operational notes:
 
-- `JOGO_LIVRE` uses canonical participants for RSVP, check-in, arrival order, seed and lances.
+- `JOGO_LIVRE` uses canonical participants for RSVP, check-in, arrival order, seed and lances. The
+  first RSVP/check-in materializes the event snapshot from the active player persistently linked to
+  the authenticated user; arbitrary request identity is not accepted for persisted users.
 - Self actions require authenticated user with `jogador_id`.
 - Manual check-in, seed and event lifecycle actions require an administrative role.
 - Authorization stays server-side; frontend capability checks are only UI affordances.

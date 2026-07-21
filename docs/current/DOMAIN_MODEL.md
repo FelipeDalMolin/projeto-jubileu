@@ -57,7 +57,9 @@ Valores ativos:
 2. O backend lista ou cria `Dia` sob demanda por `data_iso`.
 3. `POST /dias/{data_iso}/eventos` cria o `Evento`.
 4. Se `tipo = AULA`, `turma_id` e obrigatorio e o backend cria snapshots em `jogadores_evento`.
-5. Se `tipo = JOGO_LIVRE`, `turma_id` nao deve ser enviado; presenca e check-in entram por `evento_participantes`.
+5. Se `tipo = JOGO_LIVRE`, `turma_id` nao deve ser enviado; presenca e check-in entram por
+   `evento_participantes`. O primeiro RSVP/check-in materializa `JogadorEvento` a partir do jogador
+   ativo vinculado ao usuario, sem seletor de identidade no fluxo comum.
 
 ### Equipes e estado sincronizado
 

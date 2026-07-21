@@ -1,5 +1,31 @@
 # Plano canonico de testes e rastreabilidade
 
+## Atualizacao DEV-51 em 2026-07-20
+
+- `operational-workspace.spec.ts` valida em Chromium nativo os cinco paineis do workspace e os
+  fluxos AULA e JOGO_LIVRE ate o primeiro lance, encerramento e proxima partida.
+- O cenario JOGO_LIVRE cria o snapshot operacional no primeiro RSVP do jogador vinculado,
+  preserva a ordem de chegada no check-in e faz seed `arrival_first` com dados publicos da API.
+- Retry de `client_command_id` com o mesmo payload retorna o mesmo ID de partida; payload divergente,
+  versionamento, grupos legados e manutencao/substituicao de lados permanecem cobertos pela suite API.
+- Concorrencia de proxima partida e indice parcial de partida ativa sao validados em PostgreSQL por
+  `test_proxima_partida_postgres.py`.
+- Em janela estabilizada de 30 segundos, cada canal ativo deve respeitar
+  `1 + ceil(30 / intervalo)` requests. Canais exclusivos de abas inativas devem produzir zero novas
+  chamadas. Respostas 401 nao sao repetidas pelo TanStack Query e recebem no maximo o retry unico do
+  cliente HTTP, com uma unica mensagem global de sessao expirada.
+
+Comando E2E reproduzivel no compose dev:
+
+```bash
+docker compose -f compose.dev.yml exec -T \
+  -e E2E_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+  -e E2E_REUSE_EXISTING_SERVER=1 \
+  -e E2E_BASE_URL=http://frontend-dev:5173 \
+  -e E2E_API_URL=http://backend:8000 \
+  frontend-dev npx playwright test e2e/operational-workspace.spec.ts --workers=1
+```
+
 ## Estado analisado
 
 - Repositorio: `FelipeDalMolin/projeto-jubileu`
@@ -94,6 +120,7 @@ Variaveis e modos:
 |---|---|---|---|
 | `contract.spec.ts` | E2E-CONTRACT; `/api/health`, `X-Request-ID`, ausencia de `/api/api` | passed-e2e-dev | Passou no compose dev via `frontend-dev:5173` -> `/api` -> `backend:8000`. |
 | `dev41-smoke.spec.ts` | DEV-39 `/usuario`; DEV-32 erro sem flood | passed-e2e-dev | Cobre login, `/usuario`, `/api/usuarios/me`, erro 503 controlado e estabilidade de chamadas apos erro. |
+| `operational-workspace.spec.ts` | DEV-31/32/49/50; UC06-UC09 | passed-e2e-dev | AULA, JOGO_LIVRE, idempotencia, gating por aba, 401 e orcamento de 30 segundos passaram no compose dev. |
 | `uc01-login.spec.ts` | UC01 login/sessao/navegacao protegida | passed-e2e-dev | Passou no compose dev com Chromium nativo do Alpine. |
 | `uc02-uc03-cadastros.spec.ts` | UC02 jogador; UC03 turma | created-e2e/blocked-e2e | Specs criadas; testes criam jogador/turma pela UI quando API esta saudavel. |
 | `uc04-uc05-dia-evento.spec.ts` | UC04 dia; UC05 evento/aula | created-e2e/blocked-e2e | Spec criada; seed por API prepara turma/dia e criacao do evento e feita pela UI. |
