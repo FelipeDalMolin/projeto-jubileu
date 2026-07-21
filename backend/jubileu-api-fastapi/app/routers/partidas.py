@@ -186,18 +186,25 @@ def atualizar_partida(
             novo_time_b_id,
         )
 
-        partida.estatisticas.clear()
+        estatisticas_atuais = {item.jogador_evento_id: item for item in partida.estatisticas}
+        ids_recebidos = set(ids_jogadores)
+        for jogador_evento_id, estatistica in list(estatisticas_atuais.items()):
+            if jogador_evento_id not in ids_recebidos:
+                db.delete(estatistica)
+        db.flush()
+
         for estat in payload.estatisticas:
-            partida.estatisticas.append(
-                EstatisticaModel(
+            estatistica = estatisticas_atuais.get(estat.jogador_evento_id)
+            if estatistica is None:
+                estatistica = EstatisticaModel(
                     jogador_evento_id=estat.jogador_evento_id,
-                    gols=estat.gols,
-                    assistencias=estat.assistencias,
-                    chiliques=estat.chiliques,
-                    faltas=estat.faltas,
-                    nota=estat.nota,
                 )
-            )
+                partida.estatisticas.append(estatistica)
+            estatistica.gols = estat.gols
+            estatistica.assistencias = estat.assistencias
+            estatistica.chiliques = estat.chiliques
+            estatistica.faltas = estat.faltas
+            estatistica.nota = estat.nota
     else:
         ids_jogadores = [e.jogador_evento_id for e in partida.estatisticas]
         jogadores_por_id = partidas_service.mapear_jogadores_da_evento(db, evento.id, ids_jogadores)

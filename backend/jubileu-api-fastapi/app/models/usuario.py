@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -11,6 +11,7 @@ from app.database import Base
 
 class Usuario(Base):
     __tablename__ = "usuarios"
+    __table_args__ = (UniqueConstraint("jogador_id", name="uq_usuarios_jogador_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[str] = mapped_column(String, unique=True, index=True, nullable=False)

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
-from app.modules.auth.deps import AuthUser, get_current_user
+from app.modules.auth.deps import AuthUser, get_current_user, require_roles
 from app.modules.auth.service import get_usuario_by_user_id
 from app.models.dia_evento import (
     Dia as DiaModel,
@@ -108,6 +109,7 @@ def atualizar_usuario_jogador(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> UsuarioMeOut:
+    require_roles(user, "admin", "treinador")
     usuario = get_usuario_by_user_id(db, user.user_id)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario nao encontrado")
@@ -119,7 +121,17 @@ def atualizar_usuario_jogador(
 
     usuario.jogador_id = payload.jogador_id
     db.add(usuario)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "jogador_already_linked",
+                "message": "Jogador ja esta vinculado a outro usuario.",
+            },
+        ) from exc
     db.refresh(usuario)
 
     return _build_usuario_me(db, usuario)

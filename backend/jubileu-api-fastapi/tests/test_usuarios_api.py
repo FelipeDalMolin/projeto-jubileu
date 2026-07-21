@@ -81,7 +81,7 @@ def test_usuario_me_retorna_perfil_e_eventos_participados(client: TestClient, db
 
 
 @pytest.mark.uc01
-def test_usuario_me_atualiza_jogador_vinculado(client: TestClient, db_session):
+def test_usuario_comum_nao_altera_jogador_vinculado(client: TestClient, db_session):
     jogador = JogadorModel(nome="Maria", apelido="M", status="ativo", ativo=True)
     usuario = UsuarioModel(
         user_id="u-maria",
@@ -102,24 +102,70 @@ def test_usuario_me_atualiza_jogador_vinculado(client: TestClient, db_session):
         headers=headers,
     )
 
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["usuario"]["jogador_id"] == jogador.id
-    assert body["jogador"]["id"] == jogador.id
+    assert resp.status_code == 403, resp.text
+    db_session.refresh(usuario)
+    assert usuario.jogador_id is None
 
-    resp_me = client.get("/api/usuarios/me", headers=headers)
-    assert resp_me.status_code == 200, resp_me.text
-    assert resp_me.json()["usuario"]["jogador_id"] == jogador.id
 
-    resp_clear = client.put(
-        "/api/usuarios/me/jogador",
-        json={"jogador_id": None},
-        headers=headers,
+@pytest.mark.uc01
+def test_treinador_atualiza_e_remove_proprio_jogador_vinculado(client: TestClient, db_session):
+    jogador = JogadorModel(nome="Treinador", apelido="T", status="ativo", ativo=True)
+    usuario = UsuarioModel(
+        user_id="u-tecnico",
+        username="tecnico",
+        password_hash=password_hash("senha123"),
+        display_name="Tecnico",
+        email=None,
+        role="treinador",
+        jogador_id=None,
     )
+    db_session.add_all([jogador, usuario])
+    db_session.commit()
+
+    headers = {"X-User-Id": usuario.user_id, "X-Role": "treinador"}
+    resp = client.put("/api/usuarios/me/jogador", json={"jogador_id": jogador.id}, headers=headers)
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["usuario"]["jogador_id"] == jogador.id
+
+    resp_clear = client.put("/api/usuarios/me/jogador", json={"jogador_id": None}, headers=headers)
     assert resp_clear.status_code == 200, resp_clear.text
-    body_clear = resp_clear.json()
-    assert body_clear["usuario"]["jogador_id"] is None
-    assert body_clear["jogador"] is None
+    assert resp_clear.json()["usuario"]["jogador_id"] is None
+
+
+@pytest.mark.uc01
+def test_vinculo_de_jogador_e_exclusivo(client: TestClient, db_session):
+    jogador = JogadorModel(nome="Exclusivo", apelido="E", status="ativo", ativo=True)
+    db_session.add(jogador)
+    db_session.flush()
+    primeiro = UsuarioModel(
+        user_id="u-primeiro",
+        username="primeiro",
+        password_hash=password_hash("senha123"),
+        display_name="Primeiro",
+        email=None,
+        role="treinador",
+        jogador_id=jogador.id,
+    )
+    segundo = UsuarioModel(
+        user_id="u-segundo",
+        username="segundo",
+        password_hash=password_hash("senha123"),
+        display_name="Segundo",
+        email=None,
+        role="admin",
+        jogador_id=None,
+    )
+    db_session.add_all([primeiro, segundo])
+    db_session.commit()
+
+    resp = client.put(
+        "/api/usuarios/me/jogador",
+        json={"jogador_id": jogador.id},
+        headers={"X-User-Id": segundo.user_id, "X-Role": "admin"},
+    )
+
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["detail"]["code"] == "jogador_already_linked"
 
 
 @pytest.mark.uc01
@@ -130,7 +176,7 @@ def test_usuario_me_rejeita_jogador_inexistente(client: TestClient, db_session):
         password_hash=password_hash("senha123"),
         display_name="Sem Jogador",
         email=None,
-        role="user",
+        role="admin",
         jogador_id=None,
     )
     db_session.add(usuario)
@@ -139,7 +185,7 @@ def test_usuario_me_rejeita_jogador_inexistente(client: TestClient, db_session):
     resp = client.put(
         "/api/usuarios/me/jogador",
         json={"jogador_id": 99999},
-        headers={"X-User-Id": "u-sem-jogador", "X-Role": "user"},
+        headers={"X-User-Id": "u-sem-jogador", "X-Role": "admin"},
     )
 
     assert resp.status_code == 404, resp.text

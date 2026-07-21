@@ -131,10 +131,12 @@ Active surfaces:
 - linked jogador summary
 - events in which the linked jogador participated or appeared in the event snapshot
 
-`PUT /api/usuarios/me/jogador` persists the current user's linked player with
-`{"jogador_id": number | null}`. It returns the updated `/api/usuarios/me`
-payload, is idempotent for the same `jogador_id`, and returns `404` when the
-target player does not exist.
+`PUT /api/usuarios/me/jogador` is restricted to `admin` and `treinador`. It
+updates the authenticated administrative user's linked player with
+`{"jogador_id": number | null}` and returns the updated `/api/usuarios/me`
+payload. Regular users receive `403`; an already-owned player produces
+`409 jogador_already_linked`; an unknown player produces `404`. Player links
+are exclusive and self-service RSVP/check-in always uses the persisted link.
 
 Legacy header-based auth may remain for local compatibility, but persisted users are the canonical session source.
 

@@ -23,7 +23,7 @@ Valores ativos:
 
 | Conceito | Tabela | Responsabilidade |
 |---|---|---|
-| Usuario | `usuarios` | Identidade de acesso, papel/RBAC e vinculo opcional com jogador. |
+| Usuario | `usuarios` | Identidade de acesso, papel/RBAC e vinculo opcional e exclusivo com jogador. |
 | Jogador | `jogadores` | Cadastro esportivo base. |
 | Turma | `turmas` | Grupo de jogadores usado para aulas. |
 | Vinculo jogador-turma | `turmas_jogadores` | Relacao ativa entre jogadores e turmas. |
@@ -94,6 +94,7 @@ Na pratica atual:
 
 - Recursos filhos precisam pertencer ao `Dia` e ao `Evento` declarados na rota.
 - Autorizacao critica pertence ao backend.
+- Um jogador pode estar vinculado a no maximo um usuario; usuarios comuns nao podem assumir ou remover esse vinculo.
 - Contratos publicos novos devem usar `Evento`, `evento_id` e `eventoId`.
 - Nao reintroduzir `/aulas`, `aula_id`, `aulaId`, `WorkspaceAula`, `TimeAula` ou `JogadorAula` em codigo ativo.
 - Migrations historicas podem citar nomes antigos; elas nao definem a linguagem publica atual.
