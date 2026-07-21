@@ -78,6 +78,13 @@ Aplicacao pratica:
 - evitar fan-out, hidden-tab churn e loops repetidos de `401`;
 - WebSocket/MQTT permanece futuro, nao default atual.
 
+O workspace operacional de Evento usa cinco visoes: `Presenca`, `Equipes`, `Fila`,
+`Partida Atual` e `Historico`. A aba selecionada representa somente a visao do operador;
+a etapa atual e derivada do estado persistido. O fluxo recorrente e
+`Presenca -> Equipes -> Fila <-> Partida Atual`; Historico permanece consultavel e nao
+encerra o Evento. Queries especificas de participantes, rotacao e lances so ficam ativas
+nas abas que consomem cada canal.
+
 ## Direcao De Evolucao
 
 - Migrar services gradualmente para um cliente comum sem big bang.
