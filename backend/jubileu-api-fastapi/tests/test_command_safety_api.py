@@ -192,6 +192,52 @@ def test_stats_por_jogador_sao_atualizadas_sem_duplicar_linha(client: TestClient
     assert rows[0].assistencias == 1
 
 
+@pytest.mark.uc09
+def test_atualizar_partida_substitui_estatisticas_sem_violar_unicidade(client: TestClient, db_session):
+    data_iso, evento_id, ids = _criar_evento_base(
+        db_session,
+        data_iso="2026-07-06-stats",
+        status=StatusEventoEnum.EM_ANDAMENTO,
+        with_partida=True,
+    )
+    db_session.add_all(
+        [
+            EstatisticaModel(
+                partida_id=ids["partida"],
+                jogador_evento_id=ids["jogador_evento_1"],
+                gols=1,
+            ),
+            EstatisticaModel(
+                partida_id=ids["partida"],
+                jogador_evento_id=ids["jogador_evento_2"],
+                assistencias=1,
+            ),
+        ]
+    )
+    db_session.commit()
+
+    resp = client.put(
+        f"/dias/{data_iso}/eventos/{evento_id}/partidas/{ids['partida']}",
+        json={
+            "estatisticas": [
+                {
+                    "jogador_evento_id": ids["jogador_evento_1"],
+                    "gols": 3,
+                    "assistencias": 2,
+                    "chiliques": 0,
+                    "faltas": 1,
+                    "nota": 9,
+                }
+            ]
+        },
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert len(resp.json()["estatisticas"]) == 1
+    assert resp.json()["estatisticas"][0]["jogador_evento_id"] == ids["jogador_evento_1"]
+    assert resp.json()["estatisticas"][0]["gols"] == 3
+
+
 @pytest.mark.uc08
 def test_criar_partida_rejeita_ordem_duplicada(client: TestClient, db_session):
     data_iso, evento_id, ids = _criar_evento_base(

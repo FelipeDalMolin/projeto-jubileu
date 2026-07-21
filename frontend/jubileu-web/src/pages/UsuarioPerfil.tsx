@@ -13,13 +13,8 @@ import {
 } from "../components/ui/responsive-table";
 import { StatusBadge } from "../components/ui/status-badge";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { listarJogadores, type JogadorDTO } from "../services/jogadoresService";
 import type { UserRole } from "../services/authService";
-import {
-  atualizarUsuarioJogador,
-  obterUsuarioMe,
-  type UsuarioMeResponse,
-} from "../services/usuariosService";
+import { obterUsuarioMe, type UsuarioMeResponse } from "../services/usuariosService";
 
 const ROLES: UserRole[] = ["user", "auxiliar", "treinador", "admin"];
 
@@ -30,13 +25,10 @@ function formatEventoTipo(tipo: string) {
 }
 
 export default function UsuarioPerfil() {
-  const { user, setRole, setJogadorId, getRequestAuth } = useAuthSession();
-  const [jogadores, setJogadores] = useState<JogadorDTO[]>([]);
+  const { user, setRole, getRequestAuth } = useAuthSession();
   const [usuarioMe, setUsuarioMe] = useState<UsuarioMeResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [savingJogador, setSavingJogador] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [mensagem, setMensagem] = useState<string | null>(null);
 
   useEffect(() => {
     let canceled = false;
@@ -49,9 +41,8 @@ export default function UsuarioPerfil() {
       setLoading(true);
       setErro(null);
       try {
-        const [jogadoresData, usuarioData] = await Promise.all([listarJogadores(), obterUsuarioMe(auth)]);
+        const usuarioData = await obterUsuarioMe(auth);
         if (!canceled) {
-          setJogadores(jogadoresData);
           setUsuarioMe(usuarioData);
         }
       } catch (err: unknown) {
@@ -75,26 +66,6 @@ export default function UsuarioPerfil() {
     return { total: eventos.length, encerrados, emAndamento };
   }, [eventos]);
 
-  async function handleAlterarJogadorVinculado(raw: string) {
-    const auth = getRequestAuth();
-    if (!auth) return;
-
-    const jogadorId = raw ? Number(raw) : null;
-    setSavingJogador(true);
-    setErro(null);
-    setMensagem(null);
-    try {
-      const atualizado = await atualizarUsuarioJogador(auth, jogadorId);
-      setUsuarioMe(atualizado);
-      setJogadorId(atualizado.usuario.jogador_id ?? null);
-      setMensagem("Vinculo de jogador salvo.");
-    } catch (err: unknown) {
-      setErro(err instanceof Error ? err.message : "Falha ao vincular jogador");
-    } finally {
-      setSavingJogador(false);
-    }
-  }
-
   if (!user) {
     return (
       <PageShell>
@@ -112,12 +83,6 @@ export default function UsuarioPerfil() {
       />
 
       {erro ? <ErrorState message={erro} /> : null}
-      {mensagem ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          {mensagem}
-        </div>
-      ) : null}
-
       <section className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader>
@@ -173,23 +138,14 @@ export default function UsuarioPerfil() {
               ))}
             </SelectField>
 
-            <SelectField
-              label="Jogador vinculado ao usuario"
-              value={usuarioMe ? usuarioMe.usuario.jogador_id ?? "" : user.jogadorId ?? ""}
-              disabled={savingJogador || loading}
-              onChange={(e) => {
-                void handleAlterarJogadorVinculado(e.target.value);
-              }}
-            >
-              <option value="">Nenhum</option>
-              {jogadores.map((jogador) => (
-                <option key={jogador.id} value={jogador.id}>
-                  {jogador.nome} ({jogador.id})
-                </option>
-              ))}
-            </SelectField>
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Jogador vinculado</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">
+                {usuarioMe?.jogador?.nome ?? "Nenhum jogador vinculado"}
+              </p>
+              <p className="text-xs text-slate-500">O vinculo e administrado por um treinador ou administrador.</p>
+            </div>
           </div>
-          {savingJogador ? <p className="text-sm text-slate-500">Salvando jogador vinculado...</p> : null}
         </CardContent>
       </Card>
 
