@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import SectionHeader from "../../components/dashboard/common/SectionHeader";
+import { PageShell } from "../../components/layout/PageShell";
 import { obterVisaoGeralEstatisticas, type VisaoGeralEstatisticas } from "../../services/dashboard/estatisticasDashboardService";
 import { obterResumoJogadores, type ResumoJogadores } from "../../services/dashboard/jogadoresDashboardService";
 import { obterResumoPartidas, obterSeriePorDia, type ResumoPartidas, type SeriePorDia } from "../../services/dashboard/partidasDashboardService";
@@ -133,8 +134,7 @@ export default function DashboardHome() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <PageShell className="gap-6">
         <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
           <SectionHeader
             title="Dashboard"
@@ -269,7 +269,6 @@ export default function DashboardHome() {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </PageShell>
   );
 }

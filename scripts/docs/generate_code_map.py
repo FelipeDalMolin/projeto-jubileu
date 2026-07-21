@@ -281,6 +281,7 @@ def normalize_template_path(path: str) -> str:
 
 def api_method_hint(function_name: str, line: str) -> str:
     by_name = {
+        "cachedDashboardJson": "GET",
         "getJson": "GET",
         "fetchJson": "GET",
         "apiJson": "GET",
@@ -305,8 +306,8 @@ def extract_frontend_api_calls() -> list[ApiCallInfo]:
     files = sorted([*src.glob("services/**/*.ts"), *src.glob("services/**/*.tsx"), *src.glob("lib/**/*.ts")])
     calls: list[ApiCallInfo] = []
     pattern = re.compile(
-        r"\b(fetch|buildUrl|url|requestJson|fetchJson|getJson|postJson|deleteJson|patchJson|apiFetch|apiJson)\s*"
-        r"(?:<[^>]+>)?\s*\(\s*([`'\"])(/api/.*?)(?:\2|`)",
+        r"\b(fetch|buildUrl|url|requestJson|fetchJson|getJson|postJson|deleteJson|patchJson|apiFetch|apiJson|cachedDashboardJson)\s*"
+        r"(?:<[^>]+>)?\s*\(\s*([`'\"])((?:/api)?/dashboards/.*?|/api/.*?)(?:\2|`)",
         re.DOTALL,
     )
 
@@ -315,10 +316,13 @@ def extract_frontend_api_calls() -> list[ApiCallInfo]:
         for match in pattern.finditer(content):
             line_no = content.count("\n", 0, match.start()) + 1
             line = content.splitlines()[line_no - 1] if content.splitlines() else ""
+            path = normalize_template_path(match.group(3))
+            if match.group(1) == "cachedDashboardJson" and not path.startswith("/api/"):
+                path = f"/api{path}"
             calls.append(
                 ApiCallInfo(
                     method_hint=api_method_hint(match.group(1), line),
-                    path=normalize_template_path(match.group(3)),
+                    path=path,
                     source=source,
                     line=line_no,
                 )

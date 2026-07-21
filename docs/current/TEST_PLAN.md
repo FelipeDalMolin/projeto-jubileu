@@ -1,5 +1,13 @@
 # Plano canonico de testes e rastreabilidade
 
+## Atualizacao DEV-52 em 2026-07-21
+
+- Dashboards de Jogadores, Partidas e Estatisticas usam somente Tailwind e componentes locais.
+- O E2E de dashboard cobre falha de API, estado vazio e viewport mobile sem overflow da pagina.
+- A busca obrigatoria por classes Bootstrap-like deve retornar vazia em `src/pages/dashboard` e
+  `src/components/dashboard`.
+- Os services compartilham cache sobre `apiClient`; contrato `/api` e `X-Request-ID` permanecem.
+
 ## Atualizacao DEV-48 em 2026-07-21
 
 - O ranking de jogadores preserva os agregados e expõe a contribuição de cada Evento.
