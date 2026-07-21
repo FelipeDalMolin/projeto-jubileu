@@ -1,0 +1,8 @@
+.env*
+.git/
+.pytest_cache/
+.coverage
+__pycache__/
+**/__pycache__/
+tests/
+jubileu_dev.db

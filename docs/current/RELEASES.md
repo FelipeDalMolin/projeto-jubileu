@@ -42,6 +42,20 @@ Every slice delivery should include:
 - validation commands
 - linked Linear issue
 
+## v0.3 Promotion Policy
+
+- CI constroi backend e frontend uma unica vez para `linux/amd64` e publica no GHCR pela
+  SHA completa.
+- `release-manifest.json` registra os dois digests, Git SHA, Alembic head, workflow e a
+  classe de compatibilidade da migration.
+- `v0.3.0-rc.1` usa os digests do manifesto em uma stack isolada e executa readiness,
+  smoke e Playwright via NGINX.
+- Producao, quando autorizada, reutiliza exatamente esses digests. A tag `v0.3.0` e o
+  deploy produtivo nao fazem parte da aprovacao do RC.
+- A migration `0020_auth_sessions_rollback_safe` e compativel durante a janela v0.3 porque
+  preserva o hash legado. Migration incompativel exige restore explicito; scripts nunca
+  executam downgrade ou restore automaticamente.
+
 ## Current Planned Milestones
 
 | Milestone | Scope | Expected outcome |

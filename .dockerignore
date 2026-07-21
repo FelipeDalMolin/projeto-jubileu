@@ -1,0 +1,14 @@
+*
+!frontend/
+frontend/*
+!frontend/jubileu-web/
+!frontend/jubileu-web/**
+!infra/
+infra/*
+!infra/nginx/
+!infra/nginx/jubileu.conf
+frontend/jubileu-web/node_modules/
+frontend/jubileu-web/dist/
+frontend/jubileu-web/test-results/
+frontend/jubileu-web/playwright-report/
+frontend/jubileu-web/.env*

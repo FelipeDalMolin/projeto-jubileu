@@ -193,11 +193,13 @@ jobs:
         run: |
           cp .env.dev.example .env.dev
           cp .env.server.example .env.server
+          cp .env.release.example .env.release
           docker compose --env-file .env.dev -f compose.dev.yml config >/dev/null
           docker compose --env-file .env.server -f compose.server.yml config >/dev/null
+          docker compose --env-file .env.release -f compose.release.yml config >/dev/null
       - name: Validate Bash syntax
         run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
       - name: ShellCheck 0.10.0
         run: >-
           docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.10.0@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb
-          scripts/dev/*.sh scripts/server/*.sh
+          scripts/dev/*.sh scripts/server/*.sh scripts/release/*.sh
