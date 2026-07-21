@@ -18,7 +18,7 @@ if ! docker compose --env-file .env.dev -f compose.dev.yml up -d --build; then
 fi
 
 for i in {1..40}; do
-  if curl -fsS http://127.0.0.1:${DEV_HTTP_PORT:-8080}/health; then
+  if curl -fsS "http://127.0.0.1:${DEV_HTTP_PORT:-8080}/health"; then
     echo ""
     echo "Jubileu dev UP: http://127.0.0.1:${DEV_HTTP_PORT:-8080}"
     exit 0

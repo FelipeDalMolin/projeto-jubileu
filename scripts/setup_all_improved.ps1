@@ -24,7 +24,7 @@ $results = @{
 
 try {
     # 1. DOCKER COMPOSE
-    $composePath = Join-Path $RepoRoot "docker-compose.yml"
+    $composePath = Join-Path $RepoRoot "compose.dev.yml"
     
     if (Test-Path $composePath) {
         Info ""
@@ -40,8 +40,11 @@ try {
             
             try {
                 Push-Location $RepoRoot
-                Info "Executando: docker compose up -d"
-                docker compose up -d
+                Info "Executando runtime oficial compose.dev.yml"
+                if (-not (Test-Path (Join-Path $RepoRoot ".env.dev"))) {
+                    Copy-Item (Join-Path $RepoRoot ".env.dev.example") (Join-Path $RepoRoot ".env.dev")
+                }
+                docker compose --env-file .env.dev -f compose.dev.yml up -d
                 
                 if ($LASTEXITCODE -eq 0) {
                     $results["Docker"] = "OK"
@@ -61,7 +64,7 @@ try {
             }
         }
     } else {
-        Warn "docker-compose.yml não encontrado; pulando Docker Compose"
+        Warn "compose.dev.yml não encontrado; pulando Docker Compose"
         $results["Docker"] = "PULADO"
     }
     

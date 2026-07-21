@@ -34,7 +34,6 @@
     ".env.server": true
   },
   "files.associations": {
-    "compose*.yml": "dockercompose",
-    "docker-compose.yml": "dockercompose"
+    "compose*.yml": "dockercompose"
   }
 }

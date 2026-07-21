@@ -24,8 +24,8 @@ Cloudflare tunnel -> 127.0.0.1:80 nginx -> static React dist + jubileu-api -> ju
   Server runtime with `jubileu-db`, `jubileu-api`, and `nginx`.
   NGINX binds `127.0.0.1:80:80`.
 
-- `docker-compose.yml`
-  Older/simple Postgres-only compose. Do not treat it as the full official dev runtime.
+O Compose PostgreSQL-only legado foi removido. Use sempre `compose.dev.yml` ou
+`compose.server.yml` com `--env-file` e `-f` explicitos.
 
 ## NGINX
 

@@ -399,3 +399,11 @@ PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh
 - `Auth PostgreSQL` valida migration limpa, upgrade desde `0019` e rotacao concorrente sem skips.
 - `Auth E2E` executa pelo NGINX same-origin e comprova cookies HttpOnly, reload, logout e storages sem tokens.
 - O hash Argon2id ocupa campo separado; `password_hash` legado permanece durante a janela de rollback v0.3.
+
+## DEV-44 - Gates bloqueantes de release
+
+Required checks estaveis: `Docs sync`, `Backend unit`, `PostgreSQL + Alembic`, `Frontend`,
+`Playwright operational` e `Compose + Shell`. PostgreSQL usa bancos separados para schema limpo,
+upgrade desde `0019` e integracao. A selecao PostgreSQL falha se `DATABASE_URL_TEST` nao estiver
+configurada; Playwright executa contrato, auth, dashboards e workspace pelo NGINX. A baseline
+medida neste slice foi 81%, aplicada por `coverage report --fail-under=81`.

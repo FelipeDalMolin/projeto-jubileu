@@ -67,6 +67,28 @@ def test_auth_me_legacy_headers_compat(client: TestClient):
 
 
 @pytest.mark.uc01
+def test_auth_legacy_uses_persisted_player_link(client: TestClient, db_session):
+    jogador = JogadorModel(nome="Jogador Legacy", status="ativo", ativo=True)
+    db_session.add(jogador)
+    db_session.flush()
+    from app.models.usuario import Usuario
+    from app.modules.auth.service import password_hash
+
+    db_session.add(Usuario(
+        user_id="legacy-linked",
+        username="legacy-linked",
+        password_hash=password_hash("unused"),
+        display_name="Legacy Linked",
+        role="user",
+        jogador_id=jogador.id,
+    ))
+    db_session.commit()
+    me = client.get("/api/auth/me", headers={"X-User-Id": "legacy-linked", "X-Role": "user"})
+    assert me.status_code == 200
+    assert me.json()["jogador_id"] == jogador.id
+
+
+@pytest.mark.uc01
 @pytest.mark.uc05
 def test_rbac_preserved_event_start_requires_admin_or_treinador(client: TestClient, db_session):
     evento_id = _criar_evento_jogo_livre(db_session)

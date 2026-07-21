@@ -20,6 +20,9 @@ Regras:
 
 Arquivo principal: `compose.dev.yml`.
 
+O antigo `docker-compose.yml`, que publicava PostgreSQL no host, foi removido. Scripts e
+operadores devem informar sempre `--env-file .env.dev -f compose.dev.yml`.
+
 Servicos:
 
 - `postgres-dev`: PostgreSQL 16 em rede interna Docker.
@@ -100,6 +103,8 @@ Config compose:
 docker compose --env-file .env.dev -f compose.dev.yml config
 docker compose --env-file .env.server -f compose.server.yml config
 ```
+
+No CI, `Compose + Shell` tambem executa `bash -n` e ShellCheck 0.10.0 de forma deterministica.
 
 Smoke dev:
 

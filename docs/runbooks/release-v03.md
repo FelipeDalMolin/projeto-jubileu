@@ -17,6 +17,9 @@ Publicar `v0.3.0` apenas depois de validar Evento canonico, Usuario, auth, polli
 
 ## Gate Minimo
 
+O PR deve apresentar os seis required checks: Docs sync, Backend unit, PostgreSQL + Alembic,
+Frontend, Playwright operational e Compose + Shell. Resultado verde apenas em SQLite nao libera RC.
+
 ```powershell
 cd backend\jubileu-api-fastapi
 python -m pytest

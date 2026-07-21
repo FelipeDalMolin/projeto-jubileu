@@ -18,7 +18,7 @@ cd "$ROOT_DIR"
 
 echo "Restaurando backup: $BACKUP_FILE"
 
-cat "$BACKUP_FILE" | docker compose --env-file .env.server -f compose.server.yml exec -T jubileu-db \
-  psql -U "${POSTGRES_USER:-jubileu_app}" -d "${POSTGRES_DB:-jubileu}"
+docker compose --env-file .env.server -f compose.server.yml exec -T jubileu-db \
+  psql -U "${POSTGRES_USER:-jubileu_app}" -d "${POSTGRES_DB:-jubileu}" < "$BACKUP_FILE"
 
 echo "Restore concluído."
