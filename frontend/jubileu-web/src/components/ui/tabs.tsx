@@ -26,7 +26,7 @@ export function Tabs({
 
   return (
     <div className="w-full">
-      <div className="mb-4 inline-flex rounded-md border border-border bg-white p-1">
+      <div className="mb-4 flex max-w-full gap-1 overflow-x-auto rounded-md border border-border bg-white p-1">
         {items.map((item) => (
           <button
             key={item.id}
@@ -36,7 +36,7 @@ export function Tabs({
               onValueChange?.(item.id);
             }}
             className={cn(
-              "rounded-sm px-3 py-1.5 text-sm",
+              "shrink-0 rounded-sm px-3 py-1.5 text-sm",
               active === item.id
                 ? "bg-primary text-white"
                 : "text-muted-foreground hover:bg-slate-50",

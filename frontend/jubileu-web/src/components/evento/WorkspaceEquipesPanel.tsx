@@ -38,6 +38,7 @@ type Props = {
   teamSizeRef?: number | null;
   onSaveTeamSizeRef?: (teamSizeRef: number) => Promise<void>;
   showEventStatusCard?: boolean;
+  mode?: "all" | "presence" | "teams";
 };
 
 export default function WorkspaceEquipesPanel({
@@ -49,6 +50,7 @@ export default function WorkspaceEquipesPanel({
   teamSizeRef = null,
   onSaveTeamSizeRef,
   showEventStatusCard = true,
+  mode = "all",
 }: Props) {
   const [jogadores, setJogadores] = useState<PresencaJogadorDia[]>([]);
   const [times, setTimes] = useState<TimeDia[]>([]);
@@ -312,8 +314,11 @@ export default function WorkspaceEquipesPanel({
         : meta.status;
 
   return (
-    <div data-testid="board-equipes" className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-      <section className="space-y-4">
+    <div
+      data-testid="board-equipes"
+      className={mode === "all" ? "grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]" : "grid gap-4"}
+    >
+      {mode !== "teams" ? <section className="space-y-4">
         {showEventStatusCard ? (
           <Card>
             <CardHeader className="pb-2">
@@ -405,9 +410,9 @@ export default function WorkspaceEquipesPanel({
             )}
           </CardContent>
         </Card>
-      </section>
+      </section> : null}
 
-      <section className="space-y-4">
+      {mode !== "presence" ? <section className="space-y-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle>Montagem de Equipes</CardTitle>
@@ -496,7 +501,7 @@ export default function WorkspaceEquipesPanel({
             </div>
           </CardContent>
         </Card>
-      </section>
+      </section> : null}
     </div>
   );
 }

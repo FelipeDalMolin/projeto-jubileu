@@ -64,7 +64,7 @@ function toRequestAuth(
 export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props) {
   const navigate = useNavigate();
   const auth = useAuthSession();
-  const [activeTab, setActiveTab] = useState("presenca-equipes");
+  const [selectedTab, setSelectedTab] = useState("presenca");
   const [selectedHistoryPartidaId, setSelectedHistoryPartidaId] = useState<number | null>(null);
   const requestAuth = toRequestAuth(auth.getRequestAuth);
   const eventoIdNum = toEventoIdNumberOrNull(eventoId);
@@ -114,8 +114,8 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     if (!workspaceLegacy) return [];
     return workspaceLegacy.partidas.filter((p) => p.status === "ENCERRADA");
   }, [workspaceLegacy]);
-  const partidasPanelMode = workspace?.meta.status === "EM_ANDAMENTO" ? "full" : "history";
-  const partidasParaPainel = partidasPanelMode === "full" ? (workspaceLegacy?.partidas ?? []) : partidasEncerradas;
+  const partidasPanelMode = "history" as const;
+  const partidasParaPainel = partidasEncerradas;
 
   const isJogoLivre = workspace?.meta.tipo === "JOGO_LIVRE";
   const hasPartidaAoVivo = Boolean(partidaEmAndamento);
@@ -126,7 +126,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     enabled: Boolean(
       requestAuth &&
         eventoIdNum &&
-        activeTab === "presenca-equipes" &&
+        (selectedTab === "presenca" || selectedTab === "partida-atual") &&
         isJogoLivre &&
         caps?.has("participants_view"),
     ),
@@ -146,7 +146,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     enabled: Boolean(
       requestAuth &&
         eventoIdNum &&
-        activeTab === "ao-vivo" &&
+        selectedTab === "partida-atual" &&
         partidaEmAndamento &&
         caps?.has("lances"),
     ),
@@ -166,7 +166,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     enabled: Boolean(
       requestAuth &&
         eventoIdNum &&
-        activeTab === "partidas" &&
+        selectedTab === "historico" &&
         selectedHistoryPartidaId !== null,
     ),
     queryFn: async () => {
@@ -185,7 +185,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     enabled: Boolean(
       requestAuth &&
         eventoIdNum &&
-        (activeTab === "presenca-equipes" || activeTab === "ao-vivo"),
+        (selectedTab === "equipes" || selectedTab === "fila" || selectedTab === "partida-atual"),
     ),
     queryFn: async () => {
       if (!requestAuth || !eventoIdNum) return null;
@@ -222,6 +222,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     },
     onSuccess: async () => {
       await Promise.all([workspaceQuery.refetch(), timelineQuery.refetch()]);
+      setSelectedTab("partida-atual");
     },
   });
 
@@ -232,6 +233,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     },
     onSuccess: async () => {
       await Promise.all([workspaceQuery.refetch(), timelineQuery.refetch(), rotacaoQuery.refetch()]);
+      setSelectedTab("fila");
     },
   });
 
@@ -274,7 +276,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     },
     onSuccess: async () => {
       await Promise.all([workspaceQuery.refetch(), timelineQuery.refetch(), rotacaoQuery.refetch()]);
-      setActiveTab("ao-vivo");
+      setSelectedTab("partida-atual");
     },
   });
 
@@ -359,14 +361,39 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     );
   }
 
+  const currentStep =
+    workspace.meta.status === "ENCERRADO" || workspace.meta.status === "CANCELADO"
+      ? "historico"
+      : partidaEmAndamento
+        ? "partida-atual"
+        : workspace.kpis.presentes === 0
+          ? "presenca"
+          : workspace.equipes.times.length < 2
+            ? "equipes"
+            : "fila";
+  const stepLabels: Record<string, string> = {
+    presenca: "Presenca",
+    equipes: "Equipes",
+    fila: "Fila",
+    "partida-atual": "Partida Atual",
+    historico: "Historico",
+  };
+  const pendencias = [
+    workspace.kpis.presentes === 0 ? "Confirme ao menos uma presenca." : null,
+    workspace.equipes.times.length < 2 ? "Monte ao menos duas equipes." : null,
+    !partidaEmAndamento && workspace.meta.status === "EM_ANDAMENTO"
+      ? "Nenhuma partida esta em andamento."
+      : null,
+  ].filter((item): item is string => Boolean(item));
+
   const tabMap = {
-    "presenca-equipes": {
-      id: "presenca-equipes",
-      label: "Presenca & Equipes",
+    presenca: {
+      id: "presenca",
+      label: "Presenca",
       content: (
         <div className="space-y-4">
           <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-600">
-            Presenca/check-in e montagem de equipes ficam unificados nesta aba para preparo operacional.
+            Confirme quem participa antes de organizar as equipes.
           </div>
 
           <EventoStatusActions
@@ -402,17 +429,42 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
             </div>
           ) : (
             <div className="rounded-md bg-slate-100 p-2 text-sm text-slate-600">
-              Para eventos do tipo AULA, participantes/check-in canonicos nao se aplicam.
-              Use a lista de jogadores da turma abaixo para presenca e montagem.
+              Para AULA, a presenca usa a lista persistida da turma.
             </div>
           )}
 
+          {!isJogoLivre ? (
+            <WorkspaceEquipesPanel
+              dataIso={workspaceLegacy.meta.data_iso}
+              eventoId={eventoIdNum}
+              meta={workspaceLegacy.meta}
+              equipes={workspaceLegacy.equipes}
+              showEventStatusCard={false}
+              mode="presence"
+              onRefresh={async () => {
+                await workspaceQuery.refetch();
+              }}
+            />
+          ) : null}
+
+          <div className="flex justify-end">
+            <Button onClick={() => setSelectedTab("equipes")}>Avancar para Equipes</Button>
+          </div>
+        </div>
+      ),
+    },
+    equipes: {
+      id: "equipes",
+      label: "Equipes",
+      content: (
+        <div className="space-y-4">
           <WorkspaceEquipesPanel
             dataIso={workspaceLegacy.meta.data_iso}
             eventoId={eventoIdNum}
             meta={workspaceLegacy.meta}
             equipes={workspaceLegacy.equipes}
             showEventStatusCard={false}
+            mode="teams"
             teamSizeRef={rotacaoQuery.data?.team_size_ref ?? null}
             onSaveTeamSizeRef={async (nextTeamSizeRef) => {
               if (!requestAuth || !eventoIdNum) throw new Error("Sessao invalida para atualizar configuracao");
@@ -430,7 +482,18 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
               await Promise.all([workspaceQuery.refetch(), rotacaoQuery.refetch()]);
             }}
           />
-
+          <div className="flex justify-between gap-2">
+            <Button variant="outline" onClick={() => setSelectedTab("presenca")}>Voltar para Presenca</Button>
+            <Button onClick={() => setSelectedTab("fila")}>Avancar para Fila</Button>
+          </div>
+        </div>
+      ),
+    },
+    fila: {
+      id: "fila",
+      label: "Fila",
+      content: (
+        <div className="space-y-4">
           <RotacaoFilaPanel
             estado={rotacaoQuery.data ?? null}
             jogadorNomeById={jogadorNomeById}
@@ -458,14 +521,30 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
               await confirmSorteioMutation.mutateAsync({ token });
             }}
           />
+          <div className="flex justify-between gap-2">
+            <Button variant="outline" onClick={() => setSelectedTab("equipes")}>Voltar para Equipes</Button>
+            <Button onClick={() => setSelectedTab("partida-atual")}>Ver Partida Atual</Button>
+          </div>
         </div>
       ),
     },
-    "ao-vivo": {
-      id: "ao-vivo",
+    "partida-atual": {
+      id: "partida-atual",
       label: "Partida Atual",
       content: (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-4">
+          {isJogoLivre && !hasAnyPartida ? (
+            <SeedPartidaCard
+              auth={requestAuth}
+              caps={caps}
+              eventoId={eventoIdNum}
+              presentesCount={presentesItems.length}
+              onSeeded={async () => {
+                await Promise.all([workspaceQuery.refetch(), participantesQuery.refetch(), timelineQuery.refetch()]);
+              }}
+            />
+          ) : null}
+          <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-4 md:col-span-2">
             {hasPartidaAoVivo ? (
               <TimelineLances
@@ -481,7 +560,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
                   cronometro e lances.
                 </p>
                 <div className="mb-3 rounded-md border border-dashed bg-slate-50 p-2 text-xs text-slate-700">
-                  Complete os proximos times em <strong>Presenca & Equipes &gt; Fila / Proximos Times</strong>.
+                  Complete os proximos times na aba <strong>Fila</strong>.
                   {jogadoresAguardandoComplemento > 0 ? (
                     <div className="mt-1 text-amber-700">
                       Ha {jogadoresAguardandoComplemento} jogador(es) aguardando complemento na fila.
@@ -496,17 +575,17 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
                     >
                       Iniciar partida planejada #{primeiraPartidaPlanejada.id}
                     </Button>
-                    <Button variant="outline" onClick={() => setActiveTab("presenca-equipes")}>
+                    <Button variant="outline" onClick={() => setSelectedTab("fila")}>
                       Completar proximos times na Fila
                     </Button>
-                    <Button variant="outline" onClick={() => setActiveTab("partidas")}>
-                      Ir para Partidas
+                    <Button variant="outline" onClick={() => setSelectedTab("historico")}>
+                      Consultar Historico
                     </Button>
                   </div>
                 ) : (
                   <div className="space-y-2">
                     <div className="text-xs">
-                      Nenhuma partida planejada. Voce pode criar na aba Partidas ou criar+iniciar agora com as equipes montadas.
+                      Nenhuma partida planejada. Crie e inicie agora com as equipes persistidas.
                     </div>
                     {proximosTimesCompletos < 2 ? (
                       <div className="rounded-md bg-amber-50 p-2 text-xs text-amber-800">
@@ -525,20 +604,20 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
                         >
                           Criar + iniciar: {sugestaoPartida.timeA.nome} x {sugestaoPartida.timeB.nome}
                         </Button>
-                        <Button variant="outline" onClick={() => setActiveTab("presenca-equipes")}>
+                        <Button variant="outline" onClick={() => setSelectedTab("fila")}>
                           Completar proximos times (Fila)
                         </Button>
-                        <Button variant="outline" onClick={() => setActiveTab("partidas")}>
-                          Escolher manualmente em Partidas
+                        <Button variant="outline" onClick={() => setSelectedTab("historico")}>
+                          Consultar partidas anteriores
                         </Button>
                       </div>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        <Button variant="outline" onClick={() => setActiveTab("presenca-equipes")}>
+                        <Button variant="outline" onClick={() => setSelectedTab("fila")}>
                           Completar proximos times (Fila)
                         </Button>
-                        <Button variant="outline" onClick={() => setActiveTab("partidas")}>
-                          Ir para Partidas para criar confronto
+                        <Button variant="outline" onClick={() => setSelectedTab("historico")}>
+                          Consultar Historico
                         </Button>
                       </div>
                     )}
@@ -584,32 +663,22 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
               }}
             />
           </div>
+          </div>
         </div>
       ),
     },
-    partidas: {
-      id: "partidas",
-      label: "Partidas",
+    historico: {
+      id: "historico",
+      label: "Historico",
       content: (
         <div className="space-y-4">
-          {isJogoLivre && !hasAnyPartida ? (
-            <SeedPartidaCard
-              auth={requestAuth}
-              caps={caps}
-              eventoId={eventoIdNum}
-              presentesCount={presentesItems.length}
-              onSeeded={async () => {
-                await Promise.all([workspaceQuery.refetch(), participantesQuery.refetch(), timelineQuery.refetch()]);
-              }}
-            />
-          ) : null}
           <WorkspacePartidasPanel
             dataIso={workspaceLegacy.meta.data_iso}
             eventoId={eventoIdNum}
             equipes={workspaceLegacy.equipes}
             partidas={partidasParaPainel}
             mode={partidasPanelMode}
-            title={partidasPanelMode === "full" ? "Partidas do Evento" : "Historico de Partidas Encerradas"}
+            title="Historico de Partidas Encerradas"
             onRefresh={async () => {
               await workspaceQuery.refetch();
             }}
@@ -644,7 +713,9 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
     },
   } as const;
 
-  const tabItems = ["presenca-equipes", "ao-vivo", "partidas"].map((tabId) => tabMap[tabId]);
+  const tabItems = ["presenca", "equipes", "fila", "partida-atual", "historico"].map(
+    (tabId) => tabMap[tabId as keyof typeof tabMap],
+  );
 
   const hasAuthIssue = [
     participantesQuery.error,
@@ -670,6 +741,25 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
         partidaAtivaId={partidaEmAndamento?.id ?? null}
       />
 
+      <section className="mb-4 grid gap-3 rounded-md border bg-white p-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Etapa operacional atual</div>
+          <div className="mt-1 text-lg font-semibold text-slate-900">{stepLabels[currentStep]}</div>
+          <p className="mt-1 text-xs text-slate-500">Derivada do estado persistido; a aba aberta nao altera o progresso.</p>
+        </div>
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Pendencias e avisos</div>
+          {pendencias.length === 0 && workspace.warnings.length === 0 ? (
+            <p className="mt-1 text-sm text-emerald-700">Nenhuma pendencia operacional detectada.</p>
+          ) : (
+            <ul className="mt-1 space-y-1 text-sm text-amber-800">
+              {pendencias.map((item) => <li key={item}>• {item}</li>)}
+              {workspace.warnings.map((warning) => <li key={`${warning.code}-${warning.message}`}>• {warning.message}</li>)}
+            </ul>
+          )}
+        </div>
+      </section>
+
       {hasAuthIssue ? (
         <div className="mb-3 rounded-md bg-amber-50 p-2 text-sm text-amber-800">
           Sessao invalida ou expirada para endpoints canonicos. Refaca login em /login.
@@ -682,7 +772,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
         </div>
       ) : null}
 
-      <EventoBottomTabs items={tabItems} value={activeTab} onValueChange={setActiveTab} />
+      <EventoBottomTabs items={tabItems} value={selectedTab} onValueChange={setSelectedTab} />
     </main>
   );
 }
