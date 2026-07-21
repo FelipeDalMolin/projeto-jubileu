@@ -141,6 +141,7 @@ jobs:
           cd frontend/jubileu-web
           npx playwright test e2e/contract.spec.ts e2e/auth-cookie.spec.ts e2e/dev41-smoke.spec.ts e2e/dashboard-traceability.spec.ts e2e/operational-workspace.spec.ts --project=chromium --workers=1
       - name: Upload manifest
+        if: always() && hashFiles('release-manifest.json') != ''
         uses: actions/upload-artifact@v4
         with:
           name: release-manifest-${{ steps.identity.outputs.sha }}
