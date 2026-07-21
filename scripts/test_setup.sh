@@ -155,9 +155,9 @@ fi
 info ""
 info "🔍 Validação do Docker"
 
-COMPOSE_PATH="$REPO_ROOT/docker-compose.yml"
+COMPOSE_PATH="$REPO_ROOT/compose.dev.yml"
 if [ -f "$COMPOSE_PATH" ]; then
-    success "docker-compose.yml encontrado"
+    success "compose.dev.yml encontrado"
     
     if docker_msg=$(test_docker_installed); then
         test_results[Docker]="OK:$docker_msg"
@@ -178,7 +178,7 @@ if [ -f "$COMPOSE_PATH" ]; then
         echo -e "${RED}✗ Docker não disponível: $docker_msg${NC}"
     fi
 else
-    debug "ℹ docker-compose.yml não encontrado"
+    debug "ℹ compose.dev.yml não encontrado"
 fi
 
 # ==============================================================

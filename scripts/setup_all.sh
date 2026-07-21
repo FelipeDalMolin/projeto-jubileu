@@ -23,7 +23,7 @@ declare -A results=(
 )
 
 # 1. DOCKER COMPOSE
-COMPOSE_PATH="$REPO_ROOT/docker-compose.yml"
+COMPOSE_PATH="$REPO_ROOT/compose.dev.yml"
 
 if [ -f "$COMPOSE_PATH" ]; then
     info ""
@@ -33,9 +33,9 @@ if [ -f "$COMPOSE_PATH" ]; then
         success "$docker_msg"
         
         cd "$REPO_ROOT"
-        info "Executando: docker compose up -d"
+        info "Executando runtime oficial compose.dev.yml"
         
-        if docker compose up -d >/dev/null 2>&1; then
+        if "$REPO_ROOT/scripts/dev/up_dev.sh" >/dev/null 2>&1; then
             results[Docker]="OK"
             success "Docker Compose iniciado"
             
@@ -51,7 +51,7 @@ if [ -f "$COMPOSE_PATH" ]; then
         results[Docker]="PULADO"
     fi
 else
-    warn "docker-compose.yml não encontrado; pulando Docker Compose"
+    warn "compose.dev.yml não encontrado; pulando Docker Compose"
     results[Docker]="PULADO"
 fi
 

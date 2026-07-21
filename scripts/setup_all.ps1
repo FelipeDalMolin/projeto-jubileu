@@ -7,16 +7,19 @@ function Fail($m) { Write-Host "[ERRO]  $m" -ForegroundColor Red; exit 1 }
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = (Resolve-Path (Join-Path $ScriptDir "..")).Path
 
-$composePath = Join-Path $RepoRoot "docker-compose.yml"
+$composePath = Join-Path $RepoRoot "compose.dev.yml"
 if (Test-Path $composePath) {
   Info "Subindo servicos via Docker Compose..."
   try {
-    docker compose up -d
+    if (-not (Test-Path (Join-Path $RepoRoot ".env.dev"))) {
+      Copy-Item (Join-Path $RepoRoot ".env.dev.example") (Join-Path $RepoRoot ".env.dev")
+    }
+    docker compose --env-file .env.dev -f compose.dev.yml up -d
   } catch {
-    Warn "Falha ao executar 'docker compose up -d': $_"
+    Warn "Falha ao iniciar compose.dev.yml: $_"
   }
 } else {
-  Warn "docker-compose.yml nao encontrado; pulando Docker Compose."
+  Warn "compose.dev.yml nao encontrado; pulando Docker Compose."
 }
 
 $backendScript = Join-Path $ScriptDir "setup_backend.ps1"

@@ -145,9 +145,9 @@ try {
     Info ""
     Info "🔍 Validação do Docker"
     
-    $composePath = Join-Path $RepoRoot "docker-compose.yml"
+    $composePath = Join-Path $RepoRoot "compose.dev.yml"
     if (Test-Path $composePath) {
-        Success "docker-compose.yml encontrado"
+        Success "compose.dev.yml encontrado"
         
         $dockerOk, $dockerMsg = Test-DockerInstalled
         if ($dockerOk) {
@@ -171,7 +171,7 @@ try {
             Warn "✗ Docker não disponível: $dockerMsg"
         }
     } else {
-        Debug "ℹ docker-compose.yml não encontrado"
+        Debug "ℹ compose.dev.yml não encontrado"
     }
     
     # ==============================================================

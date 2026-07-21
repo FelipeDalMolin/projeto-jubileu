@@ -304,7 +304,9 @@ def resolve_current_user(
         if persisted is None:
             raise HTTPException(status_code=401, detail="inactive_user")
         return auth_user_from_model(persisted, sid=resolved.sid, source=resolved.auth_source)
-    return parse_legacy_headers(x_user_id, x_role, x_jogador_id)
+    legacy = parse_legacy_headers(x_user_id, x_role, x_jogador_id)
+    persisted = get_usuario_by_user_id(db, legacy.user_id)
+    return auth_user_from_model(persisted, source="legacy") if persisted else legacy
 
 
 def require_roles(user: AuthUser, *roles: str) -> None:
