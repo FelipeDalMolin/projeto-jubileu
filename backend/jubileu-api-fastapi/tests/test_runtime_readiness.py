@@ -1,4 +1,4 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -21,7 +21,14 @@ def test_version_exposes_release_identity(client):
 def test_readiness_requires_expected_alembic_revision(client):
     from app.main import settings
 
-    with patch.object(settings, "ALEMBIC_EXPECTED_REVISION", "revision-that-is-not-installed"):
+    connection = MagicMock()
+    connection.execute.return_value.scalar_one.return_value = "installed-revision"
+    connection_context = MagicMock()
+    connection_context.__enter__.return_value = connection
+    with (
+        patch.object(settings, "ALEMBIC_EXPECTED_REVISION", "revision-that-is-not-installed"),
+        patch("app.main.engine.connect", return_value=connection_context),
+    ):
         response = client.get("/api/ready")
 
     assert response.status_code == 503
