@@ -115,3 +115,85 @@ jobs:
 
       - name: Show Playwright version
         run: npx playwright --version
+
+  auth-postgresql:
+    name: Auth PostgreSQL
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: jubileu
+          POSTGRES_PASSWORD: jubileu
+          POSTGRES_DB: auth_clean
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jubileu -d auth_clean"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    defaults:
+      run:
+        working-directory: backend/jubileu-api-fastapi
+    env:
+      APP_ENV: test
+      JWT_SECRET: ci-access-secret-at-least-thirty-two-characters
+      REFRESH_TOKEN_HMAC_SECRET: ci-refresh-secret-at-least-thirty-two-characters
+      DATABASE_URL_TEST: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_clean
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/jubileu-api-fastapi/requirements.txt
+      - run: python -m pip install -r requirements.txt
+      - name: Alembic on clean database
+        env:
+          DATABASE_URL: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_clean
+        run: alembic upgrade head
+      - name: Alembic upgrade from v0.3 baseline
+        env:
+          PGPASSWORD: jubileu
+          DATABASE_URL: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_migrated
+        run: |
+          createdb -h 127.0.0.1 -U jubileu auth_migrated
+          alembic upgrade 0019_proxima_partida_idempotente
+          alembic upgrade head
+          alembic upgrade head
+      - name: Auth PostgreSQL tests without skips
+        env:
+          DATABASE_URL: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_clean
+        run: python -m pytest -q tests/test_auth_security.py -rs
+
+  auth-e2e:
+    name: Auth E2E
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/jubileu-web/package-lock.json
+      - name: Install browser before Compose mounts the workspace
+        working-directory: frontend/jubileu-web
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Start canonical NGINX runtime
+        run: |
+          cp .env.dev.example .env.dev
+          docker compose --env-file .env.dev -f compose.dev.yml up -d --build
+          for attempt in {1..60}; do
+            if curl -fsS http://127.0.0.1:8080/api/health >/dev/null && curl -fsS http://127.0.0.1:8080/ >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          docker compose --env-file .env.dev -f compose.dev.yml logs
+          exit 1
+      - name: Cookie auth through NGINX
+        working-directory: frontend/jubileu-web
+        env:
+          E2E_BASE_URL: http://127.0.0.1:8080
+          E2E_REUSE_EXISTING_SERVER: "1"
+        run: npx playwright test e2e/auth-cookie.spec.ts --project=chromium --workers=1
+      - name: Runtime logs on failure
+        if: failure()
+        run: docker compose --env-file .env.dev -f compose.dev.yml logs --tail=200

@@ -83,6 +83,8 @@ scripts/server/down_server.sh
 - Nunca versionar `.env.dev`, `.env.server` ou segredos reais.
 - Nao copiar valores reais de secrets para documentacao, issues, PRs ou respostas.
 - Arquivos locais de env devem permanecer ignorados e preferencialmente com permissao restrita.
+- Producao exige `APP_ENV=production`, `AUTH_MODE=secure`, cookies seguros e segredos distintos para JWT e digest HMAC de refresh.
+- O backend falha no startup quando a configuracao de auth de producao usa defaults, placeholders ou modo invalido.
 
 ## Banco E Migrations
 

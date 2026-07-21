@@ -31,11 +31,14 @@ services:
     command: >
       bash -c "
       alembic upgrade head &&
+      python -m app.modules.auth.seed &&
       uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
       "
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-jubileu_dev}:${POSTGRES_PASSWORD:-change-me-dev-only}@postgres-dev:5432/${POSTGRES_DB:-jubileu_dev}
       JWT_SECRET: ${JWT_SECRET:-change-me-dev-only}
+      REFRESH_TOKEN_HMAC_SECRET: ${REFRESH_TOKEN_HMAC_SECRET:-change-me-dev-only-refresh}
+      APP_ENV: development
       AUTH_MODE: ${AUTH_MODE:-jwt_compat}
     volumes:
       - ./backend/jubileu-api-fastapi:/app

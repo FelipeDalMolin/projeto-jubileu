@@ -393,3 +393,9 @@ PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh
 - Cobertura pendente: suite Playwright completa como gate, validacao manual publica, cenarios de dashboard com dados ricos e fluxos UC06-UC09 com participantes/equipes/partidas/lances.
 - Gate oficial: GitHub Actions minimo + smoke server + runtime Cloudflare/NGINX. Vercel nao e gate oficial.
 - Proximo PR recomendado: adicionar PostgreSQL com `DATABASE_URL_TEST` no CI e, depois, habilitar Playwright no CI com dependencias nativas.
+
+## DEV-43 - Auth rollback-safe
+
+- `Auth PostgreSQL` valida migration limpa, upgrade desde `0019` e rotacao concorrente sem skips.
+- `Auth E2E` executa pelo NGINX same-origin e comprova cookies HttpOnly, reload, logout e storages sem tokens.
+- O hash Argon2id ocupa campo separado; `password_hash` legado permanece durante a janela de rollback v0.3.

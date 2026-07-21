@@ -1,5 +1,5 @@
 from app.models.jogador_turma import Jogador, Turma, TurmaJogador
-from app.models.usuario import Usuario
+from app.models.usuario import AuthSession, Usuario
 from app.models.dia_evento import (
     Dia,
     Evento,
@@ -22,6 +22,7 @@ from app.models.dia_evento import (
 __all__ = [
     "Jogador",
     "Usuario",
+    "AuthSession",
     "Dia",
     "Evento",
     "TimeEvento",

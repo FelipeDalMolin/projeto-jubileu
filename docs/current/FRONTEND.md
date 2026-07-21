@@ -58,6 +58,9 @@ em codigo ativo. `AULA` e somente valor de `Evento.tipo`.
 - `npm run check:api-contract` protege contra `/api/api` e chamadas suspeitas sem `/api`.
 - O frontend pode mostrar affordances por papel, mas autorizacao critica pertence ao backend.
 - Services devem preservar `Evento`, `eventoId` e `evento_id` como linguagem publica.
+- A sessao do navegador usa cookies HttpOnly same-origin. Token, papel e identidade nao sao persistidos em storage.
+- Renovacao e single-flight: Web Locks coordena abas, BroadcastChannel notifica mudancas e cada request repete no maximo uma vez.
+- O unico uso de `localStorage` no auth e um lease temporario sem token ou identidade quando Web Locks nao existir.
 
 ## Estado, Polling E Workspace
 

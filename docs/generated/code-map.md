@@ -7,6 +7,7 @@ Nao edite manualmente; atualize o codigo ou os docs vivos e gere novamente.
 
 | Classe | Tabela | FKs |
 |---|---|---|
+| `AuthSession` | `auth_sessions` | usuario_id -> usuarios.id |
 | `Dia` | `dias` | - |
 | `EstatisticaJogadorPartida` | `estatisticas_jogador_partida` | partida_id -> partidas.id, jogador_evento_id -> jogadores_evento.id |
 | `EventoEquipesEstado` | `evento_equipes_estado` | evento_id -> eventos.id |
@@ -28,6 +29,7 @@ Nao edite manualmente; atualize o codigo ou os docs vivos e gere novamente.
 
 | Classe | Relacionamentos |
 |---|---|
+| `AuthSession` | - |
 | `Dia` | `eventos` -> `Evento` (`back_populates=dia`) |
 | `EstatisticaJogadorPartida` | `partida` -> `Partida` (`back_populates=estatisticas`); `jogador_evento` -> `JogadorEvento` |
 | `EventoEquipesEstado` | `evento` -> `Evento` (`back_populates=estado_equipes`) |
@@ -49,6 +51,9 @@ Nao edite manualmente; atualize o codigo ou os docs vivos e gere novamente.
 
 ```mermaid
 erDiagram
+  auth_sessions {
+    string id
+  }
   dias {
     string id
   }
@@ -97,6 +102,7 @@ erDiagram
   usuarios {
     string id
   }
+  usuarios ||--o{ auth_sessions : "usuario_id"
   partidas ||--o{ estatisticas_jogador_partida : "partida_id"
   jogadores_evento ||--o{ estatisticas_jogador_partida : "jogador_evento_id"
   eventos ||--o{ evento_equipes_estado : "evento_id"
@@ -164,6 +170,8 @@ erDiagram
 | `GET` | `/api/usuarios/me` |
 | `PATCH` | `/api/eventos/{evento_id}/rotacao/estado` |
 | `POST` | `/api/auth/login` |
+| `POST` | `/api/auth/logout` |
+| `POST` | `/api/auth/refresh` |
 | `POST` | `/api/dias/{data_iso}/eventos` |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/finish` |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas` |

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from "react";
 import { PageHeader, PageShell } from "../components/layout/PageShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { EmptyState, ErrorState, LoadingState } from "../components/ui/feedback";
-import { SelectField } from "../components/ui/form";
 import {
   ResponsiveTable,
   TableCell,
@@ -13,10 +12,7 @@ import {
 } from "../components/ui/responsive-table";
 import { StatusBadge } from "../components/ui/status-badge";
 import { useAuthSession } from "../hooks/useAuthSession";
-import type { UserRole } from "../services/authService";
 import { obterUsuarioMe, type UsuarioMeResponse } from "../services/usuariosService";
-
-const ROLES: UserRole[] = ["user", "auxiliar", "treinador", "admin"];
 
 function formatEventoTipo(tipo: string) {
   if (tipo === "JOGO_LIVRE") return "Jogo livre";
@@ -25,7 +21,7 @@ function formatEventoTipo(tipo: string) {
 }
 
 export default function UsuarioPerfil() {
-  const { user, setRole, getRequestAuth } = useAuthSession();
+  const { user, getRequestAuth } = useAuthSession();
   const [usuarioMe, setUsuarioMe] = useState<UsuarioMeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -57,7 +53,7 @@ export default function UsuarioPerfil() {
     return () => {
       canceled = true;
     };
-  }, [getRequestAuth, user?.accessToken, user?.jogadorId, user?.role, user?.userId]);
+  }, [getRequestAuth, user?.jogadorId, user?.role, user?.userId]);
 
   const eventos = useMemo(() => usuarioMe?.eventos ?? [], [usuarioMe?.eventos]);
   const resumo = useMemo(() => {
@@ -126,18 +122,15 @@ export default function UsuarioPerfil() {
         </CardHeader>
         <CardContent className="space-y-4">
           <span className="inline-flex w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
-            {user.authMode.toUpperCase()} {user.accessToken ? "com token" : "sem token"}
+            COOKIE HTTPONLY
           </span>
 
           <div className="grid gap-3 md:grid-cols-2">
-            <SelectField label="Role operacional" value={user.role} onChange={(e) => setRole(e.target.value as UserRole)}>
-              {ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </SelectField>
-
+            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Papel autorizado</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">{user.role}</p>
+              <p className="text-xs text-slate-500">Definido e validado pelo backend.</p>
+            </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Jogador vinculado</p>
               <p className="mt-1 text-sm font-medium text-slate-900">

@@ -4,18 +4,23 @@ import base64
 import hashlib
 import hmac
 import json
+import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import HTTPException, status
+from pwdlib import PasswordHash
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.usuario import Usuario as UsuarioModel
+from app.models.usuario import AuthSession, Usuario as UsuarioModel
 from app.modules.auth.models import AuthAccount
 
 ALLOWED_ROLES = {"admin", "treinador", "auxiliar", "user"}
+PASSWORD_HASHER = PasswordHash.recommended()
+RACE_GRACE_SECONDS = 5
 
 
 @dataclass
@@ -26,92 +31,49 @@ class AuthUser:
     username: str | None = None
     display_name: str | None = None
     email: str | None = None
+    sid: str | None = None
+    auth_source: str = "legacy"
 
 
 DEFAULT_ACCOUNTS: dict[str, AuthAccount] = {
-    "admin": AuthAccount(
-        user_id="u-admin",
-        username="admin",
-        password="admin123",
-        role="admin",
-        display_name="Administrador",
-        email="admin@jubileu.local",
-    ),
-    "coach": AuthAccount(
-        user_id="u-coach",
-        username="coach",
-        password="coach123",
-        role="treinador",
-        display_name="Treinador",
-        email="coach@jubileu.local",
-    ),
-    "aux": AuthAccount(
-        user_id="u-aux",
-        username="aux",
-        password="aux123",
-        role="auxiliar",
-        display_name="Auxiliar",
-        email="aux@jubileu.local",
-    ),
-    "user": AuthAccount(
-        user_id="u-user",
-        username="user",
-        password="user123",
-        role="user",
-        display_name="Usuario",
-        email="user@jubileu.local",
-    ),
+    "admin": AuthAccount("u-admin", "admin", "admin123", "admin", "Administrador", "admin@jubileu.local"),
+    "coach": AuthAccount("u-coach", "coach", "coach123", "treinador", "Treinador", "coach@jubileu.local"),
+    "aux": AuthAccount("u-aux", "aux", "aux123", "auxiliar", "Auxiliar", "aux@jubileu.local"),
+    "user": AuthAccount("u-user", "user", "user123", "user", "Usuario", "user@jubileu.local"),
 }
+DEFAULT_ACCOUNT_IDS = {account.user_id for account in DEFAULT_ACCOUNTS.values()}
 
 
-def password_hash(password: str) -> str:
-    material = f"{settings.JWT_SECRET}:{password}".encode("utf-8")
+def legacy_password_hash(password: str) -> str:
+    material = f"{settings.JWT_SECRET}:{password}".encode()
     return hashlib.sha256(material).hexdigest()
 
 
-def ensure_default_users(db: Session) -> None:
-    for account in DEFAULT_ACCOUNTS.values():
-        user = (
-            db.query(UsuarioModel)
-            .filter(
-                (UsuarioModel.user_id == account.user_id)
-                | (UsuarioModel.username == account.username)
-            )
-            .first()
-        )
-        if user:
-            changed = False
-            if user.password_hash != password_hash(account.password):
-                user.password_hash = password_hash(account.password)
-                changed = True
-            if user.display_name != account.display_name:
-                user.display_name = account.display_name
-                changed = True
-            if user.email != account.email:
-                user.email = account.email
-                changed = True
-            if user.role != account.role:
-                user.role = account.role
-                changed = True
-            if changed:
-                db.add(user)
-            continue
+# Backward-compatible symbol for fixtures and the v0.3 rollback window.
+password_hash = legacy_password_hash
 
-        db.add(
-            UsuarioModel(
+
+def seed_default_users(db: Session) -> None:
+    if settings.APP_ENV.strip().lower() not in {"development", "test"}:
+        raise RuntimeError("Seed de contas padrao permitido somente em development/test")
+    for account in DEFAULT_ACCOUNTS.values():
+        user = db.query(UsuarioModel).filter(UsuarioModel.user_id == account.user_id).first()
+        if user is None:
+            user = UsuarioModel(
                 user_id=account.user_id,
                 username=account.username,
-                password_hash=password_hash(account.password),
+                password_hash=legacy_password_hash(account.password),
                 display_name=account.display_name,
                 email=account.email,
                 role=account.role,
                 jogador_id=account.jogador_id,
             )
-        )
+        user.is_active = True
+        db.add(user)
     db.commit()
 
 
-def auth_user_from_model(user: UsuarioModel) -> AuthUser:
+def auth_user_from_model(user: UsuarioModel, *, sid: str | None = None, source: str = "database") -> AuthUser:
     return AuthUser(
         user_id=user.user_id,
         role=user.role,
@@ -119,12 +81,38 @@ def auth_user_from_model(user: UsuarioModel) -> AuthUser:
         username=user.username,
         display_name=user.display_name,
         email=user.email,
+        sid=sid,
+        auth_source=source,
     )
 
 
 def get_usuario_by_user_id(db: Session, user_id: str) -> UsuarioModel | None:
-    ensure_default_users(db)
-    return db.query(UsuarioModel).filter(UsuarioModel.user_id == user_id).first()
+    return db.query(UsuarioModel).filter(UsuarioModel.user_id == user_id, UsuarioModel.is_active.is_(True)).first()
+
+
+def authenticate_user(db: Session, username: str, password: str) -> Optional[UsuarioModel]:
+    user = db.query(UsuarioModel).filter(UsuarioModel.username == username.strip().lower()).first()
+    if not user or not user.is_active:
+        return None
+    if settings.APP_ENV.strip().lower() == "production" and user.user_id in DEFAULT_ACCOUNT_IDS:
+        return None
+    if user.password_hash_argon2:
+        try:
+            valid, updated = PASSWORD_HASHER.verify_and_update(password, user.password_hash_argon2)
+        except Exception:
+            return None
+        if not valid:
+            return None
+        if updated:
+            user.password_hash_argon2 = updated
+            db.commit()
+        return user
+    if not hmac.compare_digest(user.password_hash, legacy_password_hash(password)):
+        return None
+    user.password_hash_argon2 = PASSWORD_HASHER.hash(password)
+    db.commit()
+    db.refresh(user)
+    return user
 
 
 def _b64url_encode(data: bytes) -> str:
@@ -132,149 +120,193 @@ def _b64url_encode(data: bytes) -> str:
 
 
 def _b64url_decode(data: str) -> bytes:
-    padding = "=" * ((4 - len(data) % 4) % 4)
-    return base64.urlsafe_b64decode((data + padding).encode("ascii"))
+    return base64.urlsafe_b64decode((data + "=" * ((4 - len(data) % 4) % 4)).encode("ascii"))
 
 
 def _jwt_sign(message: bytes) -> str:
-    digest = hmac.new(settings.JWT_SECRET.encode("utf-8"), message, hashlib.sha256).digest()
-    return _b64url_encode(digest)
+    return _b64url_encode(hmac.new(settings.JWT_SECRET.encode(), message, hashlib.sha256).digest())
 
 
-def create_access_token(user: AuthUser) -> tuple[str, int]:
+def create_access_token(user: AuthUser, sid: str) -> tuple[str, int]:
     now = datetime.now(timezone.utc)
-    exp_at = now + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    ttl = settings.ACCESS_TOKEN_TTL_MINUTES * 60
     payload = {
         "sub": user.user_id,
         "role": user.role,
         "jogador_id": user.jogador_id,
         "username": user.username,
+        "sid": sid,
         "iat": int(now.timestamp()),
-        "exp": int(exp_at.timestamp()),
+        "exp": int(now.timestamp()) + ttl,
     }
     header = {"alg": "HS256", "typ": "JWT"}
-
-    header_part = _b64url_encode(json.dumps(header, separators=(",", ":"), sort_keys=True).encode("utf-8"))
-    payload_part = _b64url_encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8"))
-    signing_input = f"{header_part}.{payload_part}".encode("ascii")
-    signature_part = _jwt_sign(signing_input)
-    token = f"{header_part}.{payload_part}.{signature_part}"
-    return token, settings.JWT_EXPIRE_MINUTES * 60
+    head = _b64url_encode(json.dumps(header, separators=(",", ":"), sort_keys=True).encode())
+    body = _b64url_encode(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode())
+    return f"{head}.{body}.{_jwt_sign(f'{head}.{body}'.encode())}", ttl
 
 
-def decode_access_token(token: str) -> AuthUser:
+def decode_access_token(token: str, *, source: str = "bearer") -> AuthUser:
     try:
-        header_part, payload_part, signature_part = token.split(".")
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
-
-    signing_input = f"{header_part}.{payload_part}".encode("ascii")
-    expected_sig = _jwt_sign(signing_input)
-    if not hmac.compare_digest(signature_part, expected_sig):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature")
-
-    try:
-        payload = json.loads(_b64url_decode(payload_part).decode("utf-8"))
+        head, body, signature = token.split(".")
+        expected = _jwt_sign(f"{head}.{body}".encode())
+        if not hmac.compare_digest(signature, expected):
+            raise ValueError("signature")
+        payload = json.loads(_b64url_decode(body))
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload") from exc
-
-    exp = int(payload.get("exp", 0))
-    if exp < int(datetime.now(timezone.utc).timestamp()):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
-
-    role = str(payload.get("role", "user")).strip().lower()
+        raise HTTPException(status_code=401, detail="invalid_token") from exc
+    if int(payload.get("exp", 0)) < int(datetime.now(timezone.utc).timestamp()):
+        raise HTTPException(status_code=401, detail="token_expired")
+    role = str(payload.get("role", "user")).lower()
     if role not in ALLOWED_ROLES:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid role")
-
-    jogador_id_raw = payload.get("jogador_id")
-    jogador_id = int(jogador_id_raw) if jogador_id_raw is not None else None
-
+        raise HTTPException(status_code=403, detail="invalid_role")
+    jogador = payload.get("jogador_id")
     return AuthUser(
         user_id=str(payload.get("sub", "")),
         role=role,
-        jogador_id=jogador_id,
+        jogador_id=int(jogador) if jogador is not None else None,
         username=payload.get("username"),
+        sid=payload.get("sid"),
+        auth_source=source,
     )
 
 
-def authenticate_user(db: Session, username: str, password: str) -> Optional[AuthUser]:
-    ensure_default_users(db)
-    user = db.query(UsuarioModel).filter(UsuarioModel.username == username.strip().lower()).first()
-    if not user or user.password_hash != password_hash(password):
-        return None
-    return auth_user_from_model(user)
+def _refresh_digest(raw_token: str) -> str:
+    return hmac.new(settings.REFRESH_TOKEN_HMAC_SECRET.encode(), raw_token.encode(), hashlib.sha256).hexdigest()
 
 
-def parse_legacy_headers(
-    x_user_id: str | None,
-    x_role: str | None,
-    x_jogador_id: str | None,
-) -> AuthUser:
+def _new_refresh(sid: str) -> str:
+    return f"{sid}.{secrets.token_urlsafe(48)}"
+
+
+def create_session(db: Session, user: UsuarioModel) -> tuple[AuthSession, str, str, int]:
+    now = datetime.now(timezone.utc)
+    sid = str(uuid4())
+    raw = _new_refresh(sid)
+    session = AuthSession(
+        sid=sid,
+        family_id=str(uuid4()),
+        usuario_id=user.id,
+        refresh_digest=_refresh_digest(raw),
+        expires_at=now + timedelta(days=settings.REFRESH_IDLE_DAYS),
+        absolute_expires_at=now + timedelta(days=settings.REFRESH_ABSOLUTE_DAYS),
+    )
+    db.add(session)
+    db.commit()
+    auth_user = auth_user_from_model(user, sid=sid, source="cookie")
+    access, ttl = create_access_token(auth_user, sid)
+    return session, raw, access, ttl
+
+
+def _aware(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+
+
+def rotate_refresh(db: Session, raw_token: str) -> tuple[AuthSession, UsuarioModel, str, str, int]:
+    sid = raw_token.split(".", 1)[0]
+    now = datetime.now(timezone.utc)
+    current = db.query(AuthSession).filter(AuthSession.sid == sid).with_for_update().first()
+    if current is None or not hmac.compare_digest(current.refresh_digest, _refresh_digest(raw_token)):
+        raise HTTPException(status_code=401, detail="invalid_refresh")
+    if current.rotated_at is not None:
+        age = (now - _aware(current.rotated_at)).total_seconds()
+        if age <= RACE_GRACE_SECONDS:
+            raise HTTPException(status_code=409, detail="refresh_already_rotated")
+        db.query(AuthSession).filter(AuthSession.family_id == current.family_id).update(
+            {AuthSession.revoked_at: now}, synchronize_session=False
+        )
+        db.commit()
+        raise HTTPException(status_code=401, detail="refresh_replay")
+    if current.revoked_at is not None or _aware(current.expires_at) <= now or _aware(current.absolute_expires_at) <= now:
+        raise HTTPException(status_code=401, detail="refresh_expired")
+    user = db.get(UsuarioModel, current.usuario_id)
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=401, detail="inactive_user")
+    new_sid = str(uuid4())
+    new_raw = _new_refresh(new_sid)
+    successor = AuthSession(
+        sid=new_sid,
+        family_id=current.family_id,
+        usuario_id=current.usuario_id,
+        refresh_digest=_refresh_digest(new_raw),
+        expires_at=min(now + timedelta(days=settings.REFRESH_IDLE_DAYS), _aware(current.absolute_expires_at)),
+        absolute_expires_at=current.absolute_expires_at,
+    )
+    current.rotated_at = now
+    current.replaced_by_sid = new_sid
+    db.add(successor)
+    db.commit()
+    access, ttl = create_access_token(auth_user_from_model(user, sid=new_sid, source="cookie"), new_sid)
+    return successor, user, new_raw, access, ttl
+
+
+def revoke_session(db: Session, sid: str | None) -> None:
+    if not sid:
+        return
+    session = db.query(AuthSession).filter(AuthSession.sid == sid).with_for_update().first()
+    if session and session.revoked_at is None:
+        session.revoked_at = datetime.now(timezone.utc)
+        db.commit()
+
+
+def csrf_token(sid: str) -> str:
+    nonce = secrets.token_urlsafe(24)
+    signature = hmac.new(settings.REFRESH_TOKEN_HMAC_SECRET.encode(), f"{sid}:{nonce}".encode(), hashlib.sha256).hexdigest()
+    return f"{sid}.{nonce}.{signature}"
+
+
+def validate_csrf(sid: str | None, cookie: str | None, header: str | None) -> None:
+    if not sid or not cookie or not header or not hmac.compare_digest(cookie, header):
+        raise HTTPException(status_code=403, detail="csrf_invalid")
+    try:
+        token_sid, nonce, signature = cookie.split(".", 2)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="csrf_invalid") from exc
+    expected = hmac.new(settings.REFRESH_TOKEN_HMAC_SECRET.encode(), f"{token_sid}:{nonce}".encode(), hashlib.sha256).hexdigest()
+    if token_sid != sid or not hmac.compare_digest(signature, expected):
+        raise HTTPException(status_code=403, detail="csrf_invalid")
+
+
+def parse_legacy_headers(x_user_id: str | None, x_role: str | None, x_jogador_id: str | None) -> AuthUser:
+    if settings.APP_ENV.strip().lower() not in {"development", "test"}:
+        raise HTTPException(status_code=401, detail="legacy_auth_disabled")
     if not x_user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing X-User-Id header",
-        )
-
-    role = (x_role or "user").strip().lower()
+        raise HTTPException(status_code=401, detail="missing_auth")
+    role = (x_role or "user").lower()
     if role not in ALLOWED_ROLES:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid role",
-        )
-
-    jogador_id: Optional[int] = None
-    if x_jogador_id:
-        try:
-            jogador_id = int(x_jogador_id)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Invalid X-Jogador-Id",
-            ) from exc
-
-    return AuthUser(user_id=x_user_id, role=role, jogador_id=jogador_id)
-
-
-def parse_authorization_bearer(authorization: str | None) -> Optional[AuthUser]:
-    if not authorization:
-        return None
-    parts = authorization.strip().split(" ", 1)
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Authorization header")
-    return decode_access_token(parts[1])
+        raise HTTPException(status_code=403, detail="invalid_role")
+    try:
+        jogador = int(x_jogador_id) if x_jogador_id else None
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="invalid_jogador_id") from exc
+    return AuthUser(x_user_id, role, jogador, auth_source="legacy")
 
 
 def resolve_current_user(
     db: Session,
     authorization: str | None,
+    access_cookie: str | None,
     x_user_id: str | None,
     x_role: str | None,
     x_jogador_id: str | None,
 ) -> AuthUser:
-    mode = settings.AUTH_MODE.strip().lower()
-    if mode not in {"legacy", "jwt_compat", "jwt_only"}:
-        mode = "jwt_compat"
-
-    if mode == "legacy":
-        return parse_legacy_headers(x_user_id, x_role, x_jogador_id)
-
-    bearer_user = parse_authorization_bearer(authorization)
-    if bearer_user is not None:
-        persisted = get_usuario_by_user_id(db, bearer_user.user_id)
-        return auth_user_from_model(persisted) if persisted else bearer_user
-
-    if mode == "jwt_only":
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token")
-
-    legacy_user = parse_legacy_headers(x_user_id, x_role, x_jogador_id)
-    persisted = get_usuario_by_user_id(db, legacy_user.user_id)
-    return auth_user_from_model(persisted) if persisted else legacy_user
+    bearer = None
+    if authorization:
+        parts = authorization.split(" ", 1)
+        if len(parts) != 2 or parts[0].lower() != "bearer":
+            raise HTTPException(status_code=401, detail="invalid_authorization")
+        bearer = decode_access_token(parts[1], source="bearer")
+    cookie = decode_access_token(access_cookie, source="cookie") if access_cookie else None
+    if bearer and cookie and (bearer.user_id != cookie.user_id or bearer.sid != cookie.sid):
+        raise HTTPException(status_code=401, detail="auth_context_conflict")
+    resolved = cookie or bearer
+    if resolved:
+        persisted = get_usuario_by_user_id(db, resolved.user_id)
+        if persisted is None:
+            raise HTTPException(status_code=401, detail="inactive_user")
+        return auth_user_from_model(persisted, sid=resolved.sid, source=resolved.auth_source)
+    return parse_legacy_headers(x_user_id, x_role, x_jogador_id)
 
 
 def require_roles(user: AuthUser, *roles: str) -> None:
     if user.role not in roles:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient role",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient role")

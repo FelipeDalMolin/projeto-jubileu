@@ -10,6 +10,7 @@ from app.models.dia_evento import (
     TipoEventoEnum,
 )
 from app.models.jogador_turma import Jogador as JogadorModel, Turma as TurmaModel
+from app.modules.auth.service import seed_default_users
 
 
 def _criar_evento_jogo_livre(db_session):
@@ -45,12 +46,13 @@ def _criar_evento_jogo_livre(db_session):
 
 
 @pytest.mark.uc01
-def test_auth_login_and_me_with_bearer(client: TestClient):
+def test_auth_login_and_me_with_cookie(client: TestClient, db_session):
+    seed_default_users(db_session)
     login = client.post("/api/auth/login", json={"username": "coach", "password": "coach123"})
     assert login.status_code == 200, login.text
-
-    token = login.json()["access_token"]
-    me = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert "access_token" not in login.json()
+    assert client.cookies.get("jubileu_access")
+    me = client.get("/api/auth/me")
     assert me.status_code == 200, me.text
     assert me.json()["role"] == "treinador"
     assert me.json()["user_id"] == "u-coach"
