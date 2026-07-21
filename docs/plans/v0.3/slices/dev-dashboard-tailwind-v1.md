@@ -1,12 +1,12 @@
-# DEV-40 - Dashboard Tailwind v1
+# DEV-40 - Dashboard UI v1
 
 ## Objetivo
 
-Refatorar a pagina `/dashboard` para uma experiencia operacional clara, responsiva e Tailwind-only, sem alterar backend, contratos dos services ou instalar dependencias.
+Refatorar a pagina `/dashboard` para uma experiencia operacional clara e responsiva, sem alterar backend ou contratos dos services. Neste slice, a escolha proposta e usar os estilos/componentes ja presentes no frontend para reduzir risco; a decisao nao proibe uma dependencia de UI em slices futuros quando houver motivacao explicita.
 
 ## Diagnostico visual
 
-`DashboardHome.tsx` usa classes Bootstrap-like (`container`, `row`, `col-*`, `card`, `btn`, `alert`, `list-group`, `badge`, `text-muted`, `fw-semibold`), mas o ciclo v0.3.x usa Tailwind-only. O resultado e uma tela visualmente fraca e inconsistente com o restante da aplicacao.
+`DashboardHome.tsx` usa classes Bootstrap-like (`container`, `row`, `col-*`, `card`, `btn`, `alert`, `list-group`, `badge`, `text-muted`, `fw-semibold`). O resultado e uma tela visualmente fraca e inconsistente com o restante da aplicacao.
 
 ## Arquivos impactados
 
@@ -74,7 +74,7 @@ Resultado esperado da busca: sem ocorrencias.
 ## Fora de escopo
 
 - Alterar backend ou contratos dos services.
-- Instalar Bootstrap, shadcn/ui, lucide, recharts ou qualquer dependencia nova.
+- Introduzir dependencia nova sem justificar motivacao, trade-offs, manutencao e risco.
 - Refatorar `DashboardFilters` e `RankingTable`.
 - Redesenhar dashboards secundarios.
 - Reintroduzir ranking de trofeu com dados mockados.
@@ -86,6 +86,6 @@ Reverter o PR do `DEV-40` ou restaurar os tres arquivos alterados para a versao 
 ## Sugestao de issue Linear
 
 - Issue: `DEV-40 - UI operacional geral`
-- Entrega deste PR: `Dashboard Tailwind v1`
-- Issue relacionada para limpeza transversal futura: `DEV-42 - Tailwind-only UI cleanup v0.3`
+- Entrega deste PR: `Dashboard UI v1`
+- Issue relacionada para limpeza transversal futura: `DEV-42 - UI/UX cleanup operacional v0.3`
 - Branch sugerida: `dev-40-ui-operacional-geral`

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, JSON, String, UniqueConstraint, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -158,6 +158,7 @@ class TeamConfig(Base):
 
 class TimeEvento(Base):
     __tablename__ = "times_evento"
+    __table_args__ = (UniqueConstraint("evento_id", "nome", name="uq_times_evento_evento_nome"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False)

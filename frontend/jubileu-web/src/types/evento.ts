@@ -55,7 +55,7 @@ export type SeedPartidaResponse = {
 export type LancePayload = {
   tipo: string;
   payload: Record<string, unknown>;
-  jogador_id?: number;
+  jogador_id: number;
   client_event_id?: string;
 };
 

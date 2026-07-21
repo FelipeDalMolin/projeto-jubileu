@@ -5,15 +5,19 @@ Arquivos desta pasta representam o estado atual do projeto e devem ser priorizad
 | Arquivo | Uso |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Topologia, stack e regras arquiteturais. |
-| [FRONTEND.md](FRONTEND.md) | Estrutura React/Vite, rotas, services, estado e checks. |
+| [FRONTEND.md](FRONTEND.md) | Estrutura, padrao visual, rotas, services, estado e checks do React/Vite. |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Docker, NGINX, runtime dev/server, env e smoke. |
 | [API.md](API.md) | Contratos publicos e rotas canonicas. |
 | [DOMAIN_MODEL.md](DOMAIN_MODEL.md) | Modelo de dominio. |
+| [CALENDAR_EVENT_LOGIC.md](CALENDAR_EVENT_LOGIC.md) | Reconciliacao produto/arquitetura para Calendario, Dia e Evento. |
+| [COMMAND_SAFETY.md](COMMAND_SAFETY.md) | Politica para concorrencia, idempotencia e comandos mutaveis. |
 | [DOCS_SYNC.md](DOCS_SYNC.md) | Regra de sincronizacao entre codigo e docs. |
 | [CHAT_CONTEXT.md](CHAT_CONTEXT.md) | Memoria curta para chat e agentes. |
 | [ROADMAP.md](ROADMAP.md) | Direcao e janela atual. |
 | [RELEASES.md](RELEASES.md) | Notas e criterios de release. |
 | [DECISIONS.md](DECISIONS.md) | Indice vivo de decisoes. |
+| [PLANNING_AUDIT.md](PLANNING_AUDIT.md) | Auditoria de drift entre planos, ADRs, Linear e estado atual. |
+| [PLAN_CODEMAP_REVIEW.md](PLAN_CODEMAP_REVIEW.md) | Cruzamento dos planos v0.3 com o mapa gerado do codigo. |
 
 ## Espelho Gerado Do Codigo
 

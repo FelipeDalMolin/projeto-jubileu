@@ -240,7 +240,10 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       if (!requestAuth || !eventoIdNum) throw new Error("Sessao invalida para atualizar duracao");
       return await atualizarConfiguracaoRotacaoEvento(
         eventoIdNum,
-        { duracao_partida_segundos: duracaoSegundos },
+        {
+          duracao_partida_segundos: duracaoSegundos,
+          ...(rotacaoQuery.data?.version != null ? { expected_version: rotacaoQuery.data.version } : {}),
+        },
         requestAuth,
       );
     },
@@ -415,7 +418,10 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
               if (!requestAuth || !eventoIdNum) throw new Error("Sessao invalida para atualizar configuracao");
               await atualizarConfiguracaoRotacaoEvento(
                 eventoIdNum,
-                { team_size_ref: nextTeamSizeRef },
+                {
+                  team_size_ref: nextTeamSizeRef,
+                  ...(rotacaoQuery.data?.version != null ? { expected_version: rotacaoQuery.data.version } : {}),
+                },
                 requestAuth,
               );
               await rotacaoQuery.refetch();
@@ -434,7 +440,11 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
               if (!requestAuth || !eventoIdNum) throw new Error("Sessao invalida para atualizar fila");
               await atualizarConfiguracaoRotacaoEvento(
                 eventoIdNum,
-                { fila_jogadores_ids, proximos_times },
+                {
+                  fila_jogadores_ids,
+                  proximos_times,
+                  ...(rotacaoQuery.data?.version != null ? { expected_version: rotacaoQuery.data.version } : {}),
+                },
                 requestAuth,
               );
               await rotacaoQuery.refetch();

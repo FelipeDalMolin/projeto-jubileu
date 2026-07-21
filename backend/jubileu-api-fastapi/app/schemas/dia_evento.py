@@ -80,19 +80,28 @@ class ConfirmarPresencasIn(BaseModel):
 # ---------------------------------------------------------
 
 
-class EstadoEquipesEventoIn(BaseModel):
+class EstadoEquipesEventoBase(BaseModel):
     """
-    Payload que o front envia para salvar o estado de equipes da evento.
+    Estado de equipes da evento.
     """
 
     jogadores: List[PresencaJogadorDiaOut] = Field(default_factory=list)
     times: List[TimeEventoOut] = Field(default_factory=list)
 
 
-class EstadoEquipesEventoOut(EstadoEquipesEventoIn):
+class EstadoEquipesEventoIn(EstadoEquipesEventoBase):
+    """
+    Payload que o front envia para salvar o estado de equipes da evento.
+    """
+
+    expected_version: Optional[int] = None
+
+
+class EstadoEquipesEventoOut(EstadoEquipesEventoBase):
     """Resposta do backend com o estado de equipes + id da evento."""
 
     evento_id: int
+    version: Optional[int] = None
 
 
 # ---------------------------------------------------------

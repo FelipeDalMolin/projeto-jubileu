@@ -11,6 +11,7 @@ Read only the references needed:
 
 - Read [`references/frontend-map.md`](./references/frontend-map.md) to locate routes, pages, services, types, workspace components, tests, and scripts.
 - Read [`references/frontend-rules.md`](./references/frontend-rules.md) before changing routing, API calls, auth headers, polling, query behavior, or user-facing flows.
+- Read [`../../docs/current/COMMAND_SAFETY.md`](../../docs/current/COMMAND_SAFETY.md) before changing forms, buttons, services, or workspace actions that write data.
 
 ## Workflow
 
@@ -38,6 +39,7 @@ python3 scripts/docs/generate_code_map.py
 - Prefer existing services and types before adding a new client abstraction.
 - Keep backend authorization as source of truth; frontend role checks are UI affordances.
 - For teams/workspace, follow: local immediate state -> persisted command/event -> polling now -> WebSocket future.
+- For mutating UI, prevent duplicate submits as UX and rely on backend command safety for integrity.
 - Avoid broad visual redesign while fixing data/API behavior.
 - Update `docs/current/FRONTEND.md` when frontend architecture or workflow rules change.
 

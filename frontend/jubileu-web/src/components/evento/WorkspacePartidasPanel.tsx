@@ -7,6 +7,10 @@ import {
   iniciarPartidaNoEvento,
   removerPartidaDoEvento,
 } from "../../services/diasService";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { SelectField } from "../ui/form";
+import { StatusBadge } from "../ui/status-badge";
 
 import type { PresencaJogadorDia } from "../../types/dia";
 import type {
@@ -218,76 +222,54 @@ export default function WorkspacePartidasPanel({
   };
 
   return (
-    <div className="mb-4">
-      <h3 className="h5">{title}</h3>
+    <section className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+        <p className="text-sm text-slate-600">
+          Organize o confronto, acompanhe o placar e consulte a sumula de cada equipe.
+        </p>
+      </div>
 
       {times.length < 2 && !isReadOnly ? (
-        <p className="text-muted">
+        <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
           Para criar partidas, e necessario ter pelo menos <strong>2 equipes</strong>.
-        </p>
+        </div>
       ) : (
         <>
           {!isReadOnly ? (
-            <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
-            <span>Nova partida:</span>
-            <select
-              className="form-select form-select-sm"
-              style={{ maxWidth: 160 }}
-              value={selectedTimeAId}
-              onChange={(e) => setNovoTimeAId(e.target.value)}
-            >
-              <option value="">Time A</option>
-              {times.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome}
-                </option>
-              ))}
-            </select>
-
-            <span>x</span>
-
-            <select
-              className="form-select form-select-sm"
-              style={{ maxWidth: 160 }}
-              value={selectedTimeBId}
-              onChange={(e) => setNovoTimeBId(e.target.value)}
-            >
-              <option value="">Time B</option>
-              {times.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome}
-                </option>
-              ))}
-            </select>
-
-            <button
-              data-testid="button-criar-partida"
-              type="button"
-              className="btn btn-sm btn-success"
-              onClick={handleAdicionarPartida}
-            >
-              Adicionar partida
-            </button>
-
-            <small className="text-muted">
-              Monte na ordem real (ex.: vencedor continua).
-            </small>
-            </div>
-          ) : null}
-          {!isReadOnly && times.length >= 2 ? (
-            <p className="text-muted" style={{ fontSize: 12 }}>
-              Use os times montados na aba <strong>Presenca & Equipes</strong>, escolha o confronto e clique em
-              <strong> Adicionar partida</strong>. Depois clique em <strong>Iniciar</strong> na partida criada.
-            </p>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle>Nova partida</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] sm:items-end">
+                  <SelectField label="Equipe A" value={selectedTimeAId} onChange={(e) => setNovoTimeAId(e.target.value)}>
+                    <option value="">Selecione</option>
+                    {times.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  </SelectField>
+                  <span className="hidden pb-2 text-sm font-semibold text-slate-500 sm:block">x</span>
+                  <SelectField label="Equipe B" value={selectedTimeBId} onChange={(e) => setNovoTimeBId(e.target.value)}>
+                    <option value="">Selecione</option>
+                    {times.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                  </SelectField>
+                  <Button data-testid="button-criar-partida" type="button" onClick={handleAdicionarPartida}>
+                    Adicionar partida
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Use os times montados em Presenca &amp; Equipes e mantenha a ordem real, por exemplo quando o vencedor continua.
+                </p>
+              </CardContent>
+            </Card>
           ) : null}
           {partidasUi.length === 0 ? (
-            <p className="text-muted">
+            <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
               {isReadOnly
                 ? "Nenhuma partida encerrada ainda."
                 : "Nenhuma partida cadastrada ainda."}
-            </p>
+            </div>
           ) : (
-            <div className="d-flex flex-column gap-3">
+            <div className="space-y-3">
               {partidasUi.map((p) => {
                 const timeA = times.find((t) => t.id === p.timeAId);
                 const timeB = times.find((t) => t.id === p.timeBId);
@@ -296,61 +278,32 @@ export default function WorkspacePartidasPanel({
                 const jogadoresB = timeB ? jogadoresPorTime(timeB.id) : [];
 
                 return (
-                  <div key={p.id} className="border rounded p-2" style={{ fontSize: 13 }}>
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <strong>Partida {p.ordem}</strong>
-                      <div className="d-flex align-items-center gap-2">
-                        <span
-                          className={`badge ${
-                            p.status === "EM_ANDAMENTO"
-                              ? "bg-success"
-                              : p.status === "ENCERRADA"
-                                ? "bg-secondary"
-                                : "bg-warning text-dark"
-                          }`}
-                        >
-                          {p.status}
-                        </span>
+                  <Card key={p.id}>
+                    <CardHeader className="gap-3 pb-3 sm:flex-row sm:items-center sm:justify-between">
+                      <CardTitle>Partida {p.ordem}</CardTitle>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge value={p.status} />
                         {!isReadOnly && p.status === "PLANEJADA" ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-success"
-                            onClick={() => handleIniciarPartida(p.id)}
-                          >
-                            Iniciar
-                          </button>
+                          <Button type="button" size="sm" onClick={() => handleIniciarPartida(p.id)}>Iniciar</Button>
                         ) : null}
                         {!isReadOnly && p.status === "EM_ANDAMENTO" ? (
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-warning"
-                            onClick={() => handleEncerrarPartida(p.id)}
-                          >
-                            Encerrar
-                          </button>
+                          <Button type="button" size="sm" variant="outline" onClick={() => handleEncerrarPartida(p.id)}>Encerrar</Button>
                         ) : null}
                         {!isReadOnly ? (
-                          <button
-                            type="button"
-                            className="btn btn-link btn-sm text-danger p-0"
-                            onClick={() => handleRemoverPartida(p.id)}
-                          >
-                            Remover
-                          </button>
+                          <Button type="button" size="sm" variant="danger" onClick={() => handleRemoverPartida(p.id)}>Remover</Button>
                         ) : null}
                       </div>
-                    </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center justify-center gap-3 rounded-md bg-slate-50 p-3 text-sm font-semibold text-slate-900">
+                        <span>{timeA?.nome ?? "Time A"}</span>
+                        <span className="rounded-md bg-slate-900 px-2.5 py-1 text-white">{p.golsTimeA}</span>
+                        <span className="text-slate-400">x</span>
+                        <span className="rounded-md bg-slate-900 px-2.5 py-1 text-white">{p.golsTimeB}</span>
+                        <span>{timeB?.nome ?? "Time B"}</span>
+                      </div>
 
-                    <div className="d-flex align-items-center gap-2 mb-2">
-                      <span>{timeA?.nome ?? "Time A"}</span>
-                      <span className="badge bg-secondary">{p.golsTimeA}</span>
-                      <span> x </span>
-                      <span className="badge bg-secondary">{p.golsTimeB}</span>
-                      <span>{timeB?.nome ?? "Time B"}</span>
-                    </div>
-
-                    <div className="row g-2">
-                      <div className="col-12 col-md-6">
+                      <div className="grid gap-3 md:grid-cols-2">
                         <TabelaSumulaTime
                           titulo={timeA?.nome ?? "Time A"}
                           partidaId={p.id}
@@ -359,8 +312,6 @@ export default function WorkspacePartidasPanel({
                           onAlterarStat={handleAlterarStat}
                           readOnly={isReadOnly}
                         />
-                      </div>
-                      <div className="col-12 col-md-6">
                         <TabelaSumulaTime
                           titulo={timeB?.nome ?? "Time B"}
                           partidaId={p.id}
@@ -370,15 +321,15 @@ export default function WorkspacePartidasPanel({
                           readOnly={isReadOnly}
                         />
                       </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
           )}
         </>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -419,38 +370,36 @@ function TabelaSumulaTime({
   };
 
   return (
-    <div>
-      <div className="d-flex justify-content-between mb-1">
-        <strong>{titulo}</strong>
-      </div>
+    <div className="min-w-0">
+      <h4 className="mb-2 text-sm font-semibold text-slate-900">{titulo}</h4>
 
       {jogadores.length === 0 ? (
-        <p className="text-muted" style={{ fontSize: 12 }}>
+        <p className="rounded-md bg-slate-50 p-3 text-xs text-slate-500">
           Nenhum jogador neste time.
         </p>
       ) : (
-        <table className="table table-sm mb-1 align-middle">
-          <thead>
+        <div className="overflow-x-auto rounded-md border border-slate-200">
+        <table className="w-full border-collapse text-left text-xs">
+          <thead className="bg-slate-50 text-slate-600">
             <tr>
-              <th style={{ fontSize: 11 }}>Jogador</th>
+              <th className="px-2 py-2 font-semibold">Jogador</th>
               {campos.map((c) => (
-                <th key={c} className="text-center" style={{ width: 40, fontSize: 11 }}>
+                <th key={c} className="w-12 px-1 py-2 text-center font-semibold">
                   {labels[c]}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-slate-100">
             {jogadores.map((j) => (
               <tr key={j.jogadorId}>
-                <td style={{ fontSize: 11 }}>{j.nome}</td>
+                <td className="px-2 py-1.5 font-medium text-slate-700">{j.nome}</td>
                 {campos.map((c) => (
-                  <td key={c} className="text-center">
+                  <td key={c} className="px-1 py-1.5 text-center">
                     <input
                       type="number"
                       min={0}
-                      className="form-control form-control-sm"
-                      style={{ width: 40, fontSize: 10, textAlign: "center" }}
+                      className="h-8 w-10 rounded-md border border-slate-200 bg-white px-1 text-center text-xs disabled:bg-slate-50"
                       value={getStat(partidaId, j.jogadorId, c)}
                       disabled={readOnly}
                       onChange={(e) => handleChange(e, j.jogadorId, c)}
@@ -461,6 +410,7 @@ function TabelaSumulaTime({
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Fechar o ciclo `v0.3.x` com a base operacional pronta para release: `Evento` canonico, `Usuario` persistido, migrations validadas em PostgreSQL, UI Tailwind-only, auth/polling endurecidos, CI/release gate e smoke integrado.
+Fechar o ciclo `v0.3.x` com a base operacional pronta para release: `Evento` canonico, `Usuario` persistido, migrations validadas em PostgreSQL, UI/UX operacional consistente, auth/polling endurecidos, CI/release gate e smoke integrado.
 
 ## Escopo
 
@@ -17,8 +17,8 @@ Fechar o ciclo `v0.3.x` com a base operacional pronta para release: `Evento` can
 
 - Abrir `v0.4`.
 - Reintroduzir `Aula` como entidade publica.
-- Instalar Bootstrap.
-- Instalar shadcn/ui.
+- Introduzir dependencia de UI sem justificativa explicita de custo, consistencia,
+  acessibilidade, manutencao e risco.
 - Migrar para WebSocket/MQTT como caminho principal.
 
 ## Ordem De Execucao

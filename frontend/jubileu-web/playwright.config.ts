@@ -4,6 +4,7 @@ const runtimeMode = process.env.E2E_RUNTIME_MODE;
 const baseURL = process.env.E2E_BASE_URL ?? "http://127.0.0.1:5173";
 const apiURL =
   process.env.E2E_API_URL ?? (runtimeMode === "nginx" ? "http://127.0.0.1" : "http://localhost:8000");
+const chromiumExecutablePath = process.env.E2E_CHROMIUM_EXECUTABLE_PATH;
 const serverEnv = [`E2E_API_URL=${apiURL}`, runtimeMode ? `E2E_RUNTIME_MODE=${runtimeMode}` : ""]
   .filter(Boolean)
   .join(" ");
@@ -23,7 +24,12 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(chromiumExecutablePath
+          ? { launchOptions: { executablePath: chromiumExecutablePath } }
+          : {}),
+      },
     },
   ],
   webServer: {

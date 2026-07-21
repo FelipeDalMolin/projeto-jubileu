@@ -74,7 +74,7 @@ class SeedPartidaOut(BaseModel):
 class LanceCreateIn(BaseModel):
     tipo: str
     payload: dict[str, Any] = Field(default_factory=dict)
-    jogador_id: Optional[int] = None
+    jogador_id: int
     client_event_id: Optional[str] = None
 
 
@@ -140,6 +140,7 @@ class RotacaoEstadoUpdateIn(BaseModel):
     duracao_partida_segundos: int | None = Field(default=None, ge=60, le=7200)
     fila_jogadores_ids: list[int] | None = None
     proximos_times: list[RotacaoGrupoPatchIn] | None = None
+    expected_version: int | None = None
 
 
 class RotacaoPreviewIn(BaseModel):

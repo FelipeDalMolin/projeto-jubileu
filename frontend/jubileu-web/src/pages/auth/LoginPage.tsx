@@ -1,21 +1,27 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { ErrorState } from "../../components/ui/feedback";
+import { Field } from "../../components/ui/form";
 import { useAuthSession } from "../../hooks/useAuthSession";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [senha, setSenha] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const { login } = useAuthSession();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setErro(null);
 
     if (!username || !senha) {
-      alert("Preencha usuario e senha.");
+      setErro("Preencha usuario e senha.");
       return;
     }
 
@@ -25,45 +31,48 @@ export default function LoginPage() {
       navigate("/dias");
     } catch (err) {
       console.error(err);
-      alert("Nao foi possivel entrar.");
+      setErro("Nao foi possivel entrar.");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div data-testid="page-login" style={{ padding: 40, maxWidth: 420, margin: "40px auto" }}>
-      <h2 style={{ marginBottom: 16 }}>Login - Projeto Jubileu</h2>
-      <p style={{ fontSize: 13, color: "#475569", marginBottom: 16 }}>
-        Contas JWT de desenvolvimento: admin/admin123, coach/coach123, aux/aux123, user/user123.
-      </p>
+    <main data-testid="page-login" className="mx-auto flex min-h-[calc(100vh-80px)] w-full max-w-md flex-col justify-center px-4 py-10">
+      <Card>
+        <CardHeader>
+          <CardTitle>Login - Projeto Jubileu</CardTitle>
+          <CardDescription>
+            Contas JWT de desenvolvimento: admin/admin123, coach/coach123, aux/aux123, user/user123.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <Field
+              label="Usuario"
+              data-testid="input-login-usuario"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              disabled={submitting}
+            />
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", marginBottom: 4 }}>Usuario</label>
-          <input
-            data-testid="input-login-usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            style={{ width: "100%" }}
-          />
-        </div>
+            <Field
+              label="Senha"
+              data-testid="input-login-senha"
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              disabled={submitting}
+            />
 
-        <div style={{ marginBottom: 12 }}>
-          <label style={{ display: "block", marginBottom: 4 }}>Senha</label>
-          <input
-            data-testid="input-login-senha"
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            style={{ width: "100%" }}
-          />
-        </div>
+            {erro ? <ErrorState message={erro} /> : null}
 
-        <button data-testid="button-login" type="submit" disabled={submitting} style={{ marginTop: 8 }}>
-          {submitting ? "Entrando..." : "Entrar"}
-        </button>
-      </form>
-    </div>
+            <Button data-testid="button-login" type="submit" disabled={submitting} className="w-full">
+              {submitting ? "Entrando..." : "Entrar"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </main>
   );
 }

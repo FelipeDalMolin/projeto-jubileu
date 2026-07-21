@@ -70,18 +70,18 @@
 | Risco | Divergencia entre sessao local e usuario persistido. |
 | RELEASES | Registrar contrato de usuario. |
 
-## Slice 06 - Tailwind-only UI Cleanup
+## Slice 06 - UI/UX Cleanup Operacional
 
 | Campo | Valor |
 |---|---|
-| Issues | DEV-40 ou nova DEV |
-| Branch | `dev-40-ui-operacional-geral` ou `dev-NN-tailwind-only-ui-cleanup` |
-| Objetivo | Remover classes Bootstrap-like e consolidar componentes Tailwind. |
+| Issues | DEV-40/DEV-42 |
+| Branch | `dev-42-ui-ux-cleanup-v03` |
+| Objetivo | Remover classes Bootstrap-like e consolidar componentes/estilos com decisao tecnica explicita. |
 | Arquivos provaveis | dashboards, jogadores, turmas, sessao |
-| Fora de escopo | Instalar Bootstrap ou shadcn/ui. |
-| Aceite | Grep sem classes Bootstrap-like em `src`; UI responsiva e consistente. |
-| Validacao | `npm run lint`, `npm run build`, grep de classes proibidas. |
-| Risco | Refactor visual grande demais para um PR. |
+| Fora de escopo | Introduzir dependencia de UI sem motivacao e trade-offs documentados. |
+| Aceite | Grep sem classes Bootstrap-like obvias em `src`; UI responsiva e consistente; escolha UI justificada. |
+| Validacao | `npm run lint`, `npm run build`, grep de classes residuais e validacao visual; Playwright quando tocar navegacao, auth, formularios ou workspace. |
+| Risco | Refactor visual grande demais para um PR; dependencia nova sem ganho claro. |
 | RELEASES | Registrar cleanup visual e telas tocadas. |
 
 ## Slice 07 - Auth Hardening v0.3

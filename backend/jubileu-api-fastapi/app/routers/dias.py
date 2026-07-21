@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import re
 from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
@@ -30,7 +32,6 @@ from app.schemas.dia_evento import (
     EventoDiaOut,
     CommandOkOut,
     ConfirmarPresencasIn,
-    DiaListOut,
     DiaOut,
     EstadoEquipesEventoIn,
     EstadoEquipesEventoOut,
@@ -46,10 +47,60 @@ from app.services.workspace_evento import build_workspace_evento
 router = APIRouter(prefix="/dias", tags=["Dias"])
 
 
-@router.get("/", response_model=List[DiaListOut])
-def listar_dias(db: Session = Depends(get_db)) -> List[DiaListOut]:
-    dias = db.query(DiaModel).order_by(DiaModel.data_iso.asc()).all()
-    return [DiaListOut.model_validate(d, from_attributes=True) for d in dias]
+def _lock_evento_for_command(db: Session, evento_id: int) -> None:
+    db.query(EventoModel.id).filter(EventoModel.id == evento_id).with_for_update().one()
+
+
+def _version_conflict(resource: str, expected: int | None, current: int | None) -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail={
+            "code": "version_conflict",
+            "resource": resource,
+            "expected_version": expected,
+            "current_version": current,
+            "message": "Estado alterado no servidor. Recarregue antes de salvar novamente.",
+        },
+    )
+
+
+def _nome_unico_time(db: Session, evento_id: int, nome_sugerido: str) -> str:
+    base = (nome_sugerido or "").strip() or "Time"
+    existentes = {
+        str(row.nome)
+        for row in db.query(TimeEventoModel.nome).filter(TimeEventoModel.evento_id == evento_id).all()
+    }
+    if base not in existentes:
+        return base
+
+    if re.fullmatch(r"Time(?:\s+\d+)?", base, flags=re.IGNORECASE):
+        maior_idx = 0
+        for nome in existentes:
+            match = re.fullmatch(r"Time\s+(\d+)", nome.strip(), flags=re.IGNORECASE)
+            if match:
+                maior_idx = max(maior_idx, int(match.group(1)))
+        while True:
+            maior_idx += 1
+            candidato = f"Time {maior_idx}"
+            if candidato not in existentes:
+                return candidato
+
+    suffix = 2
+    while True:
+        candidato = f"{base} {suffix}"
+        if candidato not in existentes:
+            return candidato
+        suffix += 1
+
+
+@router.get("/", response_model=List[DiaOut])
+def listar_dias(db: Session = Depends(get_db)) -> List[DiaOut]:
+    return (
+        db.query(DiaModel)
+        .options(selectinload(DiaModel.eventos).selectinload(EventoModel.jogadores))
+        .order_by(DiaModel.data_iso.asc())
+        .all()
+    )
 
 
 @router.get("/{data_iso}", response_model=DiaOut)
@@ -286,20 +337,27 @@ def criar_time_na_evento(
 ) -> TimeEventoOut:
     evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
     dias_service.assert_evento_editavel(evento)
+    _lock_evento_for_command(db, evento.id)
 
     novo_time = TimeEventoModel(
         evento_id=evento.id,
-        nome=payload.nome,
+        nome=_nome_unico_time(db, evento.id, payload.nome),
         caracteristica=payload.caracteristica,
         cor_camisa=payload.cor_camisa,
     )
-    db.add(novo_time)
-    db.commit()
-    db.refresh(novo_time)
-
-    db.refresh(evento, attribute_names=["times", "jogadores"])
-    rebuild_estado_equipes(db, evento)
-    db.commit()
+    try:
+        db.add(novo_time)
+        db.flush()
+        db.refresh(evento, attribute_names=["times", "jogadores"])
+        rebuild_estado_equipes(db, evento)
+        db.commit()
+        db.refresh(novo_time)
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Nome de time ja existe neste evento. Recarregue e tente novamente.",
+        ) from exc
 
     return TimeEventoOut(
         id=str(novo_time.id),
@@ -431,7 +489,7 @@ def obter_estado_equipes_evento(
     team_config = dias_service.ensure_active_team_config(db, evento)
 
     if not team_config:
-        return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=[], times=[])
+        return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=[], times=[], version=None)
 
     estado_dict: dict[str, Any] = team_config.estado or {}
     jogadores_raw = estado_dict.get("jogadores", []) or []
@@ -440,7 +498,8 @@ def obter_estado_equipes_evento(
     jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in jogadores_raw]
     times = [TimeEventoOut.model_validate(t) for t in times_raw]
 
-    return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=jogadores, times=times)
+    version = int(team_config.version) if team_config.version is not None else None
+    return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=jogadores, times=times, version=version)
 
 
 @router.put("/{data_iso}/eventos/{evento_id}/estado-equipes", response_model=EstadoEquipesEventoOut)
@@ -452,6 +511,12 @@ def salvar_estado_equipes_evento(
 ) -> EstadoEquipesEventoOut:
     evento = dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id)
     dias_service.assert_evento_editavel(evento)
+    _lock_evento_for_command(db, evento.id)
+
+    current_config = dias_service.get_active_team_config(db, evento.id)
+    current_version = int(current_config.version) if current_config and current_config.version is not None else None
+    if payload.expected_version is not None and payload.expected_version != current_version:
+        raise _version_conflict("estado-equipes", payload.expected_version, current_version)
 
     estado_dict: dict[str, Any] = {
         "jogadores": [j.model_dump() for j in payload.jogadores],
@@ -465,7 +530,8 @@ def salvar_estado_equipes_evento(
     jogadores = [PresencaJogadorDiaOut.model_validate(j) for j in estado_dict["jogadores"]]
     times = [TimeEventoOut.model_validate(t) for t in estado_dict["times"]]
 
-    return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=jogadores, times=times)
+    version = int(team_config.version) if team_config.version is not None else None
+    return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=jogadores, times=times, version=version)
 
 
 @router.get("/{data_iso}/eventos/{evento_id}/estado", response_model=EventoEstadoOut)

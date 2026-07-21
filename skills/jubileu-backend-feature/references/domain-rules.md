@@ -32,6 +32,7 @@ Current active persistence is Evento-based:
 - Team composition changes must keep snapshots and versions coherent.
 - Match/stat changes can affect score totals, workspace KPIs, warnings, dashboards, and combined versions.
 - Arrival/check-in ordering is meaningful when seeding matches.
+- Mutating commands must follow `docs/current/COMMAND_SAFETY.md`; frontend duplicate-submit guards are not enough for backend integrity.
 - Authorization must be enforced in the backend.
 - PostgreSQL is the production/dev database target; SQLite-only behavior is not enough for migration confidence.
 
@@ -56,6 +57,7 @@ Current active persistence is Evento-based:
 - Empty participant sets.
 - Invalid parent-child relationships.
 - Repeated commands and idempotency keys.
+- Stale `expected_version` on snapshot/read-modify-write commands.
 - Invalid enum/status transitions.
 - Event finalization while a partida is in progress.
 - Team version drift after local-state persistence.

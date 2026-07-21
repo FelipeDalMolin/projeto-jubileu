@@ -1,25 +1,29 @@
-# 06 - Proximas Acoes Do Codex
+# 06 - Proximas Acoes Para Agentes
 
 ## Proxima Acao Recomendada
 
-Nao implementar feature ainda.
+Continuar a sequencia release-safe em branches finais com o padrao real do projeto.
 
-1. Finalizar e abrir o primeiro PR apenas com documentacao do ciclo `v0.3.x`.
-2. Reconciliar Linear/GitHub conforme `00-linear-github-reconciliation.md`.
-3. Depois executar Slice 02: PostgreSQL migration gate Evento + Usuario.
+1. Revisar e abrir PRs empilhados para `dev-41-docs-validacao-final`,
+   `chore/frontend-remove-equipes-dia-legacy` e `dev-41-smoke-validacao-final`.
+2. Executar `DEV-42` por slices de UI/UX operacional.
+3. Fechar `CORE-8/DEV-43`, `CORE-9/DEV-44` e `ops-v030-release-smoke`.
 
-## Primeiro PR
+## Branches Recomendadas
 
-- Branch: `dev-20-v03-docs-organization-and-planning`
-- Titulo: `docs: organizar documentacao e planejar ciclo v0.3.x`
-- Escopo: moves de docs, ADRs, planos v0.3, checklist e template de PR.
-- Fora de escopo: codigo de aplicacao, migrations novas, UI, auth e CI.
+- `dev-41-docs-validacao-final`
+- `chore/frontend-remove-equipes-dia-legacy`
+- `dev-41-smoke-validacao-final`
+- `dev-42-ui-ux-cleanup-v03`
+- `core-8-auth-security-baseline-v03`
+- `dev-43-auth-hardening-v03`
+- `core-9-release-policy-v03`
+- `dev-44-ci-release-gate-v03`
+- `ops-v030-release-smoke`
 
 ## Ordem De Issues Para Reconciliar
 
-1. `DEV-34` a `DEV-41`
-2. `DEV-33`
-3. `DEV-32`
-4. `DEV-27`
-5. `DEV-21`
-6. `DEV-20`, `DEV-25`, `DEV-28`, `DEV-29`, `DEV-30`, `DEV-31`, `DEV-11`, `DEV-12`
+1. `DEV-42`
+2. `CORE-8`, `DEV-43`
+3. `CORE-9`, `DEV-44`, `DEV-45`
+4. `DEV-48` depois dos gates v0.3

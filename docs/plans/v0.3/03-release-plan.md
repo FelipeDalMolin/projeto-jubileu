@@ -9,7 +9,7 @@
 | `v0.3.0-dev.3` | Backend Evento-only. |
 | `v0.3.0-dev.4` | Frontend Evento-only. |
 | `v0.3.0-dev.5` | Usuario persistido e pagina Usuario. |
-| `v0.3.0-dev.6` | Tailwind-only cleanup. |
+| `v0.3.0-dev.6` | UI/UX cleanup operacional com decisao tecnica explicita. |
 | `v0.3.0-dev.7` | Auth hardening. |
 | `v0.3.0-dev.8` | Polling/auth hardening. |
 | `v0.3.0-rc.1` | CI e release candidate. |

@@ -1,12 +1,25 @@
-// src/pages/jogadores/JogadoresPage.tsx
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { PageHeader, PageShell, Toolbar } from "../../components/layout/PageShell";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "../../components/ui/feedback";
+import { Field, SelectField } from "../../components/ui/form";
+import {
+  ResponsiveTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "../../components/ui/responsive-table";
+import { StatusBadge } from "../../components/ui/status-badge";
 import {
   listarJogadores,
   criarJogador,
   atualizarJogador,
   deletarJogador,
   type JogadorDTO,
+  type JogadorStatus,
 } from "../../services/jogadoresService";
 
 type FormMode = "create" | "edit";
@@ -14,8 +27,15 @@ type FormMode = "create" | "edit";
 type FormState = {
   nome: string;
   apelido: string;
-  status: string;
+  status: JogadorStatus;
 };
+
+const STATUS_OPTIONS: Array<{ value: JogadorStatus; label: string }> = [
+  { value: "ativo", label: "Ativo" },
+  { value: "inativo", label: "Inativo" },
+  { value: "lesionado", label: "Lesionado" },
+  { value: "afastado", label: "Afastado" },
+];
 
 function errorMessage(err: unknown, fallback: string) {
   return err instanceof Error ? err.message : fallback;
@@ -27,11 +47,11 @@ export default function JogadoresPage() {
   const [jogadores, setJogadores] = useState<JogadorDTO[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
+  const [formErro, setFormErro] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const [modo, setModo] = useState<FormMode>("create");
-  const [jogadorEditando, setJogadorEditando] = useState<JogadorDTO | null>(
-    null,
-  );
+  const [jogadorEditando, setJogadorEditando] = useState<JogadorDTO | null>(null);
   const [form, setForm] = useState<FormState>({
     nome: "",
     apelido: "",
@@ -39,8 +59,6 @@ export default function JogadoresPage() {
   });
 
   const [salvando, setSalvando] = useState(false);
-
-  // --------- Carregar lista ---------
 
   useEffect(() => {
     const carregar = async () => {
@@ -57,14 +75,18 @@ export default function JogadoresPage() {
       }
     };
 
-    carregar();
+    void carregar();
   }, []);
 
-  // --------- Helpers de formulario ---------
+  const resumo = useMemo(() => {
+    const ativos = jogadores.filter((jogador) => jogador.status === "ativo").length;
+    return { total: jogadores.length, ativos };
+  }, [jogadores]);
 
   const resetForm = () => {
     setModo("create");
     setJogadorEditando(null);
+    setFormErro(null);
     setForm({
       nome: "",
       apelido: "",
@@ -72,7 +94,8 @@ export default function JogadoresPage() {
     });
   };
 
-  const handleChangeInput = (field: keyof FormState, value: string) => {
+  const handleChangeInput = <K extends keyof FormState>(field: K, value: FormState[K]) => {
+    setFormErro(null);
     setForm((prev) => ({
       ...prev,
       [field]: value,
@@ -82,13 +105,14 @@ export default function JogadoresPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) {
-      alert("Informe o nome do jogador.");
+      setFormErro("Informe o nome do jogador.");
       return;
     }
 
     try {
       setSalvando(true);
       setErro(null);
+      setFormErro(null);
 
       if (modo === "create") {
         const novo = await criarJogador({
@@ -96,9 +120,7 @@ export default function JogadoresPage() {
           apelido: form.apelido.trim() || undefined,
           status: form.status,
         });
-        setJogadores((prev) =>
-          [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)),
-        );
+        setJogadores((prev) => [...prev, novo].sort((a, b) => a.nome.localeCompare(b.nome)));
         resetForm();
       } else if (modo === "edit" && jogadorEditando) {
         const atualizado = await atualizarJogador(jogadorEditando.id, {
@@ -107,9 +129,7 @@ export default function JogadoresPage() {
           status: form.status,
         });
         setJogadores((prev) =>
-          prev
-            .map((j) => (j.id === atualizado.id ? atualizado : j))
-            .sort((a, b) => a.nome.localeCompare(b.nome)),
+          prev.map((j) => (j.id === atualizado.id ? atualizado : j)).sort((a, b) => a.nome.localeCompare(b.nome)),
         );
         resetForm();
       }
@@ -121,192 +141,160 @@ export default function JogadoresPage() {
     }
   };
 
-  const handleEditar = (j: JogadorDTO) => {
+  const handleEditar = (jogador: JogadorDTO) => {
     setModo("edit");
-    setJogadorEditando(j);
+    setJogadorEditando(jogador);
+    setFormErro(null);
     setForm({
-      nome: j.nome,
-      apelido: j.apelido ?? "",
-      status: j.status ?? "ativo",
+      nome: jogador.nome,
+      apelido: jogador.apelido ?? "",
+      status: jogador.status ?? "ativo",
     });
   };
 
-  const handleExcluir = async (j: JogadorDTO) => {
-    const ok = window.confirm(
-      `Tem certeza que deseja remover o jogador "${j.nome}"?`,
-    );
+  const handleExcluir = async (jogador: JogadorDTO) => {
+    const ok = window.confirm(`Tem certeza que deseja remover o jogador "${jogador.nome}"?`);
     if (!ok) return;
 
     try {
-      await deletarJogador(j.id);
-      setJogadores((prev) => prev.filter((x) => x.id !== j.id));
-      if (jogadorEditando?.id === j.id) {
+      setDeletingId(jogador.id);
+      setErro(null);
+      await deletarJogador(jogador.id);
+      setJogadores((prev) => prev.filter((x) => x.id !== jogador.id));
+      if (jogadorEditando?.id === jogador.id) {
         resetForm();
       }
     } catch (err: unknown) {
       console.error(err);
       setErro(errorMessage(err, "Erro ao excluir jogador."));
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  // --------- Render ---------
-
   return (
-    <main className="container py-3" data-testid="page-jogadores">
-      <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/")}>
-        Voltar para o dashboard
-      </button>
+    <PageShell data-testid="page-jogadores">
+      <PageHeader
+        title="Jogadores"
+        description="Cadastro central de jogadores do clube."
+        actions={
+          <Button type="button" variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+            Voltar para dashboard
+          </Button>
+        }
+      />
 
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h1 className="h4 mb-0">Jogadores</h1>
-          <p className="text-muted mb-0">
-            Cadastro central de jogadores do clube.
-          </p>
-        </div>
-      </div>
+      {erro ? <ErrorState message={erro} /> : null}
 
-      {erro && <div className="alert alert-danger py-2">{erro}</div>}
+      <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+        <Card>
+          <CardHeader>
+            <CardTitle>{modo === "create" ? "Novo jogador" : "Editar jogador"}</CardTitle>
+            <CardDescription>
+              {modo === "create" ? "Cadastre um atleta para usar em turmas e eventos." : "Atualize o cadastro selecionado."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form data-testid="form-jogador" onSubmit={handleSubmit} className="space-y-3">
+              <Field
+                label="Nome *"
+                value={form.nome}
+                onChange={(e) => handleChangeInput("nome", e.target.value)}
+                disabled={salvando}
+              />
 
-      <div className="row">
-        {/* Formulário */}
-        <section className="col-12 col-lg-4 mb-3">
-          <div className="card">
-            <div className="card-body">
-              <h2 className="h6 mb-3">
-                {modo === "create" ? "Novo jogador" : "Editar jogador"}
-              </h2>
+              <Field
+                label="Apelido"
+                value={form.apelido}
+                onChange={(e) => handleChangeInput("apelido", e.target.value)}
+                disabled={salvando}
+              />
 
-              <form data-testid="form-jogador" onSubmit={handleSubmit}>
-                <div className="mb-2">
-                  <label className="form-label form-label-sm">Nome *</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    value={form.nome}
-                    onChange={(e) =>
-                      handleChangeInput("nome", e.target.value)
-                    }
-                  />
-                </div>
+              <SelectField
+                label="Status"
+                value={form.status}
+                onChange={(e) => handleChangeInput("status", e.target.value as JogadorStatus)}
+                disabled={salvando}
+              >
+                {STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </SelectField>
 
-                <div className="mb-2">
-                  <label className="form-label form-label-sm">Apelido</label>
-                  <input
-                    type="text"
-                    className="form-control form-control-sm"
-                    value={form.apelido}
-                    onChange={(e) =>
-                      handleChangeInput("apelido", e.target.value)
-                    }
-                  />
-                </div>
+              {formErro ? <ErrorState title="Revise o formulario" message={formErro} /> : null}
 
-                <div className="mb-3">
-                  <label className="form-label form-label-sm">Status</label>
-                  <select
-                    className="form-select form-select-sm"
-                    value={form.status}
-                    onChange={(e) =>
-                      handleChangeInput("status", e.target.value)
-                    }
-                  >
-                    <option value="ativo">Ativo</option>
-                    <option value="inativo">Inativo</option>
-                    <option value="lesionado">Lesionado</option>
-                    <option value="afastado">Afastado</option>
-                  </select>
-                </div>
+              <Toolbar>
+                <Button data-testid="button-salvar-jogador" type="submit" size="sm" disabled={salvando}>
+                  {salvando ? "Salvando..." : modo === "create" ? "Adicionar" : "Salvar alteracoes"}
+                </Button>
+                {modo === "edit" ? (
+                  <Button type="button" variant="outline" size="sm" onClick={resetForm} disabled={salvando}>
+                    Cancelar edicao
+                  </Button>
+                ) : null}
+              </Toolbar>
+            </form>
+          </CardContent>
+        </Card>
 
-                <div className="d-flex gap-2">
-                  <button
-                    data-testid="button-salvar-jogador"
-                    type="submit"
-                    className="btn btn-sm btn-primary"
-                    disabled={salvando}
-                  >
-                    {salvando
-                      ? "Salvando..."
-                      : modo === "create"
-                      ? "Adicionar"
-                      : "Salvar alteracoes"}
-                  </button>
-                  {modo === "edit" && (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-secondary"
-                      onClick={resetForm}
-                    >
-                      Cancelar edicao
-                    </button>
-                  )}
-                </div>
-              </form>
+        <Card>
+          <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle>Lista de jogadores</CardTitle>
+              <CardDescription>
+                {resumo.total} cadastrado(s), {resumo.ativos} ativo(s).
+              </CardDescription>
             </div>
-          </div>
-        </section>
-
-        {/* Lista */}
-        <section className="col-12 col-lg-8 mb-3">
-          <div className="card">
-            <div className="card-body">
-              <h2 className="h6 mb-3">Lista de jogadores</h2>
-
-              {loading ? (
-                <p className="text-muted mb-0">Carregando jogadores...</p>
-              ) : jogadores.length === 0 ? (
-                <p className="text-muted mb-0">
-                  Nenhum jogador cadastrado ainda.
-                </p>
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-sm align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th>Nome</th>
-                        <th>Apelido</th>
-                        <th>Status</th>
-                        <th style={{ width: 140 }}>Acoes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {jogadores.map((j) => (
-                        <tr key={j.id}>
-                          <td>{j.nome}</td>
-                          <td>{j.apelido}</td>
-                          <td>
-                            <span className="badge bg-secondary">
-                              {j.status}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="d-flex gap-2">
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() => handleEditar(j)}
-                              >
-                                Editar
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-danger"
-                                onClick={() => handleExcluir(j)}
-                              >
-                                Excluir
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-    </main>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <LoadingState label="Carregando jogadores..." />
+            ) : jogadores.length === 0 ? (
+              <EmptyState title="Nenhum jogador cadastrado" description="Use o formulario ao lado para adicionar o primeiro jogador." />
+            ) : (
+              <ResponsiveTable>
+                <TableHead>
+                  <TableRow>
+                    <TableHeaderCell>Nome</TableHeaderCell>
+                    <TableHeaderCell>Apelido</TableHeaderCell>
+                    <TableHeaderCell>Status</TableHeaderCell>
+                    <TableHeaderCell className="w-48 text-right">Acoes</TableHeaderCell>
+                  </TableRow>
+                </TableHead>
+                <tbody>
+                  {jogadores.map((jogador) => (
+                    <TableRow key={jogador.id}>
+                      <TableCell className="font-medium text-slate-950">{jogador.nome}</TableCell>
+                      <TableCell>{jogador.apelido || "-"}</TableCell>
+                      <TableCell>
+                        <StatusBadge value={jogador.status} />
+                      </TableCell>
+                      <TableCell>
+                        <Toolbar className="justify-end">
+                          <Button type="button" variant="outline" size="xs" onClick={() => handleEditar(jogador)}>
+                            Editar
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="xs"
+                            onClick={() => handleExcluir(jogador)}
+                            disabled={deletingId === jogador.id}
+                          >
+                            {deletingId === jogador.id ? "Excluindo..." : "Excluir"}
+                          </Button>
+                        </Toolbar>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </tbody>
+              </ResponsiveTable>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+    </PageShell>
   );
 }

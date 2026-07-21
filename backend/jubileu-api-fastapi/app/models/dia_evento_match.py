@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import DateTime, ForeignKey, Integer
+from sqlalchemy import DateTime, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,6 +13,7 @@ from app.models.dia_evento_enums import PartidaStatusEnum
 
 class Partida(Base):
     __tablename__ = "partidas"
+    __table_args__ = (UniqueConstraint("evento_id", "ordem", name="uq_partidas_evento_ordem"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     evento_id: Mapped[int] = mapped_column(ForeignKey("eventos.id"), nullable=False)
@@ -47,6 +48,9 @@ class Partida(Base):
 
 class EstatisticaJogadorPartida(Base):
     __tablename__ = "estatisticas_jogador_partida"
+    __table_args__ = (
+        UniqueConstraint("partida_id", "jogador_evento_id", name="uq_estatisticas_partida_jogador"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     partida_id: Mapped[int] = mapped_column(ForeignKey("partidas.id"), nullable=False)

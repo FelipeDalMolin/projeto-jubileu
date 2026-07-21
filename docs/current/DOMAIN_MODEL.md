@@ -103,5 +103,8 @@ Na pratica atual:
 
 - `EventoParticipante` e `JogadorEvento` ainda representam perspectivas diferentes do jogador no evento: participacao/check-in versus snapshot operacional.
 - Existem rotas sem `/api` registradas no FastAPI por compatibilidade; o contrato frontend deve continuar chamando `/api/...`.
-- O mapa gerado mostra chamadas frontend para `/api/dias/{diaId}/equipes`; essa superficie deve ser revisada antes de ser considerada contrato ativo.
+- Chamadas frontend para `/api/dias/{diaId}/equipes` foram removidas como legado; equipes
+  devem permanecer no contrato por evento via `estado-equipes`.
 - `TeamConfig`, workspace e rotacao sao superficies sensiveis porque combinam estado derivado, versao e regras de partida.
+- Comandos mutaveis devem seguir `COMMAND_SAFETY.md`: idempotencia para creates/appends,
+  `expected_version` para snapshots e constraints/locks para invariantes de banco.

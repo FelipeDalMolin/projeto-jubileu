@@ -47,6 +47,7 @@ class EventoParticipante(Base):
 
 class Lance(Base):
     __tablename__ = "lances"
+    __table_args__ = (UniqueConstraint("partida_id", "client_event_id", name="uq_lances_partida_client_event_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     partida_id: Mapped[int] = mapped_column(ForeignKey("partidas.id"), nullable=False, index=True)

@@ -43,11 +43,14 @@ O ciclo `v0.3.x` deve fechar:
 - validacao PostgreSQL das migrations de Evento e Usuario;
 - hardening de auth/segredos;
 - polling/auth hardening;
-- UI Tailwind-only;
+- UI/UX operacional consistente, com decisao explicita sobre Tailwind puro,
+  biblioteca existente ou dependencia nova;
 - CI/release gate;
 - smoke integrado via NGINX.
 
-O ciclo nao deve abrir `v0.4` nem adicionar framework visual novo.
+O ciclo nao deve abrir `v0.4`. Nova dependencia de UI so deve entrar quando a motivacao,
+trade-offs, acessibilidade, manutencao, impacto visual e risco de dependencia estiverem
+explicitos no PR.
 
 ## Documentacao E Rastreabilidade
 

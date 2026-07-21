@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { PageHeader, PageShell, Toolbar } from "../../components/layout/PageShell";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "../../components/ui/feedback";
+import { Field, SelectField } from "../../components/ui/form";
+import {
+  ResponsiveTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "../../components/ui/responsive-table";
 import {
   obterTurma,
   criarTurma,
@@ -37,10 +49,13 @@ export default function TurmaDetalhePage() {
 
   const [turma, setTurma] = useState<Turma | null>(null);
   const [nome, setNome] = useState("");
+  const [savingTurma, setSavingTurma] = useState(false);
 
   const [jogadoresTurma, setJogadoresTurma] = useState<TurmaJogador[]>([]);
   const [todosJogadores, setTodosJogadores] = useState<JogadorDTO[]>([]);
   const [novoJogadorId, setNovoJogadorId] = useState<number | "">("");
+  const [savingJogador, setSavingJogador] = useState(false);
+  const [removingJogadorId, setRemovingJogadorId] = useState<number | null>(null);
 
   async function recarregarJogadoresTurma(id: number) {
     const lista = await listarJogadoresDaTurma(id);
@@ -55,7 +70,6 @@ export default function TurmaDetalhePage() {
       setErro(null);
 
       try {
-        // sempre carregar jogadores para o seletor
         const all = await listarJogadores();
         if (!alive) return;
         setTodosJogadores(all);
@@ -68,17 +82,17 @@ export default function TurmaDetalhePage() {
         }
 
         if (!turmaIdNum) {
-          setErro("Turma inválida.");
+          setErro("Turma invalida.");
           return;
         }
 
-        const t = await obterTurma(turmaIdNum);
+        const turmaAtual = await obterTurma(turmaIdNum);
         if (!alive) return;
 
-        setTurma(t);
-        setNome(t.nome);
+        setTurma(turmaAtual);
+        setNome(turmaAtual.nome);
 
-        await recarregarJogadoresTurma(t.id);
+        await recarregarJogadoresTurma(turmaAtual.id);
       } catch (e: unknown) {
         console.error(e);
         setErro(errorMessage(e, "Falha ao carregar dados da turma."));
@@ -87,15 +101,15 @@ export default function TurmaDetalhePage() {
       }
     }
 
-    carregar();
+    void carregar();
     return () => {
       alive = false;
     };
   }, [ehNova, turmaIdNum]);
 
   const jogadoresDisponiveis = useMemo(() => {
-    const setIds = new Set(jogadoresTurma.map((jt) => jt.id)); // backend retorna JogadorOut -> id
-    return todosJogadores.filter((j) => !setIds.has(j.id));
+    const setIds = new Set(jogadoresTurma.map((jt) => jt.id));
+    return todosJogadores.filter((j) => !setIds.has(j.id)).sort((a, b) => a.nome.localeCompare(b.nome));
   }, [todosJogadores, jogadoresTurma]);
 
   async function handleSalvarTurma() {
@@ -106,10 +120,10 @@ export default function TurmaDetalhePage() {
       return;
     }
 
+    setSavingTurma(true);
     try {
       if (ehNova) {
         const criada = await criarTurma({ nome: nomeTrim });
-        // vai para a turma criada
         navigate(`/turmas/${criada.id}`, { replace: true });
         return;
       }
@@ -120,12 +134,15 @@ export default function TurmaDetalhePage() {
     } catch (e: unknown) {
       console.error(e);
       setErro(errorMessage(e, "Erro ao salvar turma."));
+    } finally {
+      setSavingTurma(false);
     }
   }
 
   async function handleAdicionarJogador() {
     if (!turma || !novoJogadorId) return;
     setErro(null);
+    setSavingJogador(true);
     try {
       await adicionarJogadorNaTurma(turma.id, Number(novoJogadorId));
       await recarregarJogadoresTurma(turma.id);
@@ -133,108 +150,142 @@ export default function TurmaDetalhePage() {
     } catch (e: unknown) {
       console.error(e);
       setErro(errorMessage(e, "Erro ao adicionar jogador."));
+    } finally {
+      setSavingJogador(false);
     }
   }
 
   async function handleRemoverJogador(jogadorId: number) {
     if (!turma) return;
     setErro(null);
+    setRemovingJogadorId(jogadorId);
     try {
       await removerJogadorDaTurma(turma.id, jogadorId);
       await recarregarJogadoresTurma(turma.id);
     } catch (e: unknown) {
       console.error(e);
       setErro(errorMessage(e, "Erro ao remover jogador."));
+    } finally {
+      setRemovingJogadorId(null);
     }
   }
 
   if (loading) {
-    return <main className="container py-3">Carregando...</main>;
+    return (
+      <PageShell>
+        <LoadingState label="Carregando turma..." />
+      </PageShell>
+    );
   }
 
   return (
-    <main className="container py-3">
-      <button className="btn btn-link p-0 mb-3" onClick={() => navigate("/turmas")}>
-        ← Voltar
-      </button>
+    <PageShell>
+      <PageHeader
+        title={ehNova ? "Nova turma" : `Turma: ${turma?.nome ?? ""}`}
+        description={ehNova ? "Crie o grupo antes de vincular jogadores." : "Gerencie nome e jogadores vinculados."}
+        actions={
+          <Button type="button" variant="outline" size="sm" onClick={() => navigate("/turmas")}>
+            Voltar
+          </Button>
+        }
+      />
 
-      {erro && <p className="text-danger">{erro}</p>}
+      {erro ? <ErrorState message={erro} /> : null}
 
-      <h1 className="h4 mb-3">{ehNova ? "Nova turma" : `Turma: ${turma?.nome ?? ""}`}</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>Dados da turma</CardTitle>
+          <CardDescription>Nome usado em eventos do tipo AULA e filtros operacionais.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Field label="Nome" value={nome} onChange={(e) => setNome(e.target.value)} disabled={savingTurma} />
+          <Toolbar>
+            <Button type="button" variant="outline" onClick={() => navigate("/turmas")} disabled={savingTurma}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleSalvarTurma} disabled={savingTurma}>
+              {savingTurma ? "Salvando..." : ehNova ? "Criar turma" : "Salvar alteracoes"}
+            </Button>
+          </Toolbar>
+        </CardContent>
+      </Card>
 
-      <div className="mb-3">
-        <label className="form-label">Nome</label>
-        <input className="form-control" value={nome} onChange={(e) => setNome(e.target.value)} />
-      </div>
-
-      <div className="d-flex gap-2 mb-4">
-        <button className="btn btn-outline-secondary" onClick={() => navigate("/turmas")}>
-          Cancelar
-        </button>
-        <button className="btn btn-primary" onClick={handleSalvarTurma}>
-          {ehNova ? "Criar turma" : "Salvar alterações"}
-        </button>
-      </div>
-
-      {!ehNova && turma && (
-        <>
-          <section className="mb-4">
-            <h2 className="h6">Adicionar jogador</h2>
-            <div className="d-flex gap-2">
-              <select
-                className="form-select form-select-sm"
+      {!ehNova && turma ? (
+        <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <Card>
+            <CardHeader>
+              <CardTitle>Adicionar jogador</CardTitle>
+              <CardDescription>Somente jogadores ainda nao vinculados aparecem na lista.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <SelectField
+                label="Jogador"
                 value={novoJogadorId}
                 onChange={(e) => {
-                  const v = e.target.value;
-                  setNovoJogadorId(v ? Number(v) : "");
+                  const value = e.target.value;
+                  setNovoJogadorId(value ? Number(value) : "");
                 }}
+                disabled={savingJogador}
               >
                 <option value="">Selecione</option>
-                {jogadoresDisponiveis.map((j) => (
-                  <option key={j.id} value={j.id}>
-                    {j.nome}
+                {jogadoresDisponiveis.map((jogador) => (
+                  <option key={jogador.id} value={jogador.id}>
+                    {jogador.nome}
                   </option>
                 ))}
-              </select>
-              <button className="btn btn-sm btn-primary" disabled={!novoJogadorId} onClick={handleAdicionarJogador}>
-                Adicionar
-              </button>
-            </div>
-          </section>
+              </SelectField>
+              <Button type="button" size="sm" disabled={!novoJogadorId || savingJogador} onClick={handleAdicionarJogador}>
+                {savingJogador ? "Adicionando..." : "Adicionar"}
+              </Button>
+            </CardContent>
+          </Card>
 
-          <section>
-            <div className="d-flex justify-content-between align-items-center">
-              <h2 className="h6 mb-2">Jogadores da turma</h2>
-              <small className="text-muted">{jogadoresTurma.length} vinculados</small>
-            </div>
+          <Card>
+            <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>Jogadores da turma</CardTitle>
+                <CardDescription>{jogadoresTurma.length} vinculado(s).</CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {jogadoresTurma.length === 0 ? (
+                <EmptyState title="Nenhum jogador vinculado" description="Use o seletor ao lado para montar a turma." />
+              ) : (
+                <ResponsiveTable>
+                  <TableHead>
+                    <TableRow>
+                      <TableHeaderCell>Nome</TableHeaderCell>
+                      <TableHeaderCell className="w-32 text-right">Acoes</TableHeaderCell>
+                    </TableRow>
+                  </TableHead>
+                  <tbody>
+                    {jogadoresTurma.map((jogador) => (
+                      <TableRow key={jogador.id}>
+                        <TableCell className="font-medium text-slate-950">{jogador.nome}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="danger"
+                            size="xs"
+                            onClick={() => handleRemoverJogador(jogador.id)}
+                            disabled={removingJogadorId === jogador.id}
+                          >
+                            {removingJogadorId === jogador.id ? "Removendo..." : "Remover"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </tbody>
+                </ResponsiveTable>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
-            {jogadoresTurma.length === 0 ? (
-              <p className="text-muted">Nenhum jogador vinculado.</p>
-            ) : (
-              <table className="table table-sm">
-                <tbody>
-                  {jogadoresTurma.map((j) => (
-                    <tr key={j.id}>
-                      <td>{j.nome}</td>
-                      <td className="text-end">
-                        <button className="btn btn-link btn-sm text-danger" onClick={() => handleRemoverJogador(j.id)}>
-                          Remover
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-        </>
-      )}
-
-      {ehNova && (
-        <p className="text-muted" style={{ fontSize: 12 }}>
-          Dica: crie a turma primeiro. Depois você vincula jogadores nela.
-        </p>
-      )}
-    </main>
+      {ehNova ? (
+        <EmptyState title="Jogadores entram depois" description="Crie a turma primeiro. Depois voce vincula jogadores no detalhe." />
+      ) : null}
+    </PageShell>
   );
 }

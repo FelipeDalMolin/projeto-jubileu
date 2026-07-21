@@ -194,6 +194,7 @@ erDiagram
 | `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/start` |
 | `PUT` | `/api/jogadores/{jogador_id}` |
 | `PUT` | `/api/turmas/{turma_id}` |
+| `PUT` | `/api/usuarios/me/jogador` |
 
 ### Internas/Compatibilidade
 
@@ -292,7 +293,6 @@ erDiagram
 | `URL` | `/api/dias/{dataIso}/eventos/{eventoId}/times/{timeId}` |
 | `URL` | `/api/dias/{dataIso}/eventos/{eventoId}/workspace{query}` |
 | `URL` | `/api/dias/{dataIso}/eventos/{eventoId}/{action}` |
-| `URL` | `/api/dias/{diaId}/equipes` |
 | `POST` | `/api/eventos/{eventoId}/cancel` |
 | `DELETE` | `/api/eventos/{eventoId}/checkin` |
 | `POST` | `/api/eventos/{eventoId}/checkin` |
@@ -317,6 +317,7 @@ erDiagram
 | `FETCH` | `/api/turmas/{turmaId}/jogadores` |
 | `FETCH` | `/api/turmas/{turmaId}/jogadores/{jogadorId}` |
 | `URL` | `/api/usuarios/me` |
+| `URL` | `/api/usuarios/me/jogador` |
 
 ## Leitura Arquitetural
 

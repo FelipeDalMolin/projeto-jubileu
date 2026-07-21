@@ -586,10 +586,12 @@ export async function salvarEstadoEquipesEvento(
   eventoId: string | number,
   jogadores: PresencaJogadorDia[],
   times: TimeDia[],
-): Promise<void> {
+  expectedVersion?: number | null,
+): Promise<{ version?: number }> {
   const payload = {
     jogadores: jogadores.map(toBackendPresenca),
     times: times.map(toBackendTime),
+    ...(expectedVersion != null ? { expected_version: expectedVersion } : {}),
   };
 
   const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/estado-equipes`), {
@@ -604,4 +606,7 @@ export async function salvarEstadoEquipesEvento(
       `Erro ao salvar estado de equipes da evento ${eventoId} do dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
     );
   }
+
+  const data = await resp.json();
+  return { version: data?.version };
 }

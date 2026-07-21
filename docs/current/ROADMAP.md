@@ -14,7 +14,10 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 ## Estado Atual
 
-Branch de trabalho: `jubileu-v2`.
+Base integrada: `origin/jubileu-v2`.
+
+Branch final de trabalho para docs/validacao deste fechamento: `dev-41-docs-validacao-final`.
+Branches assistidas ou rascunhos locais nao devem ser usadas como branch final de PR.
 
 Marco tecnico mais recente: `94d4f45 chore(server): enable init for api container`.
 
@@ -28,7 +31,7 @@ Estado consolidado:
 - Frontend possui `apiClient` minimo com base relativa `/api` e `X-Request-ID`.
 - `npm run check:api-contract` valida separacao entre rotas SPA e chamadas de API.
 - `pytest` cobre smoke, contratos e fluxos backend/API.
-- Playwright esta configurado para E2E inicial, mas a execucao local atual ficou bloqueada por dependencias nativas do browser e API local indisponivel.
+- Playwright esta configurado para E2E inicial; no compose dev, DEV-41 smoke, contrato `/api`, login e dashboard passam usando Chromium nativo do Alpine via `E2E_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser`.
 - GitHub Actions passa a ser o gate oficial minimo de CI para backend, frontend e contratos.
 - Vercel pode aparecer no historico por integracao externa, mas nao e gate oficial de qualidade ou runtime do projeto.
 
@@ -64,7 +67,9 @@ Foco:
 - migrar services gradualmente para `apiClient`, sem big bang;
 - manter `npm run check:api-contract`;
 - adicionar `data-testid` apenas como camada minima de testabilidade;
-- evitar refatoracao visual fora de escopo;
+- evitar refatoracao visual fora de escopo; quando o slice for de UI/UX, justificar a
+  escolha de Tailwind puro, biblioteca existente ou dependencia nova por consistencia,
+  acessibilidade, manutencao, velocidade e risco;
 - ampliar Playwright para fluxos reais pela UI.
 
 ### Testes e Qualidade
@@ -101,7 +106,7 @@ Foco:
 | Frontend lint/build | Operacional | `npm run lint` e `npm run build` passam. |
 | Contrato frontend/API | Operacional | `npm run check:api-contract` passa. |
 | Smoke server | Operacional | Smoke local em `127.0.0.1` e publico em `https://app.jubileuweb.com` passam pelo runtime NGINX/API. |
-| Playwright E2E | created-e2e/blocked-e2e | Specs criadas; execucao browser bloqueada por dependencias nativas do host/API local. |
+| Playwright E2E | passed-e2e-dev/parcial | DEV-41 smoke, contrato `/api`, login e dashboard passam no compose dev; fluxos com seed/fixtures completas seguem pendentes. |
 | PostgreSQL real | pending | Requer `DATABASE_URL_TEST`; nao faz parte do CI minimo deste PR. |
 | GitHub Actions | pending | Workflow minimo criado para ser executado no GitHub. |
 | UC06-UC09 E2E | Pendente | Requer fixtures completas de participantes, equipes, partidas e lances. |

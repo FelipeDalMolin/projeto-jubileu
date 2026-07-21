@@ -33,6 +33,7 @@ export async function atualizarConfiguracaoRotacaoEvento(
     duracao_partida_segundos?: number;
     fila_jogadores_ids?: number[];
     proximos_times?: RotacaoGrupoPatch[];
+    expected_version?: number;
   },
   auth: AuthHeaders,
 ): Promise<EventoRotacaoEstado> {
