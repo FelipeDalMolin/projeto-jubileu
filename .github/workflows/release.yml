@@ -119,6 +119,8 @@ jobs:
             echo "RELEASE_ENV_FILE=.env.release"
           } >.env.release
           docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml up -d --wait
+          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml \
+            exec -T jubileu-api python -m app.modules.auth.seed
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
