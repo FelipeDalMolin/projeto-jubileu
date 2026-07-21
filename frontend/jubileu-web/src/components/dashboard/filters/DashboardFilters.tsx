@@ -18,28 +18,30 @@ export default function DashboardFilters({
   onChangeSearch,
 }: Props) {
   return (
-    <div className="card border-0 shadow-sm mb-3">
-      <div className="card-body row g-2 g-md-3">
-        <div className="col-12 col-md-4">
-          <label className="form-label text-muted small mb-1">Período</label>
-          <div className="btn-group w-100" role="group" aria-label="Filtro de período">
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-label="Filtros do dashboard">
+      <div className="grid gap-4 md:grid-cols-3">
+        <fieldset>
+          <legend className="mb-1 text-sm font-medium text-slate-700">Período</legend>
+          <div className="grid grid-cols-3 rounded-md border border-slate-200 bg-slate-50 p-1" role="group" aria-label="Filtro de período">
             {[30, 90, 365].map((p) => (
               <button
                 key={p}
                 type="button"
-                className={`btn btn-sm ${period === p ? "btn-primary" : "btn-outline-secondary"}`}
+                className={cn(
+                  "h-8 rounded px-2 text-xs font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary sm:text-sm",
+                  period === p ? "bg-primary text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-950",
+                )}
+                aria-pressed={period === p}
                 onClick={() => onChangePeriod(p)}
               >
                 {p} dias
               </button>
             ))}
           </div>
-        </div>
+        </fieldset>
 
-        <div className="col-12 col-md-4">
-          <label className="form-label text-muted small mb-1">Turma</label>
-          <select
-            className="form-select"
+        <SelectField
+            label="Turma"
             value={turma}
             onChange={(e) => onChangeTurma(e.target.value)}
           >
@@ -49,20 +51,18 @@ export default function DashboardFilters({
                 {t}
               </option>
             ))}
-          </select>
-        </div>
+        </SelectField>
 
-        <div className="col-12 col-md-4">
-          <label className="form-label text-muted small mb-1">Busca</label>
-          <input
+        <Field
+            label="Busca"
             type="text"
-            className="form-control"
             placeholder="Buscar por nome ou detalhe..."
             value={search}
             onChange={(e) => onChangeSearch(e.target.value)}
-          />
-        </div>
+        />
       </div>
-    </div>
+    </section>
   );
 }
+import { cn } from "../../../lib/utils";
+import { Field, SelectField } from "../../ui/form";

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "../../lib/utils";
 
 export function ResponsiveTable({ children, className }: { children: ReactNode; className?: string }) {
@@ -13,8 +13,8 @@ export function TableHead({ children }: { children: ReactNode }) {
   return <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-normal text-slate-500">{children}</thead>;
 }
 
-export function TableRow({ children, className }: { children: ReactNode; className?: string }) {
-  return <tr className={cn("border-b border-slate-100 last:border-0", className)}>{children}</tr>;
+export function TableRow({ children, className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
+  return <tr className={cn("border-b border-slate-100 last:border-0", className)} {...props}>{children}</tr>;
 }
 
 export function TableHeaderCell({ children, className }: { children: ReactNode; className?: string }) {

@@ -1,4 +1,12 @@
 import { ReactNode, useMemo, useState } from "react";
+import { cn } from "../../../lib/utils";
+import {
+  ResponsiveTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "../../ui/responsive-table";
 
 type Column<T> = {
   key: keyof T | string;
@@ -65,57 +73,60 @@ export default function RankingTable<T extends Record<string, unknown>>({
   };
 
   return (
-    <div className="table-responsive">
-      <table className="table table-hover align-middle mb-0">
-        <thead className="table-light">
-          <tr>
+    <ResponsiveTable>
+        <TableHead>
+          <TableRow>
             {columns.map((col) => {
               const active = sortKey === String(col.key);
               return (
-                <th
+                <TableHeaderCell
                   key={String(col.key)}
                   scope="col"
-                  className={col.numeric ? "text-end" : "text-start"}
-                  role="button"
-                  onClick={() => toggleSort(String(col.key))}
+                  className={col.numeric ? "text-right" : "text-left"}
                 >
-                  <span className="d-inline-flex align-items-center gap-1">
+                  <button
+                    type="button"
+                    className={cn(
+                      "inline-flex w-full items-center gap-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                      col.numeric && "justify-end text-right",
+                    )}
+                    onClick={() => toggleSort(String(col.key))}
+                  >
                     {col.label}
-                    <small className="text-muted">
+                    <span className="text-[10px] text-slate-400" aria-hidden="true">
                       {active ? (direction === "asc" ? "▲" : "▼") : "↕"}
-                    </small>
-                  </span>
-                </th>
+                    </span>
+                  </button>
+                </TableHeaderCell>
               );
             })}
-          </tr>
-        </thead>
+          </TableRow>
+        </TableHead>
         <tbody>
           {sorted.map((row, idx) => {
             const key = rowKey ? rowKey(row) : idx;
             const isActive = activeRowKey !== undefined && activeRowKey !== null && key === activeRowKey;
             return (
-              <tr
+              <TableRow
                 key={String(key)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
-                className={onRowClick ? "cursor-pointer" : undefined}
-                style={onRowClick ? { cursor: "pointer" } : undefined}
+                className={cn(
+                  onRowClick && "cursor-pointer transition hover:bg-slate-50",
+                  isActive && "bg-primary/5",
+                )}
               >
                 {columns.map((col) => (
-                  <td
+                  <TableCell
                     key={String(col.key)}
-                    className={`${col.numeric ? "text-end fw-semibold" : "text-start"} ${
-                      isActive ? "table-active" : ""
-                    }`}
+                    className={cn(col.numeric ? "text-right font-semibold" : "text-left")}
                   >
                     {col.render ? col.render(row) : renderValue(readValue(row, col.key))}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             );
           })}
         </tbody>
-      </table>
-    </div>
+    </ResponsiveTable>
   );
 }

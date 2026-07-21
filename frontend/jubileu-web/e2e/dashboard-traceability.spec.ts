@@ -67,7 +67,8 @@ test("DEV-48: jogador e partida navegam para o Evento de origem", async ({ page,
   await loginViaUi(page);
   await page.goto("/dashboard/jogadores?periodo=365");
   await page.getByPlaceholder("Buscar por nome ou detalhe...").fill(jogador.nome);
-  await page.getByRole("cell", { name: jogador.nome, exact: true }).first().click();
+  await page.getByRole("cell", { name: jogador.nome, exact: true }).first().locator("..").click();
+  await expect(page.getByRole("heading", { name: jogador.nome, exact: true })).toBeVisible();
   const jogadorLink = page.getByRole("link", { name: `Evento #${evento.id}` });
   await expect(jogadorLink).toHaveAttribute("href", `/dias/${dataIso}/eventos/${evento.id}`);
 
@@ -76,4 +77,67 @@ test("DEV-48: jogador e partida navegam para o Evento de origem", async ({ page,
   await expect(partidaLink).toHaveAttribute("href", `/dias/${dataIso}/eventos/${evento.id}`);
   await partidaLink.click();
   await expect(page).toHaveURL(new RegExp(`/dias/${dataIso}/eventos/${evento.id}$`));
+});
+
+test("DEV-52: dashboards exibem erro, vazio e tabela responsiva no mobile", async ({ page }) => {
+  await loginViaUi(page);
+  await page.route("**/api/dashboards/jogadores/resumo", (route) => route.fulfill({ status: 500, body: "erro" }));
+  await page.route("**/api/dashboards/jogadores/ranking**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [] }),
+  }));
+  await page.goto("/dashboard/jogadores");
+  await expect(page.getByText("Não foi possível carregar jogadores")).toBeVisible();
+
+  await page.unrouteAll({ behavior: "wait" });
+  await page.route("**/api/dashboards/jogadores/resumo", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ totalJogadores: 0, mediaPresenca: 0, totalGols: 0 }),
+  }));
+  await page.route("**/api/dashboards/jogadores/ranking**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [] }),
+  }));
+  await page.reload();
+  await expect(page.getByText("Sem dados nesse período ou filtros")).toBeVisible();
+
+  await page.unrouteAll({ behavior: "wait" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route("**/api/dashboards/partidas/resumo", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ totalPartidas: 1, mediaGolsPorPartida: 3, totalGols: 3 }),
+  }));
+  await page.route("**/api/dashboards/partidas/serie-por-dia**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [{ data: "2026-07-21", partidas: 1, gols: 3 }] }),
+  }));
+  await page.route("**/api/dashboards/partidas/lista**", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ items: [{
+      partidaId: 1,
+      eventoId: 1,
+      dataIso: "2026-07-21",
+      eventoTipo: "AULA",
+      eventoStatus: "ENCERRADO",
+      turmaId: 1,
+      turmaNome: "Turma mobile",
+      ordem: 1,
+      partidaStatus: "ENCERRADA",
+      timeAId: 1,
+      timeANome: "Time A",
+      timeBId: 2,
+      timeBNome: "Time B",
+      golsTimeA: 2,
+      golsTimeB: 1,
+    }] }),
+  }));
+  await page.goto("/dashboard/partidas");
+  await expect(page.getByText("Partidas rastreáveis")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

@@ -4,6 +4,10 @@ import DashboardFilters from "../../components/dashboard/filters/DashboardFilter
 import RankingTable from "../../components/dashboard/tables/RankingTable";
 import SectionHeader from "../../components/dashboard/common/SectionHeader";
 import InfoCard from "../../components/dashboard/cards/InfoCard";
+import { PageShell } from "../../components/layout/PageShell";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState, ErrorState } from "../../components/ui/feedback";
 import {
   obterVisaoGeralEstatisticas,
   type VisaoGeralEstatisticas,
@@ -132,16 +136,12 @@ export default function DashboardEstatisticas() {
   ];
 
   return (
-    <div className="container py-4">
+    <PageShell>
       <SectionHeader
         title="Dashboard de Estatísticas"
         subtitle="Indicadores agregados"
         action={
-          <div className="d-flex gap-2">
-            <button className="btn btn-outline-secondary btn-sm" onClick={() => fetchData(true)}>
-              Recarregar
-            </button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => fetchData(true)}>Recarregar</Button>
         }
       />
 
@@ -156,87 +156,67 @@ export default function DashboardEstatisticas() {
       />
 
       {loading && (
-        <div className="card border-0 shadow-sm">
-          <div className="card-body">
-            <div className="placeholder-wave">
-              <div className="placeholder col-12 mb-2" style={{ height: 24 }}></div>
-              <div className="placeholder col-12 mb-2" style={{ height: 24 }}></div>
-              <div className="placeholder col-12" style={{ height: 24 }}></div>
-            </div>
-          </div>
-        </div>
+        <Card className="animate-pulse p-5" aria-label="Carregando dashboard de estatísticas">
+          <div className="h-4 w-40 rounded bg-slate-200" />
+          <div className="mt-6 space-y-3"><div className="h-10 rounded bg-slate-100" /><div className="h-10 rounded bg-slate-100" /><div className="h-10 rounded bg-slate-100" /></div>
+        </Card>
       )}
 
       {!loading && error && (
-        <div className="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
-          <span>{error}</span>
-          <button className="btn btn-sm btn-light" onClick={() => fetchData(true)}>
-            Tentar novamente
-          </button>
+        <div className="space-y-3">
+          <ErrorState title="Não foi possível carregar estatísticas" message={error} />
+          <Button variant="outline" size="sm" onClick={() => fetchData(true)}>Tentar novamente</Button>
         </div>
       )}
 
       {!loading && !error && (
         <>
-          <div className="card border-0 shadow-sm mb-3">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Resumo</CardTitle>
+              <CardDescription>Métricas filtradas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <h5 className="mb-0">Resumo</h5>
-                  <small className="text-muted">Métricas filtradas</small>
-                </div>
-              </div>
-              <div className="row g-3">
-                <div className="col-12 col-md-4">
                   <InfoCard title="Top artilheiros" value={`${cards.artilheiros}`} subtitle="Até 5 itens" />
                 </div>
-                <div className="col-12 col-md-4">
+                <div>
                   <InfoCard title="Top presenças" value={`${cards.presencas}`} subtitle="Até 5 itens" />
                 </div>
-                <div className="col-12 col-md-4">
+                <div>
                   <InfoCard title="Gols por turma" value={`${cards.golsTurma}`} subtitle="Somatório" />
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {artilheiros.length === 0 && presencas.length === 0 && golsTurma.length === 0 ? (
-            <div className="alert alert-warning d-flex justify-content-between align-items-center">
-              <span>Sem dados para este período.</span>
-              <button className="btn btn-sm btn-outline-secondary" onClick={() => fetchData(true)}>
-                Recarregar
-              </button>
-            </div>
+            <EmptyState title="Sem dados para este período" description="Altere os filtros ou recarregue o dashboard." action={<Button variant="outline" size="sm" onClick={() => fetchData(true)}>Recarregar</Button>} />
           ) : (
-            <div className="row g-3">
-              <div className="col-12 col-lg-6">
-                <div className="card border-0 shadow-sm h-100">
-                  <div className="card-body">
-                    <h5 className="mb-2">Artilheiros</h5>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                  <CardHeader><CardTitle>Artilheiros</CardTitle></CardHeader>
+                  <CardContent>
                     <RankingTable columns={columnsArtilheiros} data={artilheiros} />
-                  </div>
-                </div>
-              </div>
-              <div className="col-12 col-lg-6">
-                <div className="card border-0 shadow-sm h-100">
-                  <div className="card-body">
-                    <h5 className="mb-2">Presenças</h5>
+                  </CardContent>
+              </Card>
+              <Card>
+                  <CardHeader><CardTitle>Presenças</CardTitle></CardHeader>
+                  <CardContent>
                     <RankingTable columns={columnsPresencas} data={presencas} />
-                  </div>
-                </div>
-              </div>
-              <div className="col-12">
-                <div className="card border-0 shadow-sm">
-                  <div className="card-body">
-                    <h5 className="mb-2">Gols por turma</h5>
+                  </CardContent>
+              </Card>
+              <Card className="lg:col-span-2">
+                  <CardHeader><CardTitle>Gols por turma</CardTitle></CardHeader>
+                  <CardContent>
                     <RankingTable columns={columnsTurma} data={golsTurma} />
-                  </div>
-                </div>
-              </div>
+                  </CardContent>
+              </Card>
             </div>
           )}
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

@@ -95,6 +95,10 @@ nas abas que consomem cada canal.
 - Atualizar `docs/generated/code-map.md` quando rotas ou services mudarem.
 - Revisar chamadas legadas apontadas no mapa gerado antes de trata-las como contrato ativo.
 
+Os dashboards usam `PageShell`, componentes locais Tailwind e tabelas responsivas. Os services de
+Jogadores, Partidas e Estatisticas compartilham o cache de 30 segundos sobre `apiClient`, mantendo
+base `/api` e `X-Request-ID`. Nao usar classes Bootstrap-like no escopo de dashboards.
+
 ## Calendario
 
 `/dias` funciona como hub de eventos usando o contrato atual `GET /api/dias`.

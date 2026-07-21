@@ -4,6 +4,10 @@ import DashboardFilters from "../../components/dashboard/filters/DashboardFilter
 import RankingTable from "../../components/dashboard/tables/RankingTable";
 import SectionHeader from "../../components/dashboard/common/SectionHeader";
 import InfoCard from "../../components/dashboard/cards/InfoCard";
+import { PageShell } from "../../components/layout/PageShell";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState, ErrorState } from "../../components/ui/feedback";
 import {
   obterResumoPartidas,
   obterSeriePorDia,
@@ -156,16 +160,12 @@ export default function DashboardPartidas() {
   ];
 
   return (
-    <div className="container py-4">
+    <PageShell>
       <SectionHeader
         title="Dashboard de Partidas"
         subtitle="Resultados e destaques"
         action={
-          <div className="d-flex gap-2">
-            <button className="btn btn-outline-secondary btn-sm" onClick={() => fetchData(true)}>
-              Recarregar
-            </button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => fetchData(true)}>Recarregar</Button>
         }
       />
 
@@ -180,65 +180,53 @@ export default function DashboardPartidas() {
       />
 
       {loading && (
-        <div className="card border-0 shadow-sm">
-          <div className="card-body">
-            <div className="placeholder-wave">
-              <div className="placeholder col-12 mb-2" style={{ height: 24 }}></div>
-              <div className="placeholder col-12 mb-2" style={{ height: 24 }}></div>
-              <div className="placeholder col-12" style={{ height: 24 }}></div>
-            </div>
-          </div>
-        </div>
+        <Card className="animate-pulse p-5" aria-label="Carregando dashboard de partidas">
+          <div className="h-4 w-40 rounded bg-slate-200" />
+          <div className="mt-6 space-y-3"><div className="h-10 rounded bg-slate-100" /><div className="h-10 rounded bg-slate-100" /><div className="h-10 rounded bg-slate-100" /></div>
+        </Card>
       )}
 
       {!loading && error && (
-        <div className="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
-          <span>{error}</span>
-          <button className="btn btn-sm btn-light" onClick={() => fetchData(true)}>
-            Tentar novamente
-          </button>
+        <div className="space-y-3">
+          <ErrorState title="Não foi possível carregar partidas" message={error} />
+          <Button variant="outline" size="sm" onClick={() => fetchData(true)}>Tentar novamente</Button>
         </div>
       )}
 
       {!loading && !error && (
         <>
-          <div className="row g-3 mb-3">
-            <div className="col-12 col-md-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
               <InfoCard title="Partidas" value={`${cards.totalPartidas}`} subtitle="No período" />
             </div>
-            <div className="col-12 col-md-4">
+            <div>
               <InfoCard title="Gols" value={`${cards.totalGols}`} subtitle="Marcados + sofridos" />
             </div>
-            <div className="col-12 col-md-4">
+            <div>
               <InfoCard title="Média de gols" value={`${cards.mediaGols}`} subtitle="Por partida" />
             </div>
           </div>
 
           {filtered.length === 0 ? (
-            <div className="alert alert-warning d-flex justify-content-between align-items-center">
-              <span>Sem dados nesse período.</span>
-              <button className="btn btn-sm btn-outline-secondary" onClick={() => fetchData(true)}>
-                Recarregar
-              </button>
-            </div>
+            <EmptyState title="Sem dados nesse período" description="Altere os filtros ou recarregue o dashboard." action={<Button variant="outline" size="sm" onClick={() => fetchData(true)}>Recarregar</Button>} />
           ) : (
-            <div className="card border-0 shadow-sm">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <h5 className="mb-0">Série por dia</h5>
-                  <small className="text-muted">Tabela rolável no mobile</small>
-                </div>
+            <Card>
+              <CardHeader className="sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle>Série por dia</CardTitle>
+                <CardDescription>Tabela rolável no mobile</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <RankingTable columns={columns} data={filtered} />
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
-          <div className="card border-0 shadow-sm mt-3">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center mb-2">
-                <h5 className="mb-0">Partidas rastreáveis</h5>
-                <small className="text-muted">Abra o Evento para consultar o fluxo completo</small>
-              </div>
+          <Card>
+            <CardHeader className="sm:flex-row sm:items-center sm:justify-between">
+              <CardTitle>Partidas rastreáveis</CardTitle>
+              <CardDescription>Abra o Evento para consultar o fluxo completo</CardDescription>
+            </CardHeader>
+            <CardContent>
               {partidasFiltradas.length > 0 ? (
                 <RankingTable
                   columns={partidaColumns}
@@ -246,12 +234,12 @@ export default function DashboardPartidas() {
                   rowKey={(partida) => partida.partidaId}
                 />
               ) : (
-                <p className="text-muted mb-0">Nenhuma partida corresponde aos filtros.</p>
+                <EmptyState title="Nenhuma partida corresponde aos filtros" />
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </>
       )}
-    </div>
+    </PageShell>
   );
 }

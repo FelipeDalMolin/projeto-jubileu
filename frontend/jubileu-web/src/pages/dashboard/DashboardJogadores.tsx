@@ -4,6 +4,10 @@ import DashboardFilters from "../../components/dashboard/filters/DashboardFilter
 import RankingTable from "../../components/dashboard/tables/RankingTable";
 import InfoCard from "../../components/dashboard/cards/InfoCard";
 import SectionHeader from "../../components/dashboard/common/SectionHeader";
+import { PageShell } from "../../components/layout/PageShell";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState, ErrorState } from "../../components/ui/feedback";
 import {
   obterResumoJogadores,
   obterRankingJogadores,
@@ -123,16 +127,12 @@ export default function DashboardJogadores() {
   };
 
   return (
-    <div className="container py-4">
+    <PageShell>
       <SectionHeader
         title="Dashboard de Jogadores"
         subtitle="Desempenho recente"
         action={
-          <div className="d-flex gap-2">
-            <button className="btn btn-outline-secondary btn-sm" onClick={() => fetchData(true)}>
-              Recarregar
-            </button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => fetchData(true)}>Recarregar</Button>
         }
       />
 
@@ -147,69 +147,56 @@ export default function DashboardJogadores() {
       />
 
       {loading && (
-        <div className="row g-3">
+        <div className="grid gap-4 sm:grid-cols-3" aria-label="Carregando dashboard de jogadores">
           {[1, 2, 3].map((n) => (
-            <div className="col-12 col-md-4" key={n}>
-              <div className="card border-0 shadow-sm">
-                <div className="card-body">
-                  <div className="placeholder-wave">
-                    <span className="placeholder col-6 mb-2"></span>
-                    <span className="placeholder col-4 mb-2"></span>
-                    <span className="placeholder col-8"></span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <Card className="animate-pulse p-5" key={n}>
+              <div className="h-3 w-24 rounded bg-slate-200" />
+              <div className="mt-5 h-8 w-16 rounded bg-slate-200" />
+              <div className="mt-5 h-3 w-32 rounded bg-slate-100" />
+            </Card>
           ))}
-          <div className="col-12">
-            <div className="placeholder-wave">
-              <div className="placeholder col-12" style={{ height: 180 }}></div>
-            </div>
-          </div>
+          <Card className="h-48 animate-pulse bg-slate-50 sm:col-span-3" />
         </div>
       )}
 
       {!loading && error && (
-        <div className="alert alert-danger d-flex justify-content-between align-items-center" role="alert">
-          <span>{error}</span>
-          <button className="btn btn-sm btn-light" onClick={() => fetchData(true)}>
-            Tentar novamente
-          </button>
+        <div className="space-y-3">
+          <ErrorState title="Não foi possível carregar jogadores" message={error} />
+          <Button variant="outline" size="sm" onClick={() => fetchData(true)}>Tentar novamente</Button>
         </div>
       )}
 
       {!loading && !error && (
         <>
-          <div className="row g-3 mb-3">
-            <div className="col-12 col-md-4">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
               <InfoCard title="Jogadores" value={`${resumo?.totalJogadores ?? 0}`} subtitle="Cadastrados" />
             </div>
-            <div className="col-12 col-md-4">
+            <div>
               <InfoCard
                 title="Presença média"
                 value={`${resumo?.mediaPresenca ?? 0}%`}
                 subtitle="Últimos registros"
               />
             </div>
-            <div className="col-12 col-md-4">
+            <div>
               <InfoCard title="Gols" value={`${resumo?.totalGols ?? totals.gols}`} subtitle="Soma no período" />
             </div>
           </div>
 
           {filtered.length === 0 ? (
-            <div className="alert alert-warning d-flex justify-content-between align-items-center">
-              <span>Sem dados nesse período ou filtros.</span>
-              <button className="btn btn-sm btn-outline-secondary" onClick={() => fetchData(true)}>
-                Recarregar
-              </button>
-            </div>
+            <EmptyState
+              title="Sem dados nesse período ou filtros"
+              description="Altere os filtros ou recarregue os dados do dashboard."
+              action={<Button variant="outline" size="sm" onClick={() => fetchData(true)}>Recarregar</Button>}
+            />
           ) : (
-            <div className="card border-0 shadow-sm">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <h5 className="mb-0">Ranking</h5>
-                  <small className="text-muted">Clique em uma linha para ver detalhes</small>
-                </div>
+            <Card>
+              <CardHeader className="sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle>Ranking</CardTitle>
+                <CardDescription>Clique em uma linha para ver detalhes</CardDescription>
+              </CardHeader>
+              <CardContent>
                 <RankingTable
                   columns={columns}
                   data={filtered}
@@ -217,66 +204,61 @@ export default function DashboardJogadores() {
                   rowKey={(r) => r.jogadorId}
                   activeRowKey={selectedJogador?.jogadorId ?? null}
                 />
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           {selectedJogador && (
-            <div className="card border-0 shadow-sm mt-3">
-              <div className="card-body">
-                <div className="d-flex justify-content-between align-items-start">
+            <Card>
+              <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <h6 className="mb-1">{selectedJogador.nome}</h6>
-                    <small className="text-muted">{selectedJogador.turmaNome ?? "Turma não informada"}</small>
+                    <CardTitle>{selectedJogador.nome}</CardTitle>
+                    <CardDescription>{selectedJogador.turmaNome ?? "Turma não informada"}</CardDescription>
                   </div>
-                  <button
-                    className="btn btn-sm btn-outline-secondary"
-                    onClick={() => setSelectedJogador(null)}
-                  >
-                    Fechar
-                  </button>
-                </div>
-                <div className="row g-3 mt-2">
-                  <div className="col-6 col-md-3">
+                  <Button variant="outline" size="sm" onClick={() => setSelectedJogador(null)}>Fechar</Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <div>
                     <InfoCard title="Presenças" value={`${selectedJogador.presencas}`} subtitle="No período" />
                   </div>
-                  <div className="col-6 col-md-3">
+                  <div>
                     <InfoCard title="Gols" value={`${selectedJogador.gols}`} subtitle="Somatório" />
                   </div>
-                  <div className="col-6 col-md-3">
+                  <div>
                     <InfoCard title="Assistências" value={`${selectedJogador.assistencias}`} subtitle="Somatório" />
                   </div>
-                  <div className="col-6 col-md-3">
+                  <div>
                     <InfoCard title="Pontuação" value={`${selectedJogador.pontuacao.toFixed(1)}`} subtitle="Regra local" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <h6 className="mb-2">Origem por Evento</h6>
-                  <div className="d-grid gap-2">
+                  <h3 className="mb-2 font-semibold text-slate-950">Origem por Evento</h3>
+                  <div className="grid gap-2">
                     {selectedJogador.eventos.map((evento) => (
                       <Link
                         key={`${evento.eventoId}-${evento.dataIso}`}
                         to={`/dias/${evento.dataIso}/eventos/${evento.eventoId}`}
-                        className="rounded border p-3 text-decoration-none"
+                        className="rounded-md border border-slate-200 p-3 text-slate-800 transition hover:border-primary/40 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
                       >
-                        <div className="d-flex flex-wrap justify-content-between gap-2">
+                        <div className="flex flex-wrap justify-between gap-2">
                           <span>
                             <strong>Evento #{evento.eventoId}</strong> · {evento.tipo}
                           </span>
                           <span>{new Date(`${evento.dataIso}T12:00:00`).toLocaleDateString("pt-BR")}</span>
                         </div>
-                        <small className="text-muted">
+                        <span className="mt-1 block text-sm text-slate-600">
                           {evento.turmaNome ?? "Jogo livre"} · {evento.gols} gols · {evento.assistencias} assist. · {evento.presencas} presença
-                        </small>
+                        </span>
                       </Link>
                     ))}
                   </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
         </>
       )}
-    </div>
+    </PageShell>
   );
 }
