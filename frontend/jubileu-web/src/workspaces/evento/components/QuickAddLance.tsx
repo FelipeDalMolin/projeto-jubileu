@@ -114,6 +114,11 @@ export function QuickAddLance({
         setIsSubmitting(false);
         return;
       }
+      if (!jogadorId) {
+        setError("Selecione o jogador principal do lance.");
+        setIsSubmitting(false);
+        return;
+      }
       const parsed: Record<string, unknown> = { minute: parsedMinute };
       if (detalhe.trim()) parsed.note = detalhe.trim();
       if (jogadorSecundarioId) parsed.jogador_secundario_id = Number(jogadorSecundarioId);
@@ -123,7 +128,7 @@ export function QuickAddLance({
         {
           tipo,
           payload: parsed,
-          jogador_id: jogadorId ? Number(jogadorId) : undefined,
+          jogador_id: Number(jogadorId),
           client_event_id: makeClientEventId(),
         },
         auth,
@@ -240,14 +245,14 @@ export function QuickAddLance({
 
         <div className="grid gap-2 md:grid-cols-2">
           <label className="text-xs text-muted-foreground">
-            Jogador (opcional)
+            Jogador principal
             <select
               className="mt-1 w-full rounded-md border border-input bg-background px-2 py-2 text-sm"
               value={jogadorId}
               onChange={(e) => setJogadorId(e.target.value)}
               disabled={!canEdit || isSubmitting || !timeId}
             >
-              <option value="">Sem jogador</option>
+              <option value="">Selecione o jogador</option>
               {jogadoresDoTime.map((j) => (
                 <option key={j.jogadorId} value={j.jogadorId}>
                   {j.nome} (#{j.jogadorId})
@@ -305,7 +310,7 @@ export function QuickAddLance({
           disabled={!canEdit || isSubmitting}
           placeholder="Detalhe opcional (ex.: chute cruzado)"
         />
-        <Button onClick={submit} disabled={!canEdit || isSubmitting}>
+        <Button onClick={submit} disabled={!canEdit || isSubmitting || !timeId || !jogadorId}>
           {isSubmitting ? "Registrando..." : "Registrar lance"}
         </Button>
       </CardContent>

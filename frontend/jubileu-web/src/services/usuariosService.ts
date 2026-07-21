@@ -45,7 +45,7 @@ async function safeText(resp: Response) {
   }
 }
 
-function authHeaders(auth: RequestAuth): HeadersInit {
+function authHeaders(auth: RequestAuth): Record<string, string> {
   if (auth.accessToken) {
     return { Authorization: `Bearer ${auth.accessToken}` };
   }
@@ -65,6 +65,24 @@ export async function obterUsuarioMe(auth: RequestAuth): Promise<UsuarioMeRespon
   });
   if (!resp.ok) {
     throw new Error(`Erro ao carregar usuario: ${resp.status} ${await safeText(resp)}`);
+  }
+  return await resp.json();
+}
+
+export async function atualizarUsuarioJogador(
+  auth: RequestAuth,
+  jogadorId: number | null,
+): Promise<UsuarioMeResponse> {
+  const resp = await fetch(buildUrl("/api/usuarios/me/jogador"), {
+    method: "PUT",
+    headers: {
+      ...authHeaders(auth),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ jogador_id: jogadorId }),
+  });
+  if (!resp.ok) {
+    throw new Error(`Erro ao vincular jogador: ${resp.status} ${await safeText(resp)}`);
   }
   return await resp.json();
 }

@@ -1,6 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from app.models.dia_evento import Dia, Evento, StatusEventoEnum, TipoEventoEnum
+
 from app.main import app
 
 
@@ -56,3 +58,28 @@ def test_api_alias_day_get_or_create_behavior(client: TestClient):
     assert legacy.status_code == 200, legacy.text
     assert alias.status_code == 200, alias.text
     assert legacy.json()["data_iso"] == alias.json()["data_iso"] == data_iso
+
+
+@pytest.mark.contract
+@pytest.mark.uc04
+def test_api_days_list_includes_events_for_calendar(client: TestClient, db_session):
+    dia = Dia(data_iso="2026-07-04")
+    db_session.add(dia)
+    db_session.flush()
+    evento = Evento(
+        dia_id=dia.id,
+        tipo=TipoEventoEnum.JOGO_LIVRE,
+        horario_inicio="19:00",
+        horario_fim="20:00",
+        status=StatusEventoEnum.PLANEJADO,
+    )
+    db_session.add(evento)
+    db_session.commit()
+
+    resp = client.get("/api/dias/")
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    dia_payload = next(item for item in body if item["data_iso"] == "2026-07-04")
+    assert dia_payload["eventos"][0]["id"] == evento.id
+    assert dia_payload["eventos"][0]["tipo"] == "JOGO_LIVRE"

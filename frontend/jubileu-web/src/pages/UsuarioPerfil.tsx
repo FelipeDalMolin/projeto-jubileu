@@ -1,17 +1,32 @@
 import { useEffect, useMemo, useState } from "react";
 
+import { PageHeader, PageShell } from "../components/layout/PageShell";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "../components/ui/feedback";
+import { SelectField } from "../components/ui/form";
+import {
+  ResponsiveTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "../components/ui/responsive-table";
+import { StatusBadge } from "../components/ui/status-badge";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { listarJogadores, type JogadorDTO } from "../services/jogadoresService";
 import type { UserRole } from "../services/authService";
-import { obterUsuarioMe, type UsuarioMeResponse } from "../services/usuariosService";
+import {
+  atualizarUsuarioJogador,
+  obterUsuarioMe,
+  type UsuarioMeResponse,
+} from "../services/usuariosService";
 
 const ROLES: UserRole[] = ["user", "auxiliar", "treinador", "admin"];
 
-function formatEventoStatus(status: string) {
-  if (status === "EM_ANDAMENTO") return "Em andamento";
-  if (status === "ENCERRADO") return "Encerrado";
-  if (status === "CANCELADO") return "Cancelado";
-  return "Planejado";
+function formatEventoTipo(tipo: string) {
+  if (tipo === "JOGO_LIVRE") return "Jogo livre";
+  if (tipo === "OUTRO") return "Outro";
+  return "Aula";
 }
 
 export default function UsuarioPerfil() {
@@ -19,7 +34,9 @@ export default function UsuarioPerfil() {
   const [jogadores, setJogadores] = useState<JogadorDTO[]>([]);
   const [usuarioMe, setUsuarioMe] = useState<UsuarioMeResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingJogador, setSavingJogador] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [mensagem, setMensagem] = useState<string | null>(null);
 
   useEffect(() => {
     let canceled = false;
@@ -32,10 +49,7 @@ export default function UsuarioPerfil() {
       setLoading(true);
       setErro(null);
       try {
-        const [jogadoresData, usuarioData] = await Promise.all([
-          listarJogadores(),
-          obterUsuarioMe(auth),
-        ]);
+        const [jogadoresData, usuarioData] = await Promise.all([listarJogadores(), obterUsuarioMe(auth)]);
         if (!canceled) {
           setJogadores(jogadoresData);
           setUsuarioMe(usuarioData);
@@ -61,96 +75,110 @@ export default function UsuarioPerfil() {
     return { total: eventos.length, encerrados, emAndamento };
   }, [eventos]);
 
+  async function handleAlterarJogadorVinculado(raw: string) {
+    const auth = getRequestAuth();
+    if (!auth) return;
+
+    const jogadorId = raw ? Number(raw) : null;
+    setSavingJogador(true);
+    setErro(null);
+    setMensagem(null);
+    try {
+      const atualizado = await atualizarUsuarioJogador(auth, jogadorId);
+      setUsuarioMe(atualizado);
+      setJogadorId(atualizado.usuario.jogador_id ?? null);
+      setMensagem("Vinculo de jogador salvo.");
+    } catch (err: unknown) {
+      setErro(err instanceof Error ? err.message : "Falha ao vincular jogador");
+    } finally {
+      setSavingJogador(false);
+    }
+  }
+
   if (!user) {
     return (
-      <main className="mx-auto max-w-5xl p-4">
-        <h1 className="mb-2 text-2xl font-semibold">Usuario</h1>
-        <p className="text-sm text-muted-foreground">Faca login para ver perfil e eventos participados.</p>
-      </main>
+      <PageShell>
+        <PageHeader title="Usuario" description="Faca login para ver perfil e eventos participados." />
+      </PageShell>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl p-4">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Usuario</h1>
-          <p className="text-sm text-muted-foreground">
-            Perfil persistido, identidade operacional e historico de eventos.
-          </p>
-        </div>
-        {loading ? <span className="text-sm text-muted-foreground">Carregando...</span> : null}
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Usuario"
+        description="Perfil persistido, identidade operacional e historico de eventos."
+        actions={loading ? <span className="text-sm text-slate-500">Carregando...</span> : null}
+      />
 
-      {erro ? (
-        <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          {erro}
+      {erro ? <ErrorState message={erro} /> : null}
+      {mensagem ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {mensagem}
         </div>
       ) : null}
 
-      <section className="mb-4 grid gap-3 md:grid-cols-3">
-        <div className="rounded-md border bg-white p-4">
-          <div className="text-xs uppercase text-muted-foreground">Perfil</div>
-          <div className="mt-2 text-lg font-semibold">
-            {usuarioMe?.usuario.display_name ?? user.displayName}
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {usuarioMe?.usuario.email ?? user.email ?? "Sem e-mail cadastrado"}
-          </div>
-        </div>
-        <div className="rounded-md border bg-white p-4">
-          <div className="text-xs uppercase text-muted-foreground">Jogador vinculado</div>
-          <div className="mt-2 text-lg font-semibold">
-            {usuarioMe?.jogador?.nome ?? "Nenhum jogador"}
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {usuarioMe?.jogador ? `ID ${usuarioMe.jogador.id}` : "Acoes self ficam indisponiveis"}
-          </div>
-        </div>
-        <div className="rounded-md border bg-white p-4">
-          <div className="text-xs uppercase text-muted-foreground">Eventos</div>
-          <div className="mt-2 text-lg font-semibold">{resumo.total}</div>
-          <div className="text-sm text-muted-foreground">
-            {resumo.encerrados} encerrados, {resumo.emAndamento} em andamento
-          </div>
-        </div>
+      <section className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardDescription>Perfil</CardDescription>
+            <CardTitle>{usuarioMe?.usuario.display_name ?? user.displayName}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-600">{usuarioMe?.usuario.email ?? user.email ?? "Sem e-mail cadastrado"}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Jogador vinculado</CardDescription>
+            <CardTitle>{usuarioMe?.jogador?.nome ?? "Nenhum jogador"}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-600">
+              {usuarioMe?.jogador ? `ID ${usuarioMe.jogador.id}` : "Acoes self ficam indisponiveis"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardDescription>Eventos</CardDescription>
+            <CardTitle>{resumo.total}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-600">
+              {resumo.encerrados} encerrados, {resumo.emAndamento} em andamento
+            </p>
+          </CardContent>
+        </Card>
       </section>
 
-      <section className="mb-4 rounded-md border bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-lg font-semibold">Sessao operacional</h2>
-            <p className="text-sm text-muted-foreground">Contexto usado nas acoes administrativas e self-service.</p>
-          </div>
-          <span className="rounded-md bg-slate-100 px-2 py-1 text-xs text-slate-700">
+      <Card>
+        <CardHeader>
+          <CardTitle>Sessao operacional</CardTitle>
+          <CardDescription>Contexto usado nas acoes administrativas e self-service.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <span className="inline-flex w-fit rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">
             {user.authMode.toUpperCase()} {user.accessToken ? "com token" : "sem token"}
           </span>
-        </div>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <label className="text-sm">
-            Role operacional
-            <select
-              className="form-select mt-1"
-              value={user.role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-            >
+          <div className="grid gap-3 md:grid-cols-2">
+            <SelectField label="Role operacional" value={user.role} onChange={(e) => setRole(e.target.value as UserRole)}>
               {ROLES.map((role) => (
                 <option key={role} value={role}>
                   {role}
                 </option>
               ))}
-            </select>
-          </label>
+            </SelectField>
 
-          <label className="text-sm">
-            Jogador operacional
-            <select
-              className="form-select mt-1"
-              value={user.jogadorId ?? ""}
+            <SelectField
+              label="Jogador vinculado ao usuario"
+              value={usuarioMe ? usuarioMe.usuario.jogador_id ?? "" : user.jogadorId ?? ""}
+              disabled={savingJogador || loading}
               onChange={(e) => {
-                const raw = e.target.value;
-                setJogadorId(raw ? Number(raw) : null);
+                void handleAlterarJogadorVinculado(e.target.value);
               }}
             >
               <option value="">Nenhum</option>
@@ -159,51 +187,59 @@ export default function UsuarioPerfil() {
                   {jogador.nome} ({jogador.id})
                 </option>
               ))}
-            </select>
-          </label>
-        </div>
-      </section>
+            </SelectField>
+          </div>
+          {savingJogador ? <p className="text-sm text-slate-500">Salvando jogador vinculado...</p> : null}
+        </CardContent>
+      </Card>
 
-      <section className="rounded-md border bg-white p-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Eventos participados</h2>
-          <span className="text-sm text-muted-foreground">{eventos.length} registro(s)</span>
-        </div>
-
-        {eventos.length === 0 ? (
-          <p className="mb-0 text-sm text-muted-foreground">Nenhum evento encontrado para este usuario.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="table table-sm mb-0 align-middle">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Evento</th>
-                  <th>Turma</th>
-                  <th>Status</th>
-                  <th>Participacao</th>
-                </tr>
-              </thead>
+      <Card>
+        <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Eventos participados</CardTitle>
+            <CardDescription>{eventos.length} registro(s).</CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <LoadingState label="Carregando eventos..." />
+          ) : eventos.length === 0 ? (
+            <EmptyState title="Nenhum evento encontrado" description="Eventos aparecem aqui quando o usuario participa ou aparece no snapshot da turma." />
+          ) : (
+            <ResponsiveTable>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Data</TableHeaderCell>
+                  <TableHeaderCell>Evento</TableHeaderCell>
+                  <TableHeaderCell>Turma</TableHeaderCell>
+                  <TableHeaderCell>Status</TableHeaderCell>
+                  <TableHeaderCell>Participacao</TableHeaderCell>
+                </TableRow>
+              </TableHead>
               <tbody>
                 {eventos.map((evento) => (
-                  <tr key={evento.evento_id}>
-                    <td>{evento.data_iso}</td>
-                    <td>
-                      <div className="font-medium">#{evento.evento_id} {evento.tipo}</div>
-                      <div className="text-xs text-muted-foreground">
+                  <TableRow key={evento.evento_id}>
+                    <TableCell>{evento.data_iso}</TableCell>
+                    <TableCell>
+                      <div className="font-medium text-slate-950">
+                        #{evento.evento_id} {formatEventoTipo(evento.tipo)}
+                      </div>
+                      <div className="text-xs text-slate-500">
                         {evento.horario_inicio} - {evento.horario_fim}
                       </div>
-                    </td>
-                    <td>{evento.turma_nome}</td>
-                    <td>{formatEventoStatus(evento.status)}</td>
-                    <td>{evento.participante_status ?? "Snapshot da turma"}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell>{evento.turma_nome ?? "-"}</TableCell>
+                    <TableCell>
+                      <StatusBadge value={evento.status} />
+                    </TableCell>
+                    <TableCell>{evento.participante_status ?? "Snapshot da turma"}</TableCell>
+                  </TableRow>
                 ))}
               </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </main>
+            </ResponsiveTable>
+          )}
+        </CardContent>
+      </Card>
+    </PageShell>
   );
 }

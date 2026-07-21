@@ -414,6 +414,20 @@ def test_eventos_lances_limit_fora_da_faixa_retorna_422(client: TestClient, db_s
 
 
 @pytest.mark.uc09
+def test_lance_rejeita_jogador_principal_ausente(client: TestClient, db_session):
+    ctx = _criar_evento_evento_com_partida_para_lance(db_session)
+
+    resp = client.post(
+        f"/api/partidas/{ctx['partida_id']}/lances",
+        json={"tipo": "GOL", "payload": {"minute": 4}},
+        headers={"X-User-Id": "coach", "X-Role": "treinador"},
+    )
+
+    assert resp.status_code == 422, resp.text
+    assert "jogador_id" in resp.text
+
+
+@pytest.mark.uc09
 def test_lance_aceita_jogador_evento_id_convertendo_para_jogador_global(client: TestClient, db_session):
     ctx = _criar_evento_evento_com_partida_para_lance(db_session)
 

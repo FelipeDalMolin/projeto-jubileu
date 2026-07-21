@@ -91,11 +91,11 @@ def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_sessi
 
     resp = client.post(
         f"/api/partidas/{partida_id}/lances",
-        json={"tipo": "GOL", "payload": {"minute": 2}},
+        json={"tipo": "GOL", "payload": {"minute": 2}, "jogador_id": 999999},
         headers={"X-User-Id": "coach", "X-Role": "treinador"},
     )
-    assert resp.status_code == 200, resp.text
-    assert resp.json()["lance"]["tipo"] == "GOL"
+    assert resp.status_code == 422, resp.text
+    assert "nao pertence ao evento" in resp.text
 
     resp = client.put(f"/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
     assert resp.status_code == 200, resp.text
@@ -103,7 +103,7 @@ def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_sessi
 
     resp = client.post(
         f"/api/partidas/{partida_id}/lances",
-        json={"tipo": "GOL", "payload": {"minute": 4}},
+        json={"tipo": "GOL", "payload": {"minute": 4}, "jogador_id": 999999},
         headers={"X-User-Id": "coach", "X-Role": "treinador"},
     )
     assert resp.status_code == 409, resp.text

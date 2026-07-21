@@ -24,6 +24,19 @@ API extraidas do codigo, confira [`../generated/code-map.md`](../generated/code-
 | `src/workspaces/evento/` | Workspace operacional do evento. |
 | `src/components/` | Componentes reutilizaveis e paineis. |
 
+## Padrao Visual
+
+- Tailwind CSS e componentes locais em `src/components/ui` e `src/components/layout`
+  sao o padrao para novas telas e refactors visuais.
+- Bootstrap nao e dependencia do projeto; classes como `container`, `row`, `col-*`,
+  `btn-*`, `form-control`, `alert` e `badge bg-*` nao devem ser usadas como contrato
+  de UI nova.
+- Nao instalar Bootstrap, shadcn/ui ou biblioteca visual nova neste slice. Qualquer
+  dependencia futura deve justificar consistencia, velocidade, acessibilidade,
+  manutencao, impacto visual e risco de dependencia.
+- A UI deve ser operacional, densa e responsiva: formularios e listas empilham no
+  mobile, tabelas usam overflow controlado e estados de erro/loading ficam visiveis.
+
 ## Rotas SPA Canonicas
 
 - `/login`
@@ -35,7 +48,8 @@ API extraidas do codigo, confira [`../generated/code-map.md`](../generated/code-
 - `/dashboard`, `/dashboard/jogadores`, `/dashboard/partidas`, `/dashboard/estatisticas`
 - `/usuario`
 
-Nao reintroduzir `/dias/:dataIso/aulas/:aulaId`.
+Nao reintroduzir `/dias/:dataIso/aulas/:aulaId`, `/aulas`, `aulaId` ou `WorkspaceAula`
+em codigo ativo. `AULA` e somente valor de `Evento.tipo`.
 
 ## Contrato Frontend/API
 
@@ -69,6 +83,15 @@ Aplicacao pratica:
 - Atualizar `docs/generated/code-map.md` quando rotas ou services mudarem.
 - Revisar chamadas legadas apontadas no mapa gerado antes de trata-las como contrato ativo.
 
+## Calendario
+
+`/dias` funciona como hub de eventos usando o contrato atual `GET /api/dias`.
+O calendario pode mostrar dots por evento, filtros locais por tipo/status e navegacao
+para `/dias/:dataIso/eventos/:eventoId`.
+
+Campos como quadra, capacidade e minha participacao exigem read-model futuro antes de
+virarem UI de calendario.
+
 ## Validacao
 
 ```bash
@@ -87,3 +110,9 @@ npm run test:e2e
 
 Se Playwright falhar por ambiente, registrar se o bloqueio e browser, dependencia nativa,
 Vite, API local ou runtime NGINX.
+
+Quando rotas ou services mudarem, gere novamente o mapa do codigo:
+
+```bash
+python3 scripts/docs/generate_code_map.py
+```

@@ -23,6 +23,10 @@ class UsuarioJogadorOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class UsuarioJogadorUpdateIn(BaseModel):
+    jogador_id: int | None = Field(default=...)
+
+
 class UsuarioEventoParticipadoOut(BaseModel):
     evento_id: int
     data_iso: str

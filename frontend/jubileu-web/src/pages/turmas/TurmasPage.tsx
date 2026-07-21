@@ -1,16 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { PageHeader, PageShell, Toolbar } from "../../components/layout/PageShell";
+import { buttonClasses } from "../../components/ui/button-classes";
+import { Button } from "../../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "../../components/ui/feedback";
+import { Field } from "../../components/ui/form";
+import {
+  ResponsiveTable,
+  TableCell,
+  TableHead,
+  TableHeaderCell,
+  TableRow,
+} from "../../components/ui/responsive-table";
 import { criarTurma, listarTurmas, type Turma } from "../../services/turmasService";
 
 export default function TurmasPage() {
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // UI state para criação
   const [showCreate, setShowCreate] = useState(false);
   const [nome, setNome] = useState("");
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const turmasOrdenadas = useMemo(() => [...turmas].sort((a, b) => a.nome.localeCompare(b.nome)), [turmas]);
 
   async function carregar() {
     setLoading(true);
@@ -26,10 +39,10 @@ export default function TurmasPage() {
   }
 
   useEffect(() => {
-    carregar();
+    void carregar();
   }, []);
 
-  async function handleCriarTurma(e: React.FormEvent) {
+  async function handleCriarTurma(e: FormEvent) {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -42,7 +55,6 @@ export default function TurmasPage() {
     setSaving(true);
     try {
       const nova = await criarTurma({ nome: nomeTrim });
-      // Atualiza lista imediatamente (sem depender de novo GET)
       setTurmas((prev) => [nova, ...prev]);
       setNome("");
       setShowCreate(false);
@@ -54,48 +66,50 @@ export default function TurmasPage() {
   }
 
   return (
-    <main className="container py-3" data-testid="page-turmas">
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h1 className="h4 mb-0">Turmas</h1>
+    <PageShell data-testid="page-turmas">
+      <PageHeader
+        title="Turmas"
+        description="Grupos de jogadores usados para eventos do tipo AULA."
+        actions={
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              setErrorMsg(null);
+              setShowCreate((value) => !value);
+            }}
+          >
+            + Nova turma
+          </Button>
+        }
+      />
 
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={() => {
-            setErrorMsg(null);
-            setShowCreate((v) => !v);
-          }}
-        >
-          + Nova turma
-        </button>
-      </div>
+      {showCreate ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Nova turma</CardTitle>
+            <CardDescription>Depois de criar a turma, vincule os jogadores no detalhe.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form data-testid="form-turma" onSubmit={handleCriarTurma} className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+              <Field
+                label="Nome da turma"
+                id="turma-nome"
+                name="turma-nome"
+                placeholder="Ex: Sub-11, Adulto, Feminino..."
+                value={nome}
+                onChange={(event) => setNome(event.target.value)}
+                autoComplete="off"
+                disabled={saving}
+              />
 
-      {showCreate && (
-        <div className="card mb-3">
-          <div className="card-body">
-            <form data-testid="form-turma" onSubmit={handleCriarTurma} className="row g-2 align-items-end">
-              <div className="col-12 col-md-8">
-                <label htmlFor="turma-nome" className="form-label mb-1">
-                  Nome da turma
-                </label>
-                <input
-                  id="turma-nome"
-                  name="turma-nome"
-                  className="form-control"
-                  placeholder="Ex: Sub-11, Adulto, Feminino..."
-                  value={nome}
-                  onChange={(ev) => setNome(ev.target.value)}
-                  autoComplete="off"
-                />
-              </div>
-
-              <div className="col-12 col-md-4 d-flex gap-2">
-                <button data-testid="button-salvar-turma" type="submit" className="btn btn-success w-100" disabled={saving}>
+              <Toolbar className="md:pb-0">
+                <Button data-testid="button-salvar-turma" type="submit" disabled={saving}>
                   {saving ? "Salvando..." : "Salvar"}
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className="btn btn-outline-secondary w-100"
+                  variant="outline"
                   onClick={() => {
                     setShowCreate(false);
                     setNome("");
@@ -104,49 +118,57 @@ export default function TurmasPage() {
                   disabled={saving}
                 >
                   Cancelar
-                </button>
-              </div>
+                </Button>
+              </Toolbar>
             </form>
+            {errorMsg ? <ErrorState message={errorMsg} className="mt-3" /> : null}
+          </CardContent>
+        </Card>
+      ) : errorMsg ? (
+        <ErrorState message={errorMsg} />
+      ) : null}
 
-            {errorMsg && <div className="alert alert-danger mt-3 mb-0">{errorMsg}</div>}
+      <Card>
+        <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <CardTitle>Lista de turmas</CardTitle>
+            <CardDescription>{turmasOrdenadas.length} turma(s) cadastrada(s).</CardDescription>
           </div>
-        </div>
-      )}
-
-      {loading ? (
-        <p>Carregando...</p>
-      ) : turmas.length === 0 ? (
-        <p className="text-muted">Nenhuma turma cadastrada.</p>
-      ) : (
-        <table className="table table-sm">
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {turmas.map((t) => (
-              <tr key={t.id}>
-                <td>{t.nome}</td>
-                <td className="text-end">
-                  <Link to={`/turmas/${t.id}`} className="btn btn-outline-primary btn-sm">
-                    Abrir
-                  </Link>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {!loading && !showCreate && (
-        <div className="mt-3">
-          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={carregar}>
-            Recarregar lista
-          </button>
-        </div>
-      )}
-    </main>
+          {!loading ? (
+            <Button type="button" variant="outline" size="sm" onClick={carregar}>
+              Recarregar
+            </Button>
+          ) : null}
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <LoadingState label="Carregando turmas..." />
+          ) : turmasOrdenadas.length === 0 ? (
+            <EmptyState title="Nenhuma turma cadastrada" description="Crie uma turma para organizar eventos do tipo AULA." />
+          ) : (
+            <ResponsiveTable>
+              <TableHead>
+                <TableRow>
+                  <TableHeaderCell>Nome</TableHeaderCell>
+                  <TableHeaderCell className="w-32 text-right">Acoes</TableHeaderCell>
+                </TableRow>
+              </TableHead>
+              <tbody>
+                {turmasOrdenadas.map((turma) => (
+                  <TableRow key={turma.id}>
+                    <TableCell className="font-medium text-slate-950">{turma.nome}</TableCell>
+                    <TableCell className="text-right">
+                      <Link to={`/turmas/${turma.id}`} className={buttonClasses({ variant: "outline", size: "xs" })}>
+                        Abrir
+                      </Link>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </tbody>
+            </ResponsiveTable>
+          )}
+        </CardContent>
+      </Card>
+    </PageShell>
   );
 }

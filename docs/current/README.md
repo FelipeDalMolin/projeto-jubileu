@@ -5,7 +5,7 @@ Arquivos desta pasta representam o estado atual do projeto e devem ser priorizad
 | Arquivo | Uso |
 |---|---|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Topologia, stack e regras arquiteturais. |
-| [FRONTEND.md](FRONTEND.md) | Estrutura React/Vite, rotas, services, estado e checks. |
+| [FRONTEND.md](FRONTEND.md) | Estrutura, padrao visual, rotas, services, estado e checks do React/Vite. |
 | [INFRASTRUCTURE.md](INFRASTRUCTURE.md) | Docker, NGINX, runtime dev/server, env e smoke. |
 | [API.md](API.md) | Contratos publicos e rotas canonicas. |
 | [DOMAIN_MODEL.md](DOMAIN_MODEL.md) | Modelo de dominio. |

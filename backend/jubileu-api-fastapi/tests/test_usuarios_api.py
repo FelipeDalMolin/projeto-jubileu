@@ -78,3 +78,69 @@ def test_usuario_me_retorna_perfil_e_eventos_participados(client: TestClient, db
     assert body["jogador"]["id"] == jogador.id
     assert body["eventos"][0]["evento_id"] == evento.id
     assert body["eventos"][0]["participante_status"] == "CHECKED_IN"
+
+
+@pytest.mark.uc01
+def test_usuario_me_atualiza_jogador_vinculado(client: TestClient, db_session):
+    jogador = JogadorModel(nome="Maria", apelido="M", status="ativo", ativo=True)
+    usuario = UsuarioModel(
+        user_id="u-maria",
+        username="maria",
+        password_hash=password_hash("maria123"),
+        display_name="Maria Souza",
+        email="maria@example.test",
+        role="user",
+        jogador_id=None,
+    )
+    db_session.add_all([jogador, usuario])
+    db_session.commit()
+
+    headers = {"X-User-Id": "u-maria", "X-Role": "user"}
+    resp = client.put(
+        "/api/usuarios/me/jogador",
+        json={"jogador_id": jogador.id},
+        headers=headers,
+    )
+
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["usuario"]["jogador_id"] == jogador.id
+    assert body["jogador"]["id"] == jogador.id
+
+    resp_me = client.get("/api/usuarios/me", headers=headers)
+    assert resp_me.status_code == 200, resp_me.text
+    assert resp_me.json()["usuario"]["jogador_id"] == jogador.id
+
+    resp_clear = client.put(
+        "/api/usuarios/me/jogador",
+        json={"jogador_id": None},
+        headers=headers,
+    )
+    assert resp_clear.status_code == 200, resp_clear.text
+    body_clear = resp_clear.json()
+    assert body_clear["usuario"]["jogador_id"] is None
+    assert body_clear["jogador"] is None
+
+
+@pytest.mark.uc01
+def test_usuario_me_rejeita_jogador_inexistente(client: TestClient, db_session):
+    usuario = UsuarioModel(
+        user_id="u-sem-jogador",
+        username="semjogador",
+        password_hash=password_hash("senha123"),
+        display_name="Sem Jogador",
+        email=None,
+        role="user",
+        jogador_id=None,
+    )
+    db_session.add(usuario)
+    db_session.commit()
+
+    resp = client.put(
+        "/api/usuarios/me/jogador",
+        json={"jogador_id": 99999},
+        headers={"X-User-Id": "u-sem-jogador", "X-Role": "user"},
+    )
+
+    assert resp.status_code == 404, resp.text
+    assert resp.json()["detail"] == "Jogador nao encontrado"

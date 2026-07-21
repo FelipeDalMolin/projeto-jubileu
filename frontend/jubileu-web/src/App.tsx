@@ -7,15 +7,9 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div
-          style={{
-            minHeight: "100vh",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
+        <div className="flex min-h-screen flex-col bg-background">
           <Navbar />
-          <main style={{ flex: 1 }}>
+          <main className="flex-1">
             <AppRoutes />
           </main>
         </div>

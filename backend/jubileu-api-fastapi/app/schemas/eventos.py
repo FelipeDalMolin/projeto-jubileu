@@ -74,7 +74,7 @@ class SeedPartidaOut(BaseModel):
 class LanceCreateIn(BaseModel):
     tipo: str
     payload: dict[str, Any] = Field(default_factory=dict)
-    jogador_id: Optional[int] = None
+    jogador_id: int
     client_event_id: Optional[str] = None
 
 

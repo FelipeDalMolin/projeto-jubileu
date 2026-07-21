@@ -30,7 +30,6 @@ from app.schemas.dia_evento import (
     EventoDiaOut,
     CommandOkOut,
     ConfirmarPresencasIn,
-    DiaListOut,
     DiaOut,
     EstadoEquipesEventoIn,
     EstadoEquipesEventoOut,
@@ -46,10 +45,14 @@ from app.services.workspace_evento import build_workspace_evento
 router = APIRouter(prefix="/dias", tags=["Dias"])
 
 
-@router.get("/", response_model=List[DiaListOut])
-def listar_dias(db: Session = Depends(get_db)) -> List[DiaListOut]:
-    dias = db.query(DiaModel).order_by(DiaModel.data_iso.asc()).all()
-    return [DiaListOut.model_validate(d, from_attributes=True) for d in dias]
+@router.get("/", response_model=List[DiaOut])
+def listar_dias(db: Session = Depends(get_db)) -> List[DiaOut]:
+    return (
+        db.query(DiaModel)
+        .options(selectinload(DiaModel.eventos).selectinload(EventoModel.jogadores))
+        .order_by(DiaModel.data_iso.asc())
+        .all()
+    )
 
 
 @router.get("/{data_iso}", response_model=DiaOut)

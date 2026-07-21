@@ -16,6 +16,7 @@ from app.models.jogador_turma import Jogador as JogadorModel
 from app.schemas.usuarios import (
     UsuarioEventoParticipadoOut,
     UsuarioJogadorOut,
+    UsuarioJogadorUpdateIn,
     UsuarioMeOut,
     UsuarioPerfilOut,
 )
@@ -23,15 +24,10 @@ from app.schemas.usuarios import (
 router = APIRouter(prefix="/api/usuarios", tags=["Usuarios"])
 
 
-@router.get("/me", response_model=UsuarioMeOut)
-def obter_usuario_me(
-    db: Session = Depends(get_db),
-    user: AuthUser = Depends(get_current_user),
+def _build_usuario_me(
+    db: Session,
+    usuario,
 ) -> UsuarioMeOut:
-    usuario = get_usuario_by_user_id(db, user.user_id)
-    if not usuario:
-        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
-
     jogador = None
     eventos: list[UsuarioEventoParticipadoOut] = []
     if usuario.jogador_id is not None:
@@ -92,3 +88,38 @@ def obter_usuario_me(
         jogador=jogador,
         eventos=eventos,
     )
+
+
+@router.get("/me", response_model=UsuarioMeOut)
+def obter_usuario_me(
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> UsuarioMeOut:
+    usuario = get_usuario_by_user_id(db, user.user_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+    return _build_usuario_me(db, usuario)
+
+
+@router.put("/me/jogador", response_model=UsuarioMeOut)
+def atualizar_usuario_jogador(
+    payload: UsuarioJogadorUpdateIn,
+    db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
+) -> UsuarioMeOut:
+    usuario = get_usuario_by_user_id(db, user.user_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+
+    if payload.jogador_id is not None:
+        jogador = db.query(JogadorModel).filter(JogadorModel.id == payload.jogador_id).first()
+        if not jogador:
+            raise HTTPException(status_code=404, detail="Jogador nao encontrado")
+
+    usuario.jogador_id = payload.jogador_id
+    db.add(usuario)
+    db.commit()
+    db.refresh(usuario)
+
+    return _build_usuario_me(db, usuario)

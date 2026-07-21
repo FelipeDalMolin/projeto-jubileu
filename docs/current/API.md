@@ -31,6 +31,10 @@ Active surfaces:
 - `GET /dias/{data_iso}/eventos/{evento_id}/estado-equipes`
 - `PUT /dias/{data_iso}/eventos/{evento_id}/estado-equipes`
 
+`GET /dias` e `/api/dias` retornam dias com a lista de eventos carregada para alimentar
+o calendario operacional. A tela `/dias` nao deve depender de chamadas por dia para
+descobrir eventos ja cadastrados.
+
 Canonical event fields:
 
 - `id`
@@ -99,6 +103,7 @@ Active surfaces:
 - `POST /api/auth/login`
 - `GET /api/auth/me`
 - `GET /api/usuarios/me`
+- `PUT /api/usuarios/me/jogador`
 
 `GET /api/auth/me` returns the persisted user identity, role and optional `jogador_id`.
 
@@ -107,6 +112,11 @@ Active surfaces:
 - essential user profile
 - linked jogador summary
 - events in which the linked jogador participated or appeared in the event snapshot
+
+`PUT /api/usuarios/me/jogador` persists the current user's linked player with
+`{"jogador_id": number | null}`. It returns the updated `/api/usuarios/me`
+payload, is idempotent for the same `jogador_id`, and returns `404` when the
+target player does not exist.
 
 Legacy header-based auth may remain for local compatibility, but persisted users are the canonical session source.
 

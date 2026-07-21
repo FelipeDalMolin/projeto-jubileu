@@ -7,24 +7,19 @@ export default function Navbar() {
   const isActive = (path: string) => location.pathname.startsWith(path);
 
   return (
-    <header
-      style={{
-        background: "#0f172a",
-        color: "#e2e8f0",
-        padding: "12px 20px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        borderBottom: "4px solid #38bdf8",
-      }}
-    >
-      <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-        <Link to="/dias" style={{ color: "inherit", fontWeight: 700 }}>
-          Jubileu Eventos
-        </Link>
-        <NavLinks isActive={isActive} />
+    <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+      <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+          <Link
+            to="/dias"
+            className="text-base font-semibold text-slate-950 no-underline hover:no-underline"
+          >
+            Jubileu Eventos
+          </Link>
+          <NavLinks isActive={isActive} />
+        </div>
+        <UserMenu />
       </div>
-      <UserMenu />
     </header>
   );
 }
