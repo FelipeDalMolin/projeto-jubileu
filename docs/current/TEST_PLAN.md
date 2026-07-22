@@ -445,3 +445,16 @@ medida neste slice foi 81%, aplicada por `coverage report --fail-under=81`.
   (`2 integration + 2 postgresql`, zero skips); coverage branch `84%`; Playwright/NGINX
   `11 passed`; frontend lint/build/contrato aprovados. Migration: nenhuma; head permanece
   `0020_auth_sessions_rollback_safe`.
+
+### DEV-21 PR 4 - partidas, estatisticas e lances
+
+- `test_api_standardization_aliases.py` comprova a remocao das facades de Evento, imports diretos
+  das capacidades, modulos dedicados de partidas/lances e ausencia de rollback global nos conflitos
+  esperados.
+- `test_command_safety_api.py` caracteriza atualizacao individual, substituicao parcial/completa,
+  placar recalculado, limpeza da lista e rejeicao de jogador duplicado; lifecycle e idempotencia de
+  lance permanecem cobertos pelos testes de Partida e Evento.
+- Evidencia local: suite completa `241 passed, 4 skipped`; skips reexecutados em PostgreSQL
+  (`2 integration + 2 postgresql`, zero skips); coverage branch `84%`; Playwright/NGINX
+  `11 passed`; frontend lint/build/contrato aprovados. Migration: nenhuma; head permanece
+  `0020_auth_sessions_rollback_safe`.

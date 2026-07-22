@@ -38,11 +38,12 @@ Usuarios -> Jogadores -> Dias -> Eventos -> Times -> Partidas -> Estatisticas
 
 ## Modulos De Evento
 
-`app/modules/eventos/service.py` e uma facade import-only durante a decomposicao DEV-21. Lifecycle
-vive em `lifecycle.py`, RSVP/check-in/consultas de participantes em `participants.py`, times e
-snapshots em `teams.py` e fila/sorteio/proxima partida em `rotation.py`. `_legacy.py` contem somente
-lances ate o quarto slice; routers nao importam o legado diretamente. Os routers de Dia delegam
-regras de equipes ao modulo de capacidade e preservam apenas HTTP, ownership e serializacao.
+O aggregate Evento usa `core.py` para primitivas compartilhadas, `lifecycle.py` para transicoes,
+`participants.py` para RSVP/check-in, `teams.py` para times/snapshots e `rotation.py` para
+fila/sorteio/proxima partida. Partidas, estatisticas e placar vivem em
+`app/modules/partidas/service.py`; lances vivem em `app/modules/partidas/lances.py`. As antigas
+facades `app/modules/eventos/service.py` e `_legacy.py` foram removidas: routers importam a
+capacidade dona e preservam apenas HTTP, autorizacao, parent ownership e serializacao.
 
 Comandos concorrentes de rotacao adquirem locks na ordem `Evento -> EventoRotacaoEstado -> filhos`.
 Conflitos esperados de unicidade ficam em savepoints SQLAlchemy, sem rollback global da transacao;

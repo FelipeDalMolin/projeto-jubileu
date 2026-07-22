@@ -122,7 +122,7 @@ Foco:
 
 1. DEV-21 PR 1: Security Gate e matriz de autorizacao — integrado no PR #41 (`ffbc290`).
 2. DEV-21 PR 2: contratos canonicos, lifecycle e participantes — integrado no PR #42 (`2cdfc02`).
-3. DEV-21 PR 3: equipes/rotacao — slice ativo; PR 4: partidas/lances.
+3. DEV-21 PR 3: equipes/rotacao — integrado no PR #43 (`a19927e`); PR 4: partidas/lances — slice ativo.
 4. DEV-27: Playwright sem skips, runtime promovivel e ensaio rollback.
 5. RC3 e evidencias isoladas; producao somente apos `GO v0.3.0` humano.
 

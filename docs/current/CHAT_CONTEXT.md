@@ -43,11 +43,13 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
 - `user` tem leitura e self-service; mutacoes operacionais exigem `admin`, `treinador` ou `auxiliar`.
 - Lifecycle canonico usa `POST /api/eventos/{evento_id}/start|end|cancel`; partida usa apenas `POST`
   nos comandos contextuais `start|end`; proxima partida existe somente sob `/api/eventos/{evento_id}`.
-- Em DEV-21, `app/modules/eventos/service.py` e facade; capacidades extraidas nao devem voltar ao
-  monolito `_legacy.py`.
+- DEV-21 eliminou as facades `app/modules/eventos/service.py` e `_legacy.py`; routers importam
+  diretamente as capacidades de Evento e Partida.
 - Equipes/snapshots pertencem a `app/modules/eventos/teams.py`; fila, sorteio, seed e proxima partida
   pertencem a `rotation.py`. Em rotacao, adquirir locks sempre como `Evento -> Rotacao -> filhos` e
   tratar conflitos esperados com savepoint, sem rollback global.
+- Partidas/estatisticas pertencem a `app/modules/partidas/service.py`; lances pertencem a
+  `app/modules/partidas/lances.py`. Ambos bloqueiam Evento antes de filhos.
 - Usar Alembic para mudancas de schema.
 - Evoluir por slices pequenos, com testes e docs atualizados.
 - Para equipes/presenca/workspace, usar: estado local imediato -> persistencia por comando/evento -> polling agora -> WebSocket futuro.

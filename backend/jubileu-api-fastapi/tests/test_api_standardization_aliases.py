@@ -10,40 +10,74 @@ from app.main import app
 
 
 @pytest.mark.contract
-def test_eventos_service_is_import_only_facade():
-    service_path = Path(__file__).parents[1] / "app" / "modules" / "eventos" / "service.py"
-    tree = ast.parse(service_path.read_text(encoding="utf-8"))
+def test_eventos_router_importa_capacidades_sem_facade_legada():
+    app_dir = Path(__file__).parents[1] / "app"
+    assert not (app_dir / "modules" / "eventos" / "service.py").exists()
+    assert not (app_dir / "modules" / "eventos" / "_legacy.py").exists()
 
-    executable_definitions = [
-        node
-        for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-    ]
-    assert not executable_definitions
+    router_source = (app_dir / "routers" / "eventos.py").read_text(encoding="utf-8")
+    assert "modules.eventos import lifecycle" in router_source
+    assert "modules.eventos import participants" in router_source
+    assert "modules.eventos import rotation" in router_source
+    assert "modules.partidas import lances" in router_source
+
+    routers_finos = {
+        "partidas.py": {
+            "listar_partidas",
+            "criar_partida",
+            "atualizar_partida",
+            "atualizar_stats_jogador_partida",
+            "deletar_partida",
+            "iniciar_partida",
+            "encerrar_partida",
+        },
+        "dias.py": {
+            "confirmar_presencas",
+            "criar_time_na_evento",
+            "mover_jogador_para_time",
+            "atualizar_status_jogador",
+            "deletar_time",
+            "obter_estado_equipes_evento",
+            "salvar_estado_equipes_evento",
+        },
+    }
+    for filename, function_names in routers_finos.items():
+        source = (app_dir / "routers" / filename).read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        for node in tree.body:
+            if not isinstance(node, ast.FunctionDef) or node.name not in function_names:
+                continue
+            function_source = ast.get_source_segment(source, node) or ""
+            assert "db.query(" not in function_source, node.name
+            assert "db.commit(" not in function_source, node.name
+            assert "db.rollback(" not in function_source, node.name
 
 
 @pytest.mark.contract
-def test_equipes_e_rotacao_estao_em_capacidades_isoladas_e_sem_rollback_global():
+def test_capacidades_de_evento_e_partida_estao_isoladas_e_sem_rollback_global():
     modules_dir = Path(__file__).parents[1] / "app" / "modules" / "eventos"
     teams_source = (modules_dir / "teams.py").read_text(encoding="utf-8")
     rotation_source = (modules_dir / "rotation.py").read_text(encoding="utf-8")
-    legacy_tree = ast.parse((modules_dir / "_legacy.py").read_text(encoding="utf-8"))
-
-    legacy_functions = {
-        node.name
-        for node in legacy_tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
-    assert legacy_functions == {"lance_out", "create_lance_flow", "list_lances_flow"}
+    partidas_dir = Path(__file__).parents[1] / "app" / "modules" / "partidas"
+    matches_source = (partidas_dir / "service.py").read_text(encoding="utf-8")
+    lances_source = (partidas_dir / "lances.py").read_text(encoding="utf-8")
 
     assert "def criar_time_flow(" in teams_source
     assert "def rebuild_estado_equipes(" in teams_source
     assert "def criar_proxima_partida_flow(" in rotation_source
     assert "def preview_rotacao_sorteio_flow(" in rotation_source
+    assert "def atualizar_partida_flow(" in matches_source
+    assert "def atualizar_stats_jogador_flow(" in matches_source
+    assert "def create_lance_flow(" in lances_source
+    assert "def list_lances_flow(" in lances_source
     assert "db.rollback(" not in teams_source
     assert "db.rollback(" not in rotation_source
+    assert "db.rollback(" not in matches_source
+    assert "db.rollback(" not in lances_source
     assert "with db.begin_nested():" in teams_source
     assert rotation_source.count("with db.begin_nested():") >= 2
+    assert matches_source.count("with db.begin_nested():") >= 4
+    assert "with db.begin_nested():" in lances_source
 
     rotation_tree = ast.parse(rotation_source)
     locked_flows = {
@@ -58,7 +92,7 @@ def test_equipes_e_rotacao_estao_em_capacidades_isoladas_e_sem_rollback_global()
         if not isinstance(node, ast.FunctionDef) or node.name not in locked_flows:
             continue
         flow_source = ast.get_source_segment(rotation_source, node) or ""
-        assert flow_source.index("_lock_evento_for_command(") < flow_source.index(
+        assert flow_source.index("lock_evento_for_command(") < flow_source.index(
             "_get_or_init_rotacao_estado("
         ), node.name
 

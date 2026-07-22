@@ -13,7 +13,7 @@ from app.models.dia_evento import (
     StatusEventoEnum,
     StatusPresencaEnum,
 )
-from app.modules.eventos.rotation import evento_out, get_evento_or_404
+from app.modules.eventos.core import evento_out, get_evento_or_404
 from app.schemas.eventos import EventoActionOut
 from app.modules.eventos.teams import rebuild_estado_equipes
 

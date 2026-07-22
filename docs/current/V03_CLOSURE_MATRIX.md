@@ -10,8 +10,8 @@ Legenda: `sim`, `parcial`, `nao`, `aguarda merge`, `aguarda GO humano`.
 |---|---|---|---|---|---|
 | DEV-21 PR 1 - Security Gate | sim | sim | sim | sim | PR #41 mesclado em `ffbc290`; seis required checks verdes. |
 | DEV-21 PR 2 - contratos/lifecycle/participantes | sim | sim | sim | sim | PR #42 mesclado em `2cdfc02`; seis required checks verdes. |
-| DEV-21 PR 3 - equipes/rotacao | sim | sim | sim | aguarda merge | Backend `240 passed`; PostgreSQL `2 integration + 2 postgresql`, zero skips; concorrencia aprovada. |
-| DEV-21 PR 4 - partidas/lances | nao | nao | nao | nao | Depende do merge do PR 3; nenhuma migration nova esperada. |
+| DEV-21 PR 3 - equipes/rotacao | sim | sim | sim | sim | PR #43 mesclado em `a19927e`; seis required checks verdes. |
+| DEV-21 PR 4 - partidas/lances | sim | sim | sim | aguarda merge | Backend `241 passed`; PostgreSQL `2 integration + 2 postgresql`; coverage `84%`; E2E `11 passed`. |
 | DEV-27 PR 5 - qualidade/runtime release | nao | nao | nao | nao | Depende do fechamento DEV-21. |
 | RC3 por digest | nao | nao | parcial | nao | RC1/RC2 permanecem historicos e nao promoviveis. |
 | Artefato imutavel do runtime anterior | nao | nao | parcial | nao | Producao atual usa checkout/bind mounts e nao expoe identidade de release. |
@@ -80,4 +80,24 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
 - Arquitetura: equipes/snapshots em `teams.py`; fila/sorteio/seed/proxima partida em `rotation.py`;
   `_legacy.py` contem somente lances; routers delegam regras de equipes.
 - Transacoes: conflitos esperados usam savepoints, sem rollback global nos modulos extraidos.
+- Migration: nenhuma nova; head permanece `0020_auth_sessions_rollback_safe`.
+
+## Evidencia do PR 3 integrado
+
+- PR: `https://github.com/FelipeDalMolin/projeto-jubileu/pull/43`.
+- Merge: `a19927e1d498d0ceae641ee552c48805d37639a9`.
+- Required checks: seis de seis aprovados no GitHub Actions.
+
+## Evidencia local do PR 4
+
+- Backend completo: `241 passed, 4 skipped`; os quatro skips foram reexecutados em PostgreSQL 16.
+- PostgreSQL 16: `2 passed` no marker `integration` e `2 passed` no marker `postgresql`, sem skips.
+- Coverage branch: `84%`, com `fail-under=81` aprovado.
+- Playwright pelo NGINX: `11 passed`; frontend lint, build e contrato `/api` aprovados.
+- Arquitetura: facades de Evento removidas; routers importam capacidades; partidas/estatisticas e
+  lances possuem modulos dedicados.
+- Estatisticas: comando individual preserva as demais; update completo remove excedentes antes de
+  inserir ausentes; ambos usam o mesmo calculo de placar.
+- Transacoes: locks adquirem Evento antes do filho e conflitos esperados usam savepoints, sem
+  rollback global nos modulos de Partida.
 - Migration: nenhuma nova; head permanece `0020_auth_sessions_rollback_safe`.

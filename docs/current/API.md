@@ -139,6 +139,9 @@ Lifecycle contract:
   return the existing lance instead of creating a duplicate.
 - each partida has a unique `ordem` inside its evento.
 - each player has at most one statistics row per partida.
+- A full partida update replaces the submitted statistics set by `jogador_evento_id`; omitted
+  rows are removed before missing rows are inserted. The per-player stats command updates only that
+  player. Both paths recalculate the persisted score through the same domain function.
 - frontend live state is derived only from partida `EM_ANDAMENTO`.
 - `POST /api/eventos/{evento_id}/partidas/proxima` is the only transactional command for the next
   confrontation. The former contextual alias under `/api/dias/{data_iso}` is removed.
@@ -151,6 +154,8 @@ Lifecycle contract:
 - Rotation commands lock `Evento`, then `EventoRotacaoEstado`, then required child rows. Expected
   uniqueness races are isolated with database savepoints, so a handled conflict does not roll back
   unrelated state in the outer transaction.
+- Partida/order, statistics and lance uniqueness conflicts also use savepoints; lances preserve
+  idempotency by `(partida_id, client_event_id)`.
 
 ## Command Safety
 

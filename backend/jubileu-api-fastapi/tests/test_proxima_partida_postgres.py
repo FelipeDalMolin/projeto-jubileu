@@ -19,7 +19,7 @@ from app.models.dia_evento import (
     TipoEventoEnum,
 )
 from app.modules.auth.service import AuthUser
-from app.modules.eventos.service import criar_proxima_partida_flow
+from app.modules.eventos.rotation import criar_proxima_partida_flow
 from app.schemas.eventos import ProximaPartidaIn
 
 
