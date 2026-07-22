@@ -35,9 +35,9 @@ The backend is partially modularized:
 - `app/routers/eventos.py`
   `/api/eventos/{evento_id}/...` commands for RSVP, check-in, lifecycle, seed, lances, and rotation.
 
-- `app/modules/eventos/service.py`, `lifecycle.py`, `participants.py`
-  Import-only facade plus extracted lifecycle and participant capabilities. `_legacy.py` is
-  transitional and must not be imported by routers.
+- `app/modules/eventos/service.py`, `lifecycle.py`, `participants.py`, `teams.py`, `rotation.py`
+  Import-only facade plus extracted lifecycle, participant, team/snapshot, and rotation
+  capabilities. `_legacy.py` temporarily contains only lances and must not be imported by routers.
 
 - `app/routers/jogadores.py`, `app/routers/turmas.py`, `app/routers/usuarios.py`
   CRUD/profile surfaces for players, classes/groups, and current user profile.
@@ -57,8 +57,11 @@ The backend is partially modularized:
 - `app/models/jogador_turma.py`, `app/models/usuario.py`
   Player, turma, membership, and user identity models.
 
-- `app/services/estado_equipes.py`
-  Team snapshot rebuilding and active `TeamConfig` version management.
+- `app/modules/eventos/teams.py`
+  Team commands, snapshot rebuilding, and active `TeamConfig` version management.
+
+- `app/modules/eventos/rotation.py`
+  Queue, draw, seed and next-match commands with `Evento -> Rotacao -> children` lock ordering.
 
 - `app/services/workspace_evento.py`
   Workspace read-model, KPIs, warnings, and combined version logic.
@@ -106,10 +109,10 @@ The backend is partially modularized:
 ### Change team/workspace/rotation
 
 1. `app/routers/dias.py` or `app/routers/eventos.py`
-2. `app/services/estado_equipes.py`
+2. `app/modules/eventos/teams.py` or `app/modules/eventos/rotation.py`
 3. `app/services/workspace_evento.py`
-4. the capability module exposed by `app/modules/eventos/service.py`
-5. workspace/rotation tests
+4. the import-only facade `app/modules/eventos/service.py`
+5. workspace/rotation tests, including PostgreSQL concurrency for next-match changes
 
 ### Change auth/users
 

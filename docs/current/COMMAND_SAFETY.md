@@ -56,3 +56,5 @@ ao inves de criar duplicata.
 - Proxima partida usa `client_command_id`, hash do payload e snapshot da resposta; o lock segue
   `Evento -> EventoRotacaoEstado -> filhos`, e um indice parcial protege a partida ativa.
 - `estado-equipes` e rotacao aceitam `expected_version` e retornam `409 version_conflict`.
+- Criacao de time, seed e proxima partida isolam `IntegrityError` esperado em savepoint; os modulos
+  de capacidade nao executam `Session.rollback()` global para converter esses conflitos em `409`.

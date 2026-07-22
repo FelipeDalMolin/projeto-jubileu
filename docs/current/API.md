@@ -148,6 +148,9 @@ Lifecycle contract:
 - Repeating the same command and payload returns the stored response. Reusing the command ID with
   another payload returns `409 idempotency_conflict`; stale rotation returns `409 version_conflict`.
 - At most one partida may be `EM_ANDAMENTO` per Evento, enforced by PostgreSQL partial index.
+- Rotation commands lock `Evento`, then `EventoRotacaoEstado`, then required child rows. Expected
+  uniqueness races are isolated with database savepoints, so a handled conflict does not roll back
+  unrelated state in the outer transaction.
 
 ## Command Safety
 

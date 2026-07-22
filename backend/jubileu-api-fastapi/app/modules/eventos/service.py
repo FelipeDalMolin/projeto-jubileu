@@ -4,12 +4,11 @@ Routers e consumidores externos importam somente este modulo. Cada slice de
 DEV-21 reduz `_legacy` ate que a facade possa ser removida sem alterar contrato.
 """
 
-from app.modules.eventos._legacy import (
+from app.modules.eventos._legacy import create_lance_flow, list_lances_flow
+from app.modules.eventos.rotation import (
     confirm_rotacao_sorteio_flow,
-    create_lance_flow,
     criar_proxima_partida_flow,
     get_rotacao_estado_flow,
-    list_lances_flow,
     preview_rotacao_sorteio_flow,
     seed_primeira_partida_flow,
     update_rotacao_estado_flow,
