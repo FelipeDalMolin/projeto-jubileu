@@ -7,7 +7,10 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db
 from app.deps_auth import AuthUser, get_current_user, get_operator_user
-from app.modules.eventos import service as eventos_service
+from app.modules.eventos import lifecycle as lifecycle_service
+from app.modules.eventos import participants as participants_service
+from app.modules.eventos import rotation as rotation_service
+from app.modules.partidas import lances as lances_service
 from app.schemas.eventos import (
     EventoActionOut,
     EventoParticipanteOut,
@@ -36,7 +39,7 @@ def rsvp_self(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> dict[str, EventoParticipanteOut]:
-    return eventos_service.rsvp_self_flow(db, evento_id, user)
+    return participants_service.rsvp_self_flow(db, evento_id, user)
 
 
 @router.post("/eventos/{evento_id}/checkin", response_model=dict[str, EventoParticipanteOut])
@@ -45,7 +48,7 @@ def checkin_self(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> dict[str, EventoParticipanteOut]:
-    return eventos_service.checkin_self_flow(db, evento_id, user)
+    return participants_service.checkin_self_flow(db, evento_id, user)
 
 
 @router.delete("/eventos/{evento_id}/rsvp", response_model=dict[str, EventoParticipanteOut])
@@ -54,7 +57,7 @@ def cancel_rsvp_self(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> dict[str, EventoParticipanteOut]:
-    return eventos_service.rsvp_self_cancel_flow(db, evento_id, user)
+    return participants_service.rsvp_self_cancel_flow(db, evento_id, user)
 
 
 @router.delete("/eventos/{evento_id}/checkin", response_model=dict[str, EventoParticipanteOut])
@@ -63,7 +66,7 @@ def cancel_checkin_self(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> dict[str, EventoParticipanteOut]:
-    return eventos_service.checkin_self_cancel_flow(db, evento_id, user)
+    return participants_service.checkin_self_cancel_flow(db, evento_id, user)
 
 
 @router.post(
@@ -77,7 +80,7 @@ def checkin_manual(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> dict[str, EventoParticipanteOut]:
-    return eventos_service.checkin_manual_flow(db, evento_id, jogador_id, user)
+    return participants_service.checkin_manual_flow(db, evento_id, jogador_id, user)
 
 
 @router.post(
@@ -90,7 +93,7 @@ def start_evento(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> EventoActionOut:
-    return eventos_service.start_evento_flow(db, evento_id, user)
+    return lifecycle_service.start_evento_flow(db, evento_id, user)
 
 
 @router.post(
@@ -103,7 +106,7 @@ def end_evento(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> EventoActionOut:
-    return eventos_service.end_evento_flow(db, evento_id, user)
+    return lifecycle_service.end_evento_flow(db, evento_id, user)
 
 
 @router.post(
@@ -116,7 +119,7 @@ def cancel_evento(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> EventoActionOut:
-    return eventos_service.cancel_evento_flow(db, evento_id, user)
+    return lifecycle_service.cancel_evento_flow(db, evento_id, user)
 
 
 @router.post(
@@ -130,7 +133,7 @@ def seed_primeira_partida(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> SeedPartidaOut:
-    return eventos_service.seed_primeira_partida_flow(db, evento_id, payload, user)
+    return rotation_service.seed_primeira_partida_flow(db, evento_id, payload, user)
 
 
 @router.post(
@@ -144,7 +147,7 @@ def criar_proxima_partida(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> ProximaPartidaOut:
-    return eventos_service.criar_proxima_partida_flow(db, evento_id, payload, user)
+    return rotation_service.criar_proxima_partida_flow(db, evento_id, payload, user)
 
 
 @router.get("/eventos/{evento_id}/participants", response_model=EventoParticipantesListOut)
@@ -154,7 +157,7 @@ def list_participants(
     user: AuthUser = Depends(get_current_user),
 ) -> EventoParticipantesListOut:
     _ = user
-    return eventos_service.list_participants_flow(db, evento_id)
+    return participants_service.list_participants_flow(db, evento_id)
 
 
 @router.get("/eventos/{evento_id}/presentes", response_model=EventoParticipantesListOut)
@@ -165,7 +168,7 @@ def list_presentes(
     user: AuthUser = Depends(get_current_user),
 ) -> EventoParticipantesListOut:
     _ = user
-    return eventos_service.list_presentes_flow(db, evento_id, order)
+    return participants_service.list_presentes_flow(db, evento_id, order)
 
 
 @router.post(
@@ -179,7 +182,7 @@ def create_lance(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> LanceCreateOut:
-    return eventos_service.create_lance_flow(db, partida_id, payload, user)
+    return lances_service.create_lance_flow(db, partida_id, payload, user)
 
 
 @router.get("/eventos/{evento_id}/lances", response_model=LanceListOut)
@@ -200,7 +203,7 @@ def list_lances(
         raise HTTPException(status_code=422, detail="Parametro 'since' invalido") from exc
     if since_dt is not None and since_dt.tzinfo is None:
         since_dt = since_dt.replace(tzinfo=timezone.utc)
-    return eventos_service.list_lances_flow(db, evento_id, partida_id, since_dt, limit)
+    return lances_service.list_lances_flow(db, evento_id, partida_id, since_dt, limit)
 
 
 @router.get("/eventos/{evento_id}/rotacao/estado", response_model=RotacaoEstadoOut)
@@ -209,7 +212,7 @@ def get_rotacao_estado(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> RotacaoEstadoOut:
-    return eventos_service.get_rotacao_estado_flow(db, evento_id, user)
+    return rotation_service.get_rotacao_estado_flow(db, evento_id, user)
 
 
 @router.patch(
@@ -223,7 +226,7 @@ def update_rotacao_estado(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> RotacaoEstadoOut:
-    return eventos_service.update_rotacao_estado_flow(db, evento_id, payload, user)
+    return rotation_service.update_rotacao_estado_flow(db, evento_id, payload, user)
 
 
 @router.post(
@@ -237,7 +240,7 @@ def preview_rotacao_sorteio(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> RotacaoPreviewOut:
-    return eventos_service.preview_rotacao_sorteio_flow(db, evento_id, payload, user)
+    return rotation_service.preview_rotacao_sorteio_flow(db, evento_id, payload, user)
 
 
 @router.post(
@@ -251,4 +254,4 @@ def confirmar_rotacao_sorteio(
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> RotacaoConfirmOut:
-    return eventos_service.confirm_rotacao_sorteio_flow(db, evento_id, payload.token, user)
+    return rotation_service.confirm_rotacao_sorteio_flow(db, evento_id, payload.token, user)

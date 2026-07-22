@@ -58,3 +58,6 @@ ao inves de criar duplicata.
 - `estado-equipes` e rotacao aceitam `expected_version` e retornam `409 version_conflict`.
 - Criacao de time, seed e proxima partida isolam `IntegrityError` esperado em savepoint; os modulos
   de capacidade nao executam `Session.rollback()` global para converter esses conflitos em `409`.
+- Partidas, estatisticas e lances adquirem o lock do Evento antes do filho e isolam constraints
+  esperadas em savepoint. Atualizacao completa de estatisticas remove excedentes, faz `flush` e so
+  entao insere ausentes; atualizacao individual preserva as demais linhas.

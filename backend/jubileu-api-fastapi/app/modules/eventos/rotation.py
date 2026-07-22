@@ -28,10 +28,14 @@ from app.models.dia_evento import (
     StatusEventoEnum,
     StatusPresencaEnum,
     TimeEvento as TimeEventoModel,
-    TipoEventoEnum,
+)
+from app.modules.eventos.core import (
+    assert_evento_em_andamento,
+    evento_tipo_canonical,
+    get_evento_or_404,
+    lock_evento_for_command,
 )
 from app.schemas.eventos import (
-    EventoOut,
     ProximaPartidaIn,
     ProximaPartidaOut,
     RotacaoAuditRecordOut,
@@ -47,71 +51,6 @@ from app.schemas.eventos import (
     SeedPartidaOut,
     TimeSeedOut,
 )
-
-
-def evento_tipo_canonical(evento: EventoModel) -> str:
-    if evento.tipo == TipoEventoEnum.JOGO_LIVRE:
-        return "JOGO_LIVRE"
-    return "AULA"
-
-
-def evento_out(evento: EventoModel) -> EventoOut:
-    if evento.status == StatusEventoEnum.PLANEJADO:
-        canonical_status = "PLANEJADO"
-    elif evento.status == StatusEventoEnum.EM_ANDAMENTO:
-        canonical_status = "EM_ANDAMENTO"
-    elif evento.status == StatusEventoEnum.ENCERRADO:
-        canonical_status = "ENCERRADO"
-    else:
-        canonical_status = "CANCELADO"
-
-    return EventoOut(
-        id=evento.id,
-        dia_id=evento.dia_id,
-        tipo=evento_tipo_canonical(evento),
-        status=canonical_status,
-        horario_inicio=evento.horario_inicio,
-        horario_fim=evento.horario_fim,
-        inicio_at=None,
-        fim_at=None,
-    )
-
-
-def get_evento_or_404(db: Session, evento_id: int) -> EventoModel:
-    evento = db.query(EventoModel).filter(EventoModel.id == evento_id).first()
-    if not evento:
-        raise HTTPException(status_code=404, detail="Evento nao encontrado")
-    return evento
-
-
-def assert_evento_tipo_jogo_livre(evento: EventoModel) -> None:
-    if evento_tipo_canonical(evento) != "JOGO_LIVRE":
-        raise HTTPException(
-            status_code=409,
-            detail="RSVP/check-in self so e permitido para JOGO_LIVRE",
-        )
-
-
-def assert_evento_em_andamento(evento: EventoModel) -> None:
-    if evento.status != StatusEventoEnum.EM_ANDAMENTO:
-        raise HTTPException(status_code=409, detail="Evento nao esta EM_ANDAMENTO")
-
-
-def assert_jogador_na_evento(db: Session, evento_id: int, jogador_id: int) -> None:
-    found = (
-        db.query(JogadorEventoModel.id)
-        .filter(
-            JogadorEventoModel.evento_id == evento_id,
-            JogadorEventoModel.jogador_id == jogador_id,
-        )
-        .first()
-    )
-    if not found:
-        raise HTTPException(status_code=404, detail="Jogador nao pertence ao evento")
-
-
-def _lock_evento_for_command(db: Session, evento_id: int) -> None:
-    db.query(EventoModel.id).filter(EventoModel.id == evento_id).with_for_update().one()
 
 
 def _version_conflict(resource: str, expected: int | None, current: int | None) -> HTTPException:
@@ -139,7 +78,7 @@ def seed_primeira_partida_flow(
 
     evento = get_evento_or_404(db, evento_id)
     assert_evento_em_andamento(evento)
-    _lock_evento_for_command(db, evento.id)
+    lock_evento_for_command(db, evento.id)
     _get_or_init_rotacao_estado(db, evento, for_update=True)
     if _buscar_partida_em_andamento(db, evento.id):
         raise HTTPException(
@@ -502,7 +441,7 @@ def get_rotacao_estado_flow(db: Session, evento_id: int, user: AuthUser) -> Rota
     _ = user
     evento = get_evento_or_404(db, evento_id)
     _assert_evento_tipo_com_rotacao(evento)
-    _lock_evento_for_command(db, evento.id)
+    lock_evento_for_command(db, evento.id)
     estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
     _expire_previews_if_needed(db, evento.id)
     partida_ativa = _buscar_partida_em_andamento(db, evento.id)
@@ -554,7 +493,7 @@ def criar_proxima_partida_flow(
     require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     _assert_evento_tipo_com_rotacao(evento)
-    _lock_evento_for_command(db, evento.id)
+    lock_evento_for_command(db, evento.id)
 
     estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
     payload_hash = _proxima_partida_payload_hash(payload)
@@ -754,7 +693,7 @@ def update_rotacao_estado_flow(
     require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     _assert_evento_tipo_com_rotacao(evento)
-    _lock_evento_for_command(db, evento.id)
+    lock_evento_for_command(db, evento.id)
     estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
     _expire_previews_if_needed(db, evento.id)
     if payload.expected_version is not None and payload.expected_version != int(estado.version):
@@ -841,7 +780,7 @@ def preview_rotacao_sorteio_flow(
     require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     _assert_evento_tipo_com_rotacao(evento)
-    _lock_evento_for_command(db, evento.id)
+    lock_evento_for_command(db, evento.id)
     estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
     _expire_previews_if_needed(db, evento.id)
     partida_ativa = _buscar_partida_em_andamento(db, evento.id)
@@ -906,7 +845,7 @@ def confirm_rotacao_sorteio_flow(
     require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     _assert_evento_tipo_com_rotacao(evento)
-    _lock_evento_for_command(db, evento.id)
+    lock_evento_for_command(db, evento.id)
     estado = _get_or_init_rotacao_estado(db, evento, for_update=True)
     _expire_previews_if_needed(db, evento.id)
 

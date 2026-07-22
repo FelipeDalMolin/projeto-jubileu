@@ -19,6 +19,7 @@ from app.models.dia_evento import (
     TeamConfig as TeamConfigModel,
     TimeEvento as TimeEventoModel,
 )
+from app.modules.eventos.core import lock_evento_for_command
 from app.schemas.dia_evento import (
     AtualizarStatusJogadorIn,
     CommandOkOut,
@@ -111,12 +112,8 @@ def rebuild_estado_equipes(db: Session, evento: EventoModel) -> TeamConfigModel:
     return create_team_config(db, evento, estado)
 
 
-def _lock_evento_for_command(db: Session, evento_id: int) -> None:
-    db.query(EventoModel.id).filter(EventoModel.id == evento_id).with_for_update().one()
-
-
 def _prepare_evento_for_mutation(db: Session, evento: EventoModel) -> None:
-    _lock_evento_for_command(db, evento.id)
+    lock_evento_for_command(db, evento.id)
     db.refresh(evento)
     if evento.status == StatusEventoEnum.ENCERRADO:
         raise HTTPException(status_code=409, detail="Evento encerrado: alteracoes nao permitidas")

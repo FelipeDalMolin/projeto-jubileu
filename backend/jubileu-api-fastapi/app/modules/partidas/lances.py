@@ -1,4 +1,4 @@
-"""Implementacao transitoria de lances ate o quarto slice de DEV-21."""
+"""Registro idempotente e consulta de lances de Partida."""
 
 from datetime import datetime
 
@@ -15,7 +15,7 @@ from app.models.dia_evento import (
     StatusEventoEnum,
     TimeEvento as TimeEventoModel,
 )
-from app.modules.eventos.rotation import get_evento_or_404
+from app.modules.eventos.core import get_evento_or_404, lock_evento_for_command
 from app.schemas.eventos import LanceCreateIn, LanceCreateOut, LanceListOut, LanceOut
 
 
@@ -58,49 +58,60 @@ def lance_out(db: Session, lance: LanceModel) -> LanceOut:
     )
 
 
+def _resolve_jogador_global_id(
+    db: Session,
+    partida: PartidaModel,
+    raw_id: int | None,
+) -> int | None:
+    if raw_id is None:
+        return None
+
+    jogador_evento_por_id = (
+        db.query(JogadorEventoModel)
+        .filter(
+            JogadorEventoModel.evento_id == partida.evento_id,
+            JogadorEventoModel.id == raw_id,
+        )
+        .first()
+    )
+    if jogador_evento_por_id:
+        if jogador_evento_por_id.jogador_id is None:
+            raise HTTPException(
+                status_code=422,
+                detail="Jogador da evento sem vinculo global; lance nominal indisponivel para este jogador",
+            )
+        return int(jogador_evento_por_id.jogador_id)
+
+    jogador_evento_por_global = (
+        db.query(JogadorEventoModel.id)
+        .filter(
+            JogadorEventoModel.evento_id == partida.evento_id,
+            JogadorEventoModel.jogador_id == raw_id,
+        )
+        .first()
+    )
+    if jogador_evento_por_global:
+        return int(raw_id)
+
+    raise HTTPException(status_code=422, detail="Jogador informado nao pertence ao evento")
+
+
 def create_lance_flow(
     db: Session,
     partida_id: int,
     payload: LanceCreateIn,
     user: AuthUser,
 ) -> LanceCreateOut:
-    def resolve_jogador_global_id(raw_id: int | None) -> int | None:
-        if raw_id is None:
-            return None
+    partida_ref = db.query(PartidaModel.evento_id).filter(PartidaModel.id == partida_id).first()
+    if not partida_ref:
+        raise HTTPException(status_code=404, detail="Partida nao encontrada")
 
-        jogador_evento_por_id = (
-            db.query(JogadorEventoModel)
-            .filter(
-                JogadorEventoModel.evento_id == partida.evento_id,
-                JogadorEventoModel.id == raw_id,
-            )
-            .first()
-        )
-        if jogador_evento_por_id:
-            if jogador_evento_por_id.jogador_id is None:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Jogador da evento sem vinculo global; lance nominal indisponivel para este jogador",
-                )
-            return int(jogador_evento_por_id.jogador_id)
-
-        jogador_evento_por_global = (
-            db.query(JogadorEventoModel.id)
-            .filter(
-                JogadorEventoModel.evento_id == partida.evento_id,
-                JogadorEventoModel.jogador_id == raw_id,
-            )
-            .first()
-        )
-        if jogador_evento_por_global:
-            return int(raw_id)
-
-        raise HTTPException(status_code=422, detail="Jogador informado nao pertence ao evento")
-
+    lock_evento_for_command(db, int(partida_ref.evento_id))
     partida = (
         db.query(PartidaModel)
         .options(selectinload(PartidaModel.evento))
         .filter(PartidaModel.id == partida_id)
+        .with_for_update()
         .first()
     )
     if not partida:
@@ -123,13 +134,15 @@ def create_lance_flow(
         if existing:
             return LanceCreateOut(lance=lance_out(db, existing))
 
-    jogador_id_resolvido = resolve_jogador_global_id(payload.jogador_id)
+    jogador_id_resolvido = _resolve_jogador_global_id(db, partida, payload.jogador_id)
     payload_normalizado = dict(payload.payload or {})
     raw_jogador_secundario = payload_normalizado.get("jogador_secundario_id")
     if raw_jogador_secundario is not None:
         try:
-            payload_normalizado["jogador_secundario_id"] = resolve_jogador_global_id(
-                int(raw_jogador_secundario)
+            payload_normalizado["jogador_secundario_id"] = _resolve_jogador_global_id(
+                db,
+                partida,
+                int(raw_jogador_secundario),
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail="jogador_secundario_id invalido") from exc
@@ -150,25 +163,27 @@ def create_lance_flow(
         client_event_id=payload.client_event_id,
         created_by_user_id=user.user_id,
     )
-    partida_id_value = int(partida.id)
-    db.add(lance)
     try:
-        db.commit()
+        with db.begin_nested():
+            db.add(lance)
+            db.flush()
     except IntegrityError as exc:
-        db.rollback()
         if payload.client_event_id:
             existing = (
                 db.query(LanceModel)
                 .filter(
-                    LanceModel.partida_id == partida_id_value,
+                    LanceModel.partida_id == partida.id,
                     LanceModel.client_event_id == payload.client_event_id,
                     LanceModel.is_deleted.is_(False),
                 )
                 .first()
             )
             if existing:
+                db.commit()
                 return LanceCreateOut(lance=lance_out(db, existing))
         raise HTTPException(status_code=422, detail="Lance invalido para o estado atual dos dados") from exc
+
+    db.commit()
     db.refresh(lance)
     return LanceCreateOut(lance=lance_out(db, lance))
 
@@ -204,9 +219,5 @@ def list_lances_flow(
     if since is not None:
         query = query.filter(LanceModel.created_at > since)
 
-    items = (
-        query.order_by(LanceModel.created_at.asc(), LanceModel.id.asc())
-        .limit(cap_limit)
-        .all()
-    )
+    items = query.order_by(LanceModel.created_at.asc(), LanceModel.id.asc()).limit(cap_limit).all()
     return LanceListOut(items=[lance_out(db, lance) for lance in items])

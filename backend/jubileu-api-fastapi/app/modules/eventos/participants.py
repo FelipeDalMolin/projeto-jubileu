@@ -16,12 +16,12 @@ from app.models.dia_evento import (
     StatusPresencaEnum,
 )
 from app.models.jogador_turma import Jogador as JogadorModel
-from app.modules.eventos.rotation import (
-    _lock_evento_for_command,
+from app.modules.eventos.core import (
     assert_evento_em_andamento,
     assert_evento_tipo_jogo_livre,
     assert_jogador_na_evento,
     get_evento_or_404,
+    lock_evento_for_command,
 )
 from app.schemas.eventos import EventoParticipanteOut, EventoParticipantesListOut
 
@@ -45,7 +45,7 @@ def ensure_jogador_no_jogo_livre(
     jogador_id: int,
 ) -> JogadorEventoModel:
     """Materializa o snapshot do jogador quando ele entra no JOGO_LIVRE."""
-    _lock_evento_for_command(db, evento_id)
+    lock_evento_for_command(db, evento_id)
     snapshot = (
         db.query(JogadorEventoModel)
         .filter(
@@ -124,7 +124,7 @@ def get_or_create_participante(
 
 
 def next_arrival_seq(db: Session, evento_id: int) -> int:
-    _lock_evento_for_command(db, evento_id)
+    lock_evento_for_command(db, evento_id)
     max_seq = (
         db.query(func.max(EventoParticipanteModel.arrival_seq))
         .filter(EventoParticipanteModel.evento_id == evento_id)
