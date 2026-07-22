@@ -13,7 +13,7 @@ O SHA precisa pertencer ao historico de `origin/jubileu-v2`, e os seis checks de
 exatamente nele:
 
 ```bash
-JUBILEU_RC_TAG=v0.3.0-rc.4
+JUBILEU_RC_TAG=v0.3.0-rc.5
 sha="$(scripts/release/resolve_release_ref.sh "$JUBILEU_RC_TAG")"
 GH_TOKEN="$GITHUB_TOKEN" scripts/release/verify_required_checks.sh "$sha" required-checks.json
 ```
@@ -41,8 +41,8 @@ Preencha `.env.release` fora do Git a partir do exemplo. `BACKEND_IMAGE` e `FRON
 conter `@sha256:...`; `POSTGRES_VOLUME_NAME` e `NGINX_PORT` sao obrigatorios.
 
 ```bash
-export COMPOSE_PROJECT_NAME=jubileu-rc4-validation
-export POSTGRES_VOLUME_NAME=jubileu-rc4-validation-postgres
+export COMPOSE_PROJECT_NAME=jubileu-rc5-validation
+export POSTGRES_VOLUME_NAME=jubileu-rc5-validation-postgres
 docker volume create "$POSTGRES_VOLUME_NAME"
 docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release \
   -f compose.release.yml up -d --wait jubileu-db
@@ -91,8 +91,8 @@ Restore so aceita project e volume em minusculas prefixados por `jubileu-rehears
 qualquer nome com `prod`:
 
 ```bash
-COMPOSE_PROJECT_NAME=jubileu-rehearsal-rc4 \
-POSTGRES_VOLUME_NAME=jubileu-rehearsal-rc4-postgres \
+COMPOSE_PROJECT_NAME=jubileu-rehearsal-rc5 \
+POSTGRES_VOLUME_NAME=jubileu-rehearsal-rc5-postgres \
 scripts/release/restore_release.sh /caminho/backup.dump
 ```
 
