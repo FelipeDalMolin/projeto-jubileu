@@ -48,8 +48,11 @@ Every slice delivery should include:
   SHA completa.
 - `release-manifest.json` registra os dois digests, Git SHA, Alembic head, workflow e a
   classe de compatibilidade da migration.
-- RC1 e RC2 sao historicos e nao promoviveis. RC3 foi construido com sucesso, mas falhou no gate
-  operacional posterior e tambem permanece historico e nao promovivel. O proximo candidato e RC4.
+- RC1 e RC2 sao historicos e nao promoviveis. RC3 falhou no gate de rehearsal posterior ao build.
+  RC4 corrigiu e aprovou o rehearsal real, mas foi rejeitado pelo audit de dependencias posterior
+  ao build. Todos permanecem imutaveis e nao promoviveis; o proximo candidato e RC5.
+- O required check `Frontend` executa `npm audit --audit-level=high` depois de `npm ci`, alem de
+  lint, build e contrato `/api`. Uma falha posterior ao build exige novo RC.
 - O RC candidato usa os digests do manifesto em uma stack isolada e executa readiness, smoke e
   Playwright via NGINX; `/api/version` e consultado apenas depois do login do smoke.
 - `compose.release.yml` e o unico runtime promovivel; `compose.server.yml` e scripts que compilavam

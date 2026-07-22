@@ -4,7 +4,7 @@ Estado de governanca: `NO-GO`. O projeto permanece `atRisk` enquanto autorizacao
 rollback reproduzivel nao estiverem comprovados. Projeto e milestones nao possuem target date
 por decisao explicita do responsavel.
 
-Legenda: `sim`, `parcial`, `nao`, `aguarda RC4`, `aguarda GO humano`.
+Legenda: `sim`, `parcial`, `nao`, `aguarda RC5`, `aguarda GO humano`.
 
 | Entrega | Implementado | Testado | Documentado | Aprovado | Evidencia/bloqueio |
 |---|---|---|---|---|---|
@@ -13,10 +13,10 @@ Legenda: `sim`, `parcial`, `nao`, `aguarda RC4`, `aguarda GO humano`.
 | DEV-21 PR 3 - equipes/rotacao | sim | sim | sim | sim | PR #43 mesclado em `a19927e`; seis required checks verdes. |
 | DEV-21 PR 4 - partidas/lances | sim | sim | sim | sim | PR #44 mesclado em `4664eba`; seis required checks verdes. |
 | DEV-27 PR 5 - qualidade/runtime release | sim | sim | sim | sim | PR #45 mesclado em `72d5856`; seis required checks verdes. A issue permanece aberta ate o aceite operacional completo. |
-| RC por digest | sim | parcial | sim | nao | RC3 foi construido e validado no CI, mas rejeitado no rehearsal pos-build; a regra imutavel exige RC4. |
+| RC por digest | sim | parcial | sim | nao | RC3 foi rejeitado no rehearsal e RC4 no audit de dependencias pos-build; a regra imutavel exige RC5. |
 | Artefato imutavel do runtime anterior | sim | sim | sim | nao | Backend preservado pelo image ID original; frontend empacota byte a byte os bind mounts produtivos; ambos possuem OCI/checksum privado. |
-| Upgrade Alembic de producao `0016 -> 0020` | sim | sim | sim | nao | Dump real restaurado em volume isolado e migrado ate `0020`; rehearsal completo sera repetido no RC4. |
-| Backup/restore/rollback isolado | parcial | parcial | sim | nao | Backup e restore reais passaram; RC3 falhou no script depois da saude do runtime anterior sobre `0020`, exigindo corretivo e novo RC. |
+| Upgrade Alembic de producao `0016 -> 0020` | sim | sim | sim | nao | Dump real restaurado e RC4 passou pelo ciclo `0016 -> 0020`; o mesmo gate sera repetido no RC5. |
+| Backup/restore/rollback isolado | sim | sim | sim | nao | RC4 passou nas seis fases com runtime anterior preservado e dump real, mas o candidato foi rejeitado pelo audit de dependencias. |
 | Promocao de producao | nao | nao | parcial | aguarda GO humano | Proibida antes das evidencias e de resposta humana `GO v0.3.0`. |
 | Documentacao e reconciliacao CORE | nao | nao | parcial | nao | Executar somente apos promocao/smoke e PR documental DEV-27. |
 | Release final `v0.3.0` | nao | nao | parcial | nao | Deve apontar para o mesmo commit e digests do RC aprovado, sem rebuild. |
@@ -168,3 +168,37 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
   browser sobre a base restaurada passou `18 passed`, `0 skipped`, `0 flaky`. Essa prova aprova o
   corretivo, mas nao promove RC3 porque seu bundle imutavel ainda contem o script anterior.
 - Producao alterada: nao. A decisao continua `NO-GO`.
+
+## Evidencia RC4 e decisao de substituicao
+
+- O corretivo PR #47 foi integrado em `d4144cd0d29b5d7881f5b362397c5a0b4ce8fe37`, com os seis
+  required checks verdes. `v0.3.0-rc.4` aponta exatamente para esse commit.
+- O workflow `29896408075` publicou backend
+  `sha256:876aee2a29b0d919221a8c6e213ba6eaf24e773c729a7bcfa351e7037c427164` e frontend
+  `sha256:f006c05c67ac5d44f0fe51b3a3ece0eb868e68c91631a861939de96fa74168a3`, com smoke e
+  `18 passed`, `0 skipped`, `0 flaky`.
+- O bundle exato do RC4 e o dump real preservado passaram pelas seis fases do rehearsal:
+  restore em `0016`, runtime anterior, migration ate `0020`, RC4, runtime anterior sobre `0020` e
+  retorno ao RC4. A suite integral sobre a base restaurada passou `18 passed`, `0 skipped`,
+  `0 flaky`; o smoke final tambem passou.
+- Um audit posterior encontrou tres vulnerabilidades high e uma moderate no conjunto de
+  dependencias de producao: React Router estava em faixa vulneravel e `mqtt`, nao usado pelo codigo
+  ativo, trazia dependencias transitivas vulneraveis. Pela regra imutavel, RC4 permanece historico,
+  nao e alterado e nao pode ser promovido.
+- O corretivo RC5 remove `mqtt`, fixa React Router em versao corrigida e adiciona
+  `npm audit --audit-level=high` ao required check `Frontend`. CI, build, manifest, rehearsal e
+  Playwright precisam ser repetidos no novo SHA.
+- Producao alterada: nao. A decisao continua `NO-GO`.
+
+## Evidencia local do corretivo RC5
+
+- `mqtt` foi removido depois de busca comprovar ausencia de imports no codigo ativo;
+  `react-router-dom` foi fixado em `7.18.1` e o lockfile foi reconciliado.
+- Node `22.23.1`: `npm ci`, audit completo e audit somente de producao retornaram
+  `found 0 vulnerabilities`; lint, build Vite e contrato `/api` passaram.
+- Playwright integral pelo NGINX com Node `22.23.1`: `18 passed`, `0 skipped`, `0 flaky`.
+- Code-map e matriz de autorizacao permanecem sem drift. Compose dev/release, Bash,
+  ShellCheck `0.10.0` e bundle de fixture RC5 com checksum passaram.
+- Migration: nenhuma nova; head permanece `0020_auth_sessions_rollback_safe`.
+- Producao alterada: nao. O corretivo ainda depende de PR, seis required checks no merge, novo RC
+  imutavel e repeticao do rehearsal real.

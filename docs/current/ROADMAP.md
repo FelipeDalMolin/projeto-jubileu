@@ -16,7 +16,7 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 Base integrada: `origin/jubileu-v2`.
 
-Marco integrado mais recente: `05defd5 docs: sync DEV-27 RC3 evidence (#46)`.
+Marco integrado mais recente: `d4144cd fix: make release rehearsal backward-compatible (#47)`.
 
 Estado consolidado:
 
@@ -38,7 +38,8 @@ ate o Security Gate DEV-21 e o rollback DEV-27 produzirem evidencia. A ordem blo
 
 1. quatro PRs DEV-21 para autorizacao e decomposicao do dominio;
 2. PR DEV-27 para qualidade e runtime de release;
-3. RC imutavel por digest; RC3 foi rejeitado no rehearsal e sera substituido por RC4;
+3. RC imutavel por digest; RC3 foi rejeitado no rehearsal e RC4 no audit de dependencias;
+   ambos serao substituidos por RC5;
 4. ensaio isolado de upgrade desde a revisao produtiva `0016`, restore e rollback;
 5. pedido de `GO v0.3.0` humano antes de qualquer operacao produtiva.
 
@@ -63,6 +64,7 @@ Foco:
 - manter rotas SPA separadas das chamadas de dados;
 - manter todos os services HTTP ativos no `apiClient` comum;
 - manter `npm run check:api-contract`;
+- manter `npm run audit:security` como gate de dependencias do frontend;
 - adicionar `data-testid` apenas como camada minima de testabilidade;
 - evitar refatoracao visual fora de escopo; quando o slice for de UI/UX, justificar a
   escolha de Tailwind puro, biblioteca existente ou dependencia nova por consistencia,
@@ -100,7 +102,7 @@ Foco:
 | Backend pytest | Operacional | Suite completa e contratos de dashboard executados em cada PR. |
 | Backend smoke | Operacional | Marker smoke: `4 passed`. |
 | Backend contract | Operacional | Marker contract: `5 passed`. |
-| Frontend lint/build | Operacional | `npm run lint` e `npm run build` passam. |
+| Frontend audit/lint/build | gate bloqueante | `npm run audit:security`, lint e build precisam passar. |
 | Contrato frontend/API | Operacional | `npm run check:api-contract` passa. |
 | Smoke server | Operacional | Smoke local em `127.0.0.1` e publico em `https://app.jubileuweb.com` passam pelo runtime NGINX/API. |
 | Playwright E2E | gate bloqueante | Suite integral pelo NGINX, resultado JSON e zero skips/flaky. |
@@ -126,8 +128,8 @@ Foco:
 4. DEV-21 PR 4: partidas/lances — integrado no PR #44 (`4664eba`); DEV-21 concluida.
 5. DEV-27 PR #45: Playwright sem skips, runtime promovivel, bundle e rehearsal — integrado em
    `72d5856`; a issue permanece aberta pelo aceite operacional.
-6. Corretivo do rehearsal DEV-27 e RC4 — etapa ativa. RC3 permanece historico e nao promovivel;
-   producao somente apos evidencia completa e `GO v0.3.0` humano.
+6. Corretivo do supply chain DEV-27 e RC5 — etapa ativa. RC3 e RC4 permanecem historicos e nao
+   promoviveis; producao somente apos evidencia completa e `GO v0.3.0` humano.
 
 ## Trabalho Adiado
 

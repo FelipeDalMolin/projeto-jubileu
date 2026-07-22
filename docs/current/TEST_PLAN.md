@@ -15,7 +15,7 @@ Os nomes abaixo sao estaveis e bloqueantes em `jubileu-v2`:
 | `Docs sync` | code-map e matriz de autorizacao gerados sem drift. |
 | `Backend unit` | pytest com branch coverage `>=81%`, smoke e contract. |
 | `PostgreSQL + Alembic` | banco limpo, `0019 -> head`, `0016 -> head`, segunda execucao de head, integracao e concorrencia sem skips. |
-| `Frontend` | Node 22, `npm ci`, lint, build e contrato `/api`. |
+| `Frontend` | Node 22, `npm ci`, audit de dependencias, lint, build e contrato `/api`. |
 | `Playwright operational` | suite completa pelo NGINX, zero skips, zero flaky e resultado JSON. |
 | `Compose + Shell` | Compose dev/release, bundle, Bash e ShellCheck 0.10.0. |
 
@@ -92,6 +92,7 @@ DATABASE_URL_TEST="$POSTGRES_CONCURRENCY_URL" \
 ```bash
 cd frontend/jubileu-web
 npm ci
+npm run audit:security
 npm run lint
 npm run build
 npm run check:api-contract
@@ -122,7 +123,10 @@ sao redigidas. Nenhum dump vira artifact.
 - RC1 e RC2: historicos e nao promoviveis.
 - RC3: build, smoke e Playwright verdes, mas rejeitado depois da construcao porque o rehearsal
   executava `alembic current` com a copia antiga sobre o schema `0020`.
-- RC4: proximo candidato obrigatorio depois do corretivo DEV-27; producao permanece `NO-GO` ate
-  evidencia isolada completa e resposta humana `GO v0.3.0`.
+- RC4: build, smoke, Playwright e rehearsal real verdes, mas rejeitado depois da construcao porque
+  o lockfile ainda continha vulnerabilidades de producao; permanece historico e nao promovivel.
+- RC5: proximo candidato obrigatorio depois do corretivo DEV-27. O check `Frontend` passa a falhar
+  em vulnerabilidade high/critical. Producao permanece `NO-GO` ate evidencia isolada completa e
+  resposta humana `GO v0.3.0`.
 
 Resultados exatos por PR e bloqueios pendentes ficam em `V03_CLOSURE_MATRIX.md`.
