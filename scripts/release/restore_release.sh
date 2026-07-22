@@ -15,9 +15,9 @@ case "$COMPOSE_PROJECT_NAME:$POSTGRES_VOLUME_NAME" in
     ;;
 esac
 
-if [[ ! "$COMPOSE_PROJECT_NAME" =~ ^jubileu-rehearsal-[A-Za-z0-9_.-]+$ ]] ||
-  [[ ! "$POSTGRES_VOLUME_NAME" =~ ^jubileu-rehearsal-[A-Za-z0-9_.-]+$ ]]; then
-  echo "Project and volume names must start with jubileu-rehearsal-." >&2
+if [[ ! "$COMPOSE_PROJECT_NAME" =~ ^jubileu-rehearsal-[a-z0-9][a-z0-9_.-]*$ ]] ||
+  [[ ! "$POSTGRES_VOLUME_NAME" =~ ^jubileu-rehearsal-[a-z0-9][a-z0-9_.-]*$ ]]; then
+  echo "Project and volume names must be lowercase Compose identifiers starting with jubileu-rehearsal-." >&2
   exit 1
 fi
 if [ ! -f "$BACKUP_FILE" ]; then

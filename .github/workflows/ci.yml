@@ -242,7 +242,7 @@ jobs:
       - name: Validate release bundle
         run: |
           checks='[{"name":"Docs sync","conclusion":"success"},{"name":"Backend unit","conclusion":"success"},{"name":"PostgreSQL + Alembic","conclusion":"success"},{"name":"Frontend","conclusion":"success"},{"name":"Playwright operational","conclusion":"success"},{"name":"Compose + Shell","conclusion":"success"}]'
-          jq -n --arg checks "$checks" '{release_ref:"v0.3.0-rc.3",git_sha:("a"*40),backend_image:("ghcr.io/example/backend@sha256:"+("a"*64)),frontend_image:("ghcr.io/example/frontend@sha256:"+("b"*64)),alembic_head:"0020_auth_sessions_rollback_safe",checks:($checks|fromjson)}' >release-manifest.json
+          jq -n --arg checks "$checks" '{release_ref:"v0.3.0-rc.4",git_sha:("a"*40),backend_image:("ghcr.io/example/backend@sha256:"+("a"*64)),frontend_image:("ghcr.io/example/frontend@sha256:"+("b"*64)),alembic_head:"0020_auth_sessions_rollback_safe",checks:($checks|fromjson)}' >release-manifest.json
           scripts/release/build_release_bundle.sh release-manifest.json /tmp/jubileu-bundles >/dev/null
           sha256sum --check /tmp/jubileu-bundles/*.tar.gz.sha256
       - name: Validate Bash syntax

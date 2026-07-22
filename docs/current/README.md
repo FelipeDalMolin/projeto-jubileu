@@ -18,7 +18,7 @@ Arquivos desta pasta representam o estado atual do projeto e devem ser priorizad
 | [DECISIONS.md](DECISIONS.md) | Indice vivo de decisoes. |
 | [PLANNING_AUDIT.md](PLANNING_AUDIT.md) | Auditoria de drift entre planos, ADRs, Linear e estado atual. |
 | [PLAN_CODEMAP_REVIEW.md](PLAN_CODEMAP_REVIEW.md) | Cruzamento dos planos v0.3 com o mapa gerado do codigo. |
-| [V03_CLOSURE_MATRIX.md](V03_CLOSURE_MATRIX.md) | Estado auditavel do Security Gate, RC3, rollback e promocao. |
+| [V03_CLOSURE_MATRIX.md](V03_CLOSURE_MATRIX.md) | Estado auditavel do Security Gate, candidatos RC, rollback e promocao. |
 
 ## Espelho Gerado Do Codigo
 
