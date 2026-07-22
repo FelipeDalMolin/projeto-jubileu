@@ -115,7 +115,8 @@ o schema migrado e retorna ao RC. Evidencias JSON/Markdown sao redigidas. Nenhum
 ## Estado do fechamento v0.3
 
 - DEV-21 PRs #41-#44: integrados, seis required checks verdes em cada merge.
-- DEV-27: consolida este gate, runtime unico por digest, bundle e rehearsal.
+- DEV-27 PR #45: gate, runtime unico por digest, bundle e rehearsal integrados em `72d5856`; a
+  issue permanece aberta ate as evidencias operacionais e eventual promocao autorizada.
 - RC1 e RC2: historicos e nao promoviveis.
 - RC3: unico candidato; producao permanece `NO-GO` ate evidencia isolada e resposta humana
   `GO v0.3.0`.
