@@ -1,5 +1,6 @@
 // src/services/turmasService.ts
 import type { JogadorDTO } from "./jogadoresService";
+import { apiFetch } from "../lib/apiClient";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "";
@@ -34,7 +35,7 @@ async function requestJson<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
 
-  const resp = await fetch(url, {
+  const resp = await apiFetch(url, {
     ...init,
     headers: {
       ...(init?.headers ?? {}),
@@ -69,10 +70,10 @@ async function requestJson<T>(
 
 /**
  * Rotas Turmas
- * Observação: mantive /api/turmas/ com barra final como você já usa.
+ * Colecoes usam o contrato canonico sem barra final.
  */
 export async function listarTurmas(): Promise<Turma[]> {
-  return requestJson<Turma[]>("/api/turmas/", undefined, "Erro ao listar turmas");
+  return requestJson<Turma[]>("/api/turmas", undefined, "Erro ao listar turmas");
 }
 
 export async function obterTurma(id: number): Promise<Turma> {
@@ -82,7 +83,7 @@ export async function obterTurma(id: number): Promise<Turma> {
 export async function criarTurma(data: CriarTurmaInput): Promise<Turma> {
   const payload: CriarTurmaInput = { nome: data.nome };
   return requestJson<Turma>(
-    "/api/turmas/",
+    "/api/turmas",
     {
       method: "POST",
       body: JSON.stringify(payload),

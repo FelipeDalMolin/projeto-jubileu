@@ -18,6 +18,7 @@ function csrfToken(): string | null {
 }
 
 export function buildApiPath(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path;
   const normalized = path.startsWith("/") ? path : `/${path}`;
   return normalized === API_BASE_PATH || normalized.startsWith(`${API_BASE_PATH}/`)
     ? normalized
@@ -95,7 +96,8 @@ export function refreshSessionSingleFlight(): Promise<boolean> {
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const response = await directFetch(path, init);
   const normalized = buildApiPath(path);
-  if (response.status !== 401 || normalized.startsWith("/api/auth/") || init.headers instanceof Headers && init.headers.has("Authorization")) {
+  const requestHeaders = new Headers(init.headers);
+  if (response.status !== 401 || normalized.startsWith("/api/auth/") || requestHeaders.has("Authorization")) {
     return response;
   }
   if (!(await refreshSessionSingleFlight())) {

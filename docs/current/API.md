@@ -6,7 +6,9 @@ This document summarizes the public contracts used by the current MVP.
 
 ## Gateway Rule
 
-`/api` is the backend gateway prefix for canonical infrastructure-facing routes. NGINX remains the production entrypoint and PostgreSQL must not be exposed publicly.
+`/api` is the only backend gateway prefix for product data. Data aliases without `/api` and
+collection variants with a trailing slash are not contracts and return `404`; slash redirects are
+disabled. NGINX remains the production entrypoint and PostgreSQL must not be exposed publicly.
 
 ## Auth v0.3
 
@@ -16,6 +18,28 @@ This document summarizes the public contracts used by the current MVP.
 - `GET /api/auth/me` aceita cookie ou Bearer; contextos divergentes retornam `401 auth_context_conflict`.
 - CSRF e obrigatorio somente para comandos autenticados por cookie. Bearer exclusivo permanece adequado para clientes tecnicos.
 - Headers `X-User-*` sao compatibilidade exclusiva de development/test.
+
+Public allowlist:
+
+- `GET /health` and `GET /api/health`: minimal liveness.
+- `GET /api/ready`: checks PostgreSQL and Alembic internally and returns only `status`.
+- `POST /api/auth/login`.
+- `POST /api/auth/refresh`: requires refresh cookie and signed CSRF.
+
+Every other `/api` route requires cookie or Bearer authentication. `/api/version`, `/api/auth/me`
+and `/api/auth/logout` are protected. In production, FastAPI root, OpenAPI, Swagger and Redoc are
+disabled. The complete executable registry is rendered in
+[`docs/generated/authorization-matrix.md`](../generated/authorization-matrix.md).
+
+RBAC:
+
+- `admin`, `treinador` and `auxiliar` can mutate master and operational data.
+- `user` can read authenticated data, manage its own session/profile, and execute RSVP/check-in/
+  check-out/cancellation only for the persisted linked player.
+- `user` cannot mutate player links, players, classes, events, teams, queues, matches, rotations,
+  lances or statistics.
+- UI capability checks only remove unavailable affordances; backend dependencies enforce policy
+  before domain logic.
 
 ## Compatibility Model
 
@@ -30,17 +54,17 @@ Current state:
 
 Active surfaces:
 
-- `GET /dias`
-- `GET /dias/{data_iso}`
-- `POST /dias/{data_iso}/eventos`
-- `GET /dias/{data_iso}/eventos/{evento_id}`
-- `DELETE /dias/{data_iso}/eventos/{evento_id}`
-- `GET /dias/{data_iso}/eventos/{evento_id}/workspace`
-- `GET /dias/{data_iso}/eventos/{evento_id}/estado`
-- `GET /dias/{data_iso}/eventos/{evento_id}/estado-equipes`
-- `PUT /dias/{data_iso}/eventos/{evento_id}/estado-equipes`
+- `GET /api/dias`
+- `GET /api/dias/{data_iso}`
+- `POST /api/dias/{data_iso}/eventos`
+- `GET /api/dias/{data_iso}/eventos/{evento_id}`
+- `DELETE /api/dias/{data_iso}/eventos/{evento_id}`
+- `GET /api/dias/{data_iso}/eventos/{evento_id}/workspace`
+- `GET /api/dias/{data_iso}/eventos/{evento_id}/estado`
+- `GET /api/dias/{data_iso}/eventos/{evento_id}/estado-equipes`
+- `PUT /api/dias/{data_iso}/eventos/{evento_id}/estado-equipes`
 
-`GET /dias` e `/api/dias` retornam dias com a lista de eventos carregada para alimentar
+`GET /api/dias` retorna dias com a lista de eventos carregada para alimentar
 o calendario operacional. A tela `/dias` nao deve depender de chamadas por dia para
 descobrir eventos ja cadastrados.
 
@@ -83,7 +107,7 @@ Operational notes:
   first RSVP/check-in materializes the event snapshot from the active player persistently linked to
   the authenticated user; arbitrary request identity is not accepted for persisted users.
 - Self actions require authenticated user with `jogador_id`.
-- Manual check-in, seed and event lifecycle actions require an administrative role.
+- Manual check-in, seed, lances and event lifecycle actions require an operator role.
 - Authorization stays server-side; frontend capability checks are only UI affordances.
 - Mutating commands must follow command safety rules in `COMMAND_SAFETY.md`.
 
@@ -129,7 +153,7 @@ When the submitted version is stale, the backend returns `409` with `detail.code
 
 Current version-aware surfaces:
 
-- `PUT /dias/{data_iso}/eventos/{evento_id}/estado-equipes`
+- `PUT /api/dias/{data_iso}/eventos/{evento_id}/estado-equipes`
 - `PATCH /api/eventos/{evento_id}/rotacao/estado`
 - `POST /api/eventos/{evento_id}/partidas/proxima`
 
@@ -164,14 +188,15 @@ Active surfaces:
 - linked jogador summary
 - events in which the linked jogador participated or appeared in the event snapshot
 
-`PUT /api/usuarios/me/jogador` is restricted to `admin` and `treinador`. It
+`PUT /api/usuarios/me/jogador` is restricted to `admin`, `treinador` and `auxiliar`. It
 updates the authenticated administrative user's linked player with
 `{"jogador_id": number | null}` and returns the updated `/api/usuarios/me`
 payload. Regular users receive `403`; an already-owned player produces
 `409 jogador_already_linked`; an unknown player produces `404`. Player links
 are exclusive and self-service RSVP/check-in always uses the persisted link.
 
-Legacy header-based auth may remain for local compatibility, but persisted users are the canonical session source.
+Legacy header-based auth is restricted to development/test and never participates when cookie or
+Bearer is present. Persisted users are the canonical session source.
 
 ## Frontend Routes
 

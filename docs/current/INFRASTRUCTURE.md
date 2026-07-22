@@ -77,7 +77,8 @@ Comandos principais:
 ```bash
 scripts/server/build_frontend.sh
 scripts/server/up_server.sh
-LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
+  LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
 scripts/server/logs_server.sh
 scripts/server/restart_server.sh
 scripts/server/down_server.sh
@@ -90,8 +91,11 @@ scripts/server/down_server.sh
 - `/health` testa apenas que o processo backend esta vivo.
 - `/api/health` testa caminho de API pelo gateway.
 - `/api/ready` comprova PostgreSQL acessivel e revisao Alembic esperada.
-- `/api/version` informa release ref, SHA Git, digests e revisao de schema.
-- `/api/dias` redireciona para `/api/dias/`.
+- `/api/ready` expoe somente `status`; detalhes de falha permanecem nos logs.
+- `/api/version` e autenticado e informa release ref, SHA Git, digests e revisao de schema.
+- Colecoes canonicas (`/api/dias`, `/api/jogadores`, `/api/turmas`) nao usam barra final.
+- NGINX nao cria redirects de contrato antes da autenticacao.
+- O root FastAPI e a documentacao OpenAPI ficam desabilitados em producao.
 
 ## Ambientes E Segredos
 
@@ -130,7 +134,8 @@ scripts/dev/smoke_dev.sh
 Smoke server:
 
 ```bash
-LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
+  LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
 ```
 
 Contrato frontend/API:

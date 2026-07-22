@@ -364,7 +364,7 @@ def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     resp = client.post(
         f"/api/partidas/{partida_id}/lances",
         json={"tipo": "GOL", "payload": {"minute": 3}, "jogador_id": jogador_1_id},
-        headers={"X-User-Id": "u1", "X-Role": "user", "X-Jogador-Id": str(jogador_1_id)},
+        headers={"X-User-Id": "coach", "X-Role": "treinador"},
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["lance"]["tipo"] == "GOL"

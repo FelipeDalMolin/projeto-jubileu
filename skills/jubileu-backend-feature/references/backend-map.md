@@ -24,7 +24,7 @@ The backend is partially modularized:
 ## Primary files
 
 - `app/main.py`
-  Registers health routes, request id middleware, CORS, public/compat routers, `/api` aliases, auth, users, and dashboards.
+  Registers minimal public health/auth routes and one authenticated `/api` router; data aliases are not mounted.
 
 - `app/routers/dias.py`
   Day-scoped event workflow: `/dias/{data_iso}/eventos`, teams, status, state, workspace, and presence confirmation.
@@ -61,8 +61,10 @@ The backend is partially modularized:
 
 ## Test entry points
 
+- `app/modules/auth/policy.py` and `tests/test_api_authorization_policy.py`
+  Exhaustive route policy plus positive, `401`, and `403` authorization gates.
 - `tests/test_smoke_api.py` and `tests/test_api_standardization_aliases.py`
-  Startup, aliases, `/api`, and contract checks.
+  Startup, canonical `/api`, removed aliases and no-redirect contract checks.
 
 - `tests/test_eventos_api.py`, `tests/test_eventos_rotacao_api.py`, `tests/test_partidas_lifecycle_api.py`
   Event operations, rotation, lances, and partida lifecycle.

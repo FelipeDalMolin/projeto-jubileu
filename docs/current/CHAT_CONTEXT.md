@@ -37,7 +37,10 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
 - Fluxo esperado: branch em dev -> editar/testar no ambiente exposto -> commit -> push -> PR -> checks -> merge -> pull/deploy controlado. Nao copiar arquivos manualmente entre `/srv/apps/jubileu-dev`, `/srv/apps/jubileu-prod` e workspaces auxiliares.
 - Convergir telas do frontend para APIs reais do backend.
 - Preservar `/api` como prefixo de dados do gateway.
-- Manter autorizacao critica no backend.
+- Nao montar aliases de dados sem `/api` nem depender de redirects de barra.
+- Manter autorizacao critica no backend conforme `app/modules/auth/policy.py` e a matriz gerada.
+- Allowlist publica: health/readiness minimo e login/refresh; demais rotas exigem autenticacao.
+- `user` tem leitura e self-service; mutacoes operacionais exigem `admin`, `treinador` ou `auxiliar`.
 - Usar Alembic para mudancas de schema.
 - Evoluir por slices pequenos, com testes e docs atualizados.
 - Para equipes/presenca/workspace, usar: estado local imediato -> persistencia por comando/evento -> polling agora -> WebSocket futuro.
@@ -46,8 +49,9 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
 ## Comandos Uteis
 
 ```bash
-docker compose -f compose.dev.yml up -d
+docker compose --env-file .env.dev -f compose.dev.yml up -d
 python3 scripts/docs/generate_code_map.py --check
+python3 scripts/docs/generate_authorization_matrix.py --check
 cd frontend/jubileu-web && npm run lint && npm run build && npm run check:api-contract
 ```
 

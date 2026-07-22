@@ -22,8 +22,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Check generated code map
-        run: python scripts/docs/generate_code_map.py --check
+      - name: Check generated documentation
+        run: |
+          python scripts/docs/generate_code_map.py --check
+          python scripts/docs/generate_authorization_matrix.py --check
 
   backend:
     name: Backend unit

@@ -16,11 +16,13 @@ Use estes significados ao diagnosticar:
 | --- | --- |
 | `/dias` | Rota de navegacao da SPA React. Deve retornar HTML do frontend. |
 | `/api/dias` | Rota de dados do backend pelo gateway de API. |
-| `/api/dias/` | Mesma rota de colecao da API, com barra final. |
+| `/api/dias/` | Variante nao canonica; FastAPI retorna `404` sem redirect. |
 | `/health` | Health check simples do backend, independente de trabalho de banco. |
 | `/api/health` | Health check pelo gateway de API; valida o caminho `/api` via proxy/runtime. |
 
-Rotas canonicas do backend devem usar `/api`. Rotas legadas sem `/api` ainda podem existir por compatibilidade, mas chamadas de API do frontend devem preferir `/api`.
+Rotas canonicas do backend usam `/api` e colecoes sem barra final. Aliases de dados sem
+`/api` nao sao montados no FastAPI. `/dias`, `/jogadores` e `/turmas` continuam existindo
+somente como rotas de navegacao da SPA pelo NGINX.
 
 ## Diagnostico no Navegador
 
@@ -89,5 +91,6 @@ npm run check:api-contract
 Smoke de runtime via NGINX:
 
 ```bash
-LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
+  LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
 ```

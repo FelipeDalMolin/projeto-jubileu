@@ -22,6 +22,7 @@ import {
   type Turma,
 } from "../../services/turmasService";
 import { listarJogadores, type JogadorDTO } from "../../services/jogadoresService";
+import { useAuth } from "../../context/AuthContext";
 
 type RouteParams = { turmaId: string };
 type TurmaJogador = {
@@ -37,6 +38,8 @@ export default function TurmaDetalhePage() {
   const { turmaId } = useParams<RouteParams>();
   const ehNova = turmaId === "nova";
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManage = Boolean(user && user.role !== "user");
 
   const turmaIdNum = useMemo(() => {
     if (!turmaId || ehNova) return null;
@@ -178,6 +181,15 @@ export default function TurmaDetalhePage() {
     );
   }
 
+  if (ehNova && !canManage) {
+    return (
+      <PageShell>
+        <ErrorState title="Acao nao permitida" message="Seu perfil possui acesso somente para consulta." />
+        <Button type="button" variant="outline" onClick={() => navigate("/turmas")}>Voltar</Button>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell>
       <PageHeader
@@ -198,21 +210,21 @@ export default function TurmaDetalhePage() {
           <CardDescription>Nome usado em eventos do tipo AULA e filtros operacionais.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Field label="Nome" value={nome} onChange={(e) => setNome(e.target.value)} disabled={savingTurma} />
-          <Toolbar>
+          <Field label="Nome" value={nome} onChange={(e) => setNome(e.target.value)} disabled={savingTurma || !canManage} />
+          {canManage ? <Toolbar>
             <Button type="button" variant="outline" onClick={() => navigate("/turmas")} disabled={savingTurma}>
               Cancelar
             </Button>
             <Button type="button" onClick={handleSalvarTurma} disabled={savingTurma}>
               {savingTurma ? "Salvando..." : ehNova ? "Criar turma" : "Salvar alteracoes"}
             </Button>
-          </Toolbar>
+          </Toolbar> : null}
         </CardContent>
       </Card>
 
       {!ehNova && turma ? (
         <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-          <Card>
+          {canManage ? <Card>
             <CardHeader>
               <CardTitle>Adicionar jogador</CardTitle>
               <CardDescription>Somente jogadores ainda nao vinculados aparecem na lista.</CardDescription>
@@ -238,7 +250,7 @@ export default function TurmaDetalhePage() {
                 {savingJogador ? "Adicionando..." : "Adicionar"}
               </Button>
             </CardContent>
-          </Card>
+          </Card> : null}
 
           <Card>
             <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
@@ -255,14 +267,14 @@ export default function TurmaDetalhePage() {
                   <TableHead>
                     <TableRow>
                       <TableHeaderCell>Nome</TableHeaderCell>
-                      <TableHeaderCell className="w-32 text-right">Acoes</TableHeaderCell>
+                      {canManage ? <TableHeaderCell className="w-32 text-right">Acoes</TableHeaderCell> : null}
                     </TableRow>
                   </TableHead>
                   <tbody>
                     {jogadoresTurma.map((jogador) => (
                       <TableRow key={jogador.id}>
                         <TableCell className="font-medium text-slate-950">{jogador.nome}</TableCell>
-                        <TableCell className="text-right">
+                        {canManage ? <TableCell className="text-right">
                           <Button
                             type="button"
                             variant="danger"
@@ -272,7 +284,7 @@ export default function TurmaDetalhePage() {
                           >
                             {removingJogadorId === jogador.id ? "Removendo..." : "Remover"}
                           </Button>
-                        </TableCell>
+                        </TableCell> : null}
                       </TableRow>
                     ))}
                   </tbody>

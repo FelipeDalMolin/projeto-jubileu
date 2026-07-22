@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "../../components/ui/responsive-table";
 import { StatusBadge } from "../../components/ui/status-badge";
+import { useAuth } from "../../context/AuthContext";
 import {
   listarJogadores,
   criarJogador,
@@ -43,6 +44,8 @@ function errorMessage(err: unknown, fallback: string) {
 
 export default function JogadoresPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManage = Boolean(user && user.role !== "user");
 
   const [jogadores, setJogadores] = useState<JogadorDTO[]>([]);
   const [loading, setLoading] = useState(true);
@@ -186,8 +189,8 @@ export default function JogadoresPage() {
 
       {erro ? <ErrorState message={erro} /> : null}
 
-      <section className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]">
-        <Card>
+      <section className={canManage ? "grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)]" : "grid gap-4"}>
+        {canManage ? <Card>
           <CardHeader>
             <CardTitle>{modo === "create" ? "Novo jogador" : "Editar jogador"}</CardTitle>
             <CardDescription>
@@ -237,7 +240,7 @@ export default function JogadoresPage() {
               </Toolbar>
             </form>
           </CardContent>
-        </Card>
+        </Card> : null}
 
         <Card>
           <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
@@ -260,7 +263,7 @@ export default function JogadoresPage() {
                     <TableHeaderCell>Nome</TableHeaderCell>
                     <TableHeaderCell>Apelido</TableHeaderCell>
                     <TableHeaderCell>Status</TableHeaderCell>
-                    <TableHeaderCell className="w-48 text-right">Acoes</TableHeaderCell>
+                    {canManage ? <TableHeaderCell className="w-48 text-right">Acoes</TableHeaderCell> : null}
                   </TableRow>
                 </TableHead>
                 <tbody>
@@ -271,7 +274,7 @@ export default function JogadoresPage() {
                       <TableCell>
                         <StatusBadge value={jogador.status} />
                       </TableCell>
-                      <TableCell>
+                      {canManage ? <TableCell>
                         <Toolbar className="justify-end">
                           <Button type="button" variant="outline" size="xs" onClick={() => handleEditar(jogador)}>
                             Editar
@@ -286,7 +289,7 @@ export default function JogadoresPage() {
                             {deletingId === jogador.id ? "Excluindo..." : "Excluir"}
                           </Button>
                         </Toolbar>
-                      </TableCell>
+                      </TableCell> : null}
                     </TableRow>
                   ))}
                 </tbody>

@@ -7,7 +7,7 @@ from app.main import app
 
 
 @pytest.mark.contract
-def test_api_alias_routes_exist():
+def test_canonical_api_routes_exist():
     route_methods = {
         (route.path, method)
         for route in app.routes
@@ -16,9 +16,9 @@ def test_api_alias_routes_exist():
     }
 
     expected_alias_contracts = {
-        ("/api/jogadores/", "GET"),
-        ("/api/turmas/", "GET"),
-        ("/api/dias/", "GET"),
+        ("/api/jogadores", "GET"),
+        ("/api/turmas", "GET"),
+        ("/api/dias", "GET"),
         ("/api/dias/{data_iso}", "GET"),
         ("/api/dashboards/jogadores/resumo", "GET"),
         ("/api/dashboards/partidas/resumo", "GET"),
@@ -39,25 +39,26 @@ def test_api_alias_routes_exist():
 
 @pytest.mark.contract
 @pytest.mark.uc02
-def test_legacy_and_api_alias_both_respond(client: TestClient):
+def test_legacy_and_trailing_slash_aliases_are_not_served(client: TestClient):
     legacy = client.get("/jogadores/")
-    alias = client.get("/api/jogadores/")
+    trailing_slash = client.get("/api/jogadores/")
+    canonical = client.get("/api/jogadores")
 
-    assert legacy.status_code == 200, legacy.text
-    assert alias.status_code == 200, alias.text
-    assert legacy.json() == alias.json()
+    assert legacy.status_code == 404, legacy.text
+    assert trailing_slash.status_code == 404, trailing_slash.text
+    assert canonical.status_code == 200, canonical.text
 
 
 @pytest.mark.contract
 @pytest.mark.uc04
-def test_api_alias_day_get_or_create_behavior(client: TestClient):
+def test_canonical_day_get_or_create_behavior(client: TestClient):
     data_iso = "2026-03-10"
     legacy = client.get(f"/dias/{data_iso}")
-    alias = client.get(f"/api/dias/{data_iso}")
+    canonical = client.get(f"/api/dias/{data_iso}")
 
-    assert legacy.status_code == 200, legacy.text
-    assert alias.status_code == 200, alias.text
-    assert legacy.json()["data_iso"] == alias.json()["data_iso"] == data_iso
+    assert legacy.status_code == 404, legacy.text
+    assert canonical.status_code == 200, canonical.text
+    assert canonical.json()["data_iso"] == data_iso
 
 
 @pytest.mark.contract
@@ -76,7 +77,7 @@ def test_api_days_list_includes_events_for_calendar(client: TestClient, db_sessi
     db_session.add(evento)
     db_session.commit()
 
-    resp = client.get("/api/dias/")
+    resp = client.get("/api/dias")
 
     assert resp.status_code == 200, resp.text
     body = resp.json()

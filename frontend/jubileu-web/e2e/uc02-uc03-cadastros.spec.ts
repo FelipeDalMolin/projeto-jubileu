@@ -4,7 +4,7 @@ import { loginViaUi } from "./support/auth";
 import { expectOnlyApiDataCalls, observeApiRequests } from "./support/network";
 import { testIds } from "./support/testIds";
 
-test("E2E-UC02: criar jogador pela UI chama /api/jogadores/", async ({ page, request }) => {
+test("E2E-UC02: criar jogador pela UI chama /api/jogadores", async ({ page, request }) => {
   test.skip(!(await isApiHealthy(request)), "blocked: API local indisponivel para cadastro de jogador via UI");
 
   const observer = observeApiRequests(page);
@@ -18,7 +18,7 @@ test("E2E-UC02: criar jogador pela UI chama /api/jogadores/", async ({ page, req
     await page.getByTestId(testIds.formJogador).locator("input").nth(1).fill("UI");
     const createResponse = page.waitForResponse(
       (response) =>
-        response.url().includes("/api/jogadores/") &&
+        response.url().endsWith("/api/jogadores") &&
         response.request().method() === "POST" &&
         response.ok(),
     );
@@ -26,14 +26,14 @@ test("E2E-UC02: criar jogador pela UI chama /api/jogadores/", async ({ page, req
     await createResponse;
 
     await expect(page.getByText(nome)).toBeVisible();
-    expect(observer.apiUrls.some((url) => url.includes("/api/jogadores/"))).toBeTruthy();
+    expect(observer.apiUrls.some((url) => url.endsWith("/api/jogadores"))).toBeTruthy();
     expectOnlyApiDataCalls(observer);
   } finally {
     observer.stop();
   }
 });
 
-test("E2E-UC03: criar turma pela UI chama /api/turmas/", async ({ page, request }) => {
+test("E2E-UC03: criar turma pela UI chama /api/turmas", async ({ page, request }) => {
   test.skip(!(await isApiHealthy(request)), "blocked: API local indisponivel para cadastro de turma via UI");
 
   const observer = observeApiRequests(page);
@@ -47,7 +47,7 @@ test("E2E-UC03: criar turma pela UI chama /api/turmas/", async ({ page, request 
     await page.getByTestId(testIds.formTurma).getByLabel("Nome da turma").fill(nome);
     const createResponse = page.waitForResponse(
       (response) =>
-        response.url().includes("/api/turmas/") &&
+        response.url().endsWith("/api/turmas") &&
         response.request().method() === "POST" &&
         response.ok(),
     );
@@ -55,7 +55,7 @@ test("E2E-UC03: criar turma pela UI chama /api/turmas/", async ({ page, request 
     await createResponse;
 
     await expect(page.getByText(nome)).toBeVisible();
-    expect(observer.apiUrls.some((url) => url.includes("/api/turmas/"))).toBeTruthy();
+    expect(observer.apiUrls.some((url) => url.endsWith("/api/turmas"))).toBeTruthy();
     expectOnlyApiDataCalls(observer);
   } finally {
     observer.stop();

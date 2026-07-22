@@ -1,3 +1,5 @@
+import { apiFetch } from "../lib/apiClient";
+
 // src/services/diasService.ts
 import type {
   Dia,
@@ -234,7 +236,7 @@ export function ordenarEventosPorHorario(eventos: EventoDia[]): EventoDia[] {
 // -------------------------
 
 export async function listarDias(): Promise<Dia[]> {
-  const resp = await fetch(url("/api/dias/"));
+  const resp = await apiFetch(url("/api/dias"));
   if (!resp.ok) {
     throw new Error(`Erro ao listar dias: ${resp.status} ${await safeText(resp)}`);
   }
@@ -244,7 +246,7 @@ export async function listarDias(): Promise<Dia[]> {
 }
 
 export async function obterDiaPorData(dataIso: string): Promise<Dia> {
-  const resp = await fetch(url(`/api/dias/${dataIso}`));
+  const resp = await apiFetch(url(`/api/dias/${dataIso}`));
   if (!resp.ok) {
     throw new Error(
       `Erro ao buscar dia ${dataIso}: ${resp.status} ${await safeText(resp)}`,
@@ -281,7 +283,7 @@ export async function criarEventoNoDia(
     status: nova.status ?? "PLANEJADO",
   };
 
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -297,7 +299,7 @@ export async function criarEventoNoDia(
 }
 
 export async function deletarEventoNoDia(dataIso: string, eventoId: string): Promise<void> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}`), {
     method: "DELETE",
   });
 
@@ -329,7 +331,7 @@ export async function criarTimeNoEvento(
     cor_camisa: novo.corCamisa ?? null,
   };
 
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/times`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/times`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -381,7 +383,7 @@ export async function moverJogadorNoEvento(
     time_id: novoTimeId != null ? Number(novoTimeId) : null,
   };
 
-  const resp = await fetch(
+  const resp = await apiFetch(
     url(`/api/dias/${dataIso}/eventos/${eventoId}/jogadores/${jogadorEventoId}/time`),
     {
       method: "PUT",
@@ -408,7 +410,7 @@ export async function atualizarStatusJogadorNoEvento(
 ): Promise<{ version?: number }> {
   const payload = { status };
 
-  const resp = await fetch(
+  const resp = await apiFetch(
     url(`/api/dias/${dataIso}/eventos/${eventoId}/jogadores/${jogadorEventoId}/status`),
     {
       method: "PUT",
@@ -432,7 +434,7 @@ export async function deletarTimeNoEvento(
   eventoId: string | number,
   timeId: string | number,
 ): Promise<void> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/times/${timeId}`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/times/${timeId}`), {
     method: "DELETE",
   });
 
@@ -454,7 +456,7 @@ export async function criarPartidaNoEvento(
     timeBId: Number(payload.timeBId),
   };
 
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -484,7 +486,7 @@ export async function iniciarPartidaNoEvento(
   eventoId: string | number,
   partidaId: string | number,
 ): Promise<{ version?: number }> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/start`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/start`), {
     method: "PUT",
   });
 
@@ -503,7 +505,7 @@ export async function encerrarPartidaNoEvento(
   eventoId: string | number,
   partidaId: string | number,
 ): Promise<{ version?: number }> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/end`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/end`), {
     method: "PUT",
   });
 
@@ -522,7 +524,7 @@ export async function removerPartidaDoEvento(
   eventoId: string | number,
   partidaId: string | number,
 ): Promise<void> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}`), {
     method: "DELETE",
   });
 
@@ -540,7 +542,7 @@ export async function atualizarStatsJogadorPartida(
   jogadorEventoId: number,
   stats: { gols: number; assistencias: number; chiliques: number; faltas: number },
 ): Promise<{ version?: number }> {
-  const resp = await fetch(
+  const resp = await apiFetch(
     url(
       `/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/jogadores/${jogadorEventoId}/stats`,
     ),
@@ -565,7 +567,7 @@ export async function carregarEstadoEquipesEvento(
   dataIso: string,
   eventoId: string,
 ): Promise<EstadoEquipesSnapshot | null> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/estado-equipes`));
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/estado-equipes`));
 
   if (!resp.ok) {
     if (resp.status === 404) return null;
@@ -594,7 +596,7 @@ export async function salvarEstadoEquipesEvento(
     ...(expectedVersion != null ? { expected_version: expectedVersion } : {}),
   };
 
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/estado-equipes`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/estado-equipes`), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

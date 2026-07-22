@@ -17,8 +17,10 @@
 
 ## Auth/session
 
-- Bearer JWT is preferred when available.
-- Legacy `X-User-Id`, `X-Role`, and `X-Jogador-Id` headers can remain for compatibility.
+- Browser auth uses same-origin HttpOnly cookies; technical clients may use Bearer.
+- Legacy `X-User-Id`, `X-Role`, and `X-Jogador-Id` headers are development/test-only.
+- Active services must use the shared API client so cookie mutations receive signed CSRF.
+- A `403` is an authorization result and must not trigger refresh or session expiration.
 - Do not trust frontend role checks for critical authorization.
 
 ## State and polling

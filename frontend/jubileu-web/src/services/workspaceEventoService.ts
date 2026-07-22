@@ -1,3 +1,5 @@
+import { apiFetch } from "../lib/apiClient";
+
 import type { WorkspaceEvento, WorkspaceEventoResponse } from "../types/workspaceEvento";
 
 const API_BASE_URL =
@@ -30,7 +32,7 @@ export async function obterWorkspaceEvento(
 
   const query = params.toString();
 
-  const resp = await fetch(
+  const resp = await apiFetch(
     buildUrl(
       `/api/dias/${dataIso}/eventos/${eventoId}/workspace${query ? `?${query}` : ""}`,
     ),

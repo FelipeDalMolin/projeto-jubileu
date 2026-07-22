@@ -25,4 +25,11 @@ def get_current_user(
     return user
 
 
-__all__ = ["AuthUser", "get_current_user", "require_roles"]
+def get_operator_user(user: AuthUser = Depends(get_current_user)) -> AuthUser:
+    """Require one of the roles allowed to mutate operational or master data."""
+
+    require_roles(user, "admin", "treinador", "auxiliar")
+    return user
+
+
+__all__ = ["AuthUser", "get_current_user", "get_operator_user", "require_roles"]

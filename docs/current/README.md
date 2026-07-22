@@ -18,14 +18,18 @@ Arquivos desta pasta representam o estado atual do projeto e devem ser priorizad
 | [DECISIONS.md](DECISIONS.md) | Indice vivo de decisoes. |
 | [PLANNING_AUDIT.md](PLANNING_AUDIT.md) | Auditoria de drift entre planos, ADRs, Linear e estado atual. |
 | [PLAN_CODEMAP_REVIEW.md](PLAN_CODEMAP_REVIEW.md) | Cruzamento dos planos v0.3 com o mapa gerado do codigo. |
+| [V03_CLOSURE_MATRIX.md](V03_CLOSURE_MATRIX.md) | Estado auditavel do Security Gate, RC3, rollback e promocao. |
 
 ## Espelho Gerado Do Codigo
 
 Use [../generated/code-map.md](../generated/code-map.md) para conferir entidades,
 relacionamentos, rotas backend, rotas frontend e chamadas `/api/...` extraidas do codigo.
+A politica completa de RBAC fica em
+[../generated/authorization-matrix.md](../generated/authorization-matrix.md).
 
 Gere novamente com:
 
 ```bash
 python3 scripts/docs/generate_code_map.py
+python3 scripts/docs/generate_authorization_matrix.py
 ```

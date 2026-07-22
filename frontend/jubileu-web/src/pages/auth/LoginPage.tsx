@@ -43,7 +43,9 @@ export default function LoginPage() {
         <CardHeader>
           <CardTitle>Login - Projeto Jubileu</CardTitle>
           <CardDescription>
-            Contas JWT de desenvolvimento: admin/admin123, coach/coach123, aux/aux123, user/user123.
+            {import.meta.env.DEV
+              ? "Contas de desenvolvimento: admin/admin123, coach/coach123, aux/aux123, user/user123."
+              : "Entre com as credenciais fornecidas pelo administrador."}
           </CardDescription>
         </CardHeader>
         <CardContent>

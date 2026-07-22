@@ -1,3 +1,5 @@
+import { apiFetch } from "../lib/apiClient";
+
 import type {
   EstatisticaJogadorPartida,
   PartidaEvento,
@@ -93,7 +95,7 @@ export async function listarPartidas(
   dataIso: string,
   eventoId: string,
 ): Promise<PartidaEvento[]> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas`));
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas`));
   if (!resp.ok) {
     throw new Error(
       `Erro ao listar partidas: ${resp.status} ${await safeText(resp)}`,
@@ -108,7 +110,7 @@ export async function criarPartida(
   eventoId: string,
   input: PartidaInput,
 ): Promise<PartidaEvento> {
-  const resp = await fetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas`), {
+  const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(toPayload(input)),
@@ -129,7 +131,7 @@ export async function atualizarPartida(
   partidaId: string,
   input: PartidaInput,
 ): Promise<PartidaEvento> {
-  const resp = await fetch(
+  const resp = await apiFetch(
     url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}`),
     {
       method: "PUT",
@@ -152,7 +154,7 @@ export async function deletarPartida(
   eventoId: string,
   partidaId: string,
 ): Promise<void> {
-  const resp = await fetch(
+  const resp = await apiFetch(
     url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}`),
     { method: "DELETE" },
   );
