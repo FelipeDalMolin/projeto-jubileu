@@ -422,3 +422,13 @@ medida neste slice foi 81%, aplicada por `coverage report --fail-under=81`.
 - Evidencia local do PR 1: backend `259 passed, 4 skipped`; os skips foram cobertos separadamente
   em PostgreSQL (`2 integration + 2 postgresql`, zero skips); cobertura branch `84%`; Playwright
   via NGINX `11 passed`; frontend lint/build/contrato e smokes aprovados.
+
+### DEV-21 PR 2 - contratos e capacidades
+
+- `test_api_standardization_aliases.py` registra os comandos canonicos e garante que variantes
+  contextuais/PUT removidas nao retornem ao inventario FastAPI.
+- O mesmo teste garante por AST que `app/modules/eventos/service.py` permanece facade import-only;
+  lifecycle e participantes vivem em modulos de capacidade separados.
+- Evidencia local: caracterizacao `186 passed`; suite completa `239 passed, 4 skipped`; skips
+  reexecutados em PostgreSQL (`2 integration + 2 postgresql`, zero skips); Playwright/NGINX
+  `11 passed`; coverage branch `84%`; frontend lint/build/contrato aprovados.

@@ -18,12 +18,11 @@ async function safeText(resp: Response) {
 }
 
 async function executarAcao(
-  dataIso: string,
   eventoId: number,
-  action: "start" | "finish",
+  action: "start" | "end",
 ) {
   const resp = await apiFetch(
-    buildUrl(`/api/dias/${dataIso}/eventos/${eventoId}/${action}`),
+    buildUrl(`/api/eventos/${eventoId}/${action}`),
     {
       method: "POST",
     },
@@ -36,10 +35,10 @@ async function executarAcao(
   }
 }
 
-export async function iniciarEvento(dataIso: string, eventoId: number) {
-  await executarAcao(dataIso, eventoId, "start");
+export async function iniciarEvento(eventoId: number) {
+  await executarAcao(eventoId, "start");
 }
 
-export async function encerrarEvento(dataIso: string, eventoId: number) {
-  await executarAcao(dataIso, eventoId, "finish");
+export async function encerrarEvento(eventoId: number) {
+  await executarAcao(eventoId, "end");
 }

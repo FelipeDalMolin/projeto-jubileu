@@ -10,6 +10,7 @@ from app.models.dia_evento import (
     PartidaStatusEnum,
     StatusEventoEnum,
     StatusPresencaEnum,
+    TeamConfig as TeamConfigModel,
     TimeEvento as TimeEventoModel,
     TipoEventoEnum,
 )
@@ -299,6 +300,12 @@ def test_eventos_flow_rsvp_checkin_seed_lance(client: TestClient, db_session):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["evento"]["status"] == "EM_ANDAMENTO"
+    config = (
+        db_session.query(TeamConfigModel)
+        .filter(TeamConfigModel.evento_id == evento_id, TeamConfigModel.is_active.is_(True))
+        .one()
+    )
+    assert config.version == 1
 
     resp = client.post(
         f"/api/eventos/{evento_id}/checkin",

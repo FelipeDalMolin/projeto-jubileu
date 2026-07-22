@@ -64,6 +64,10 @@ Active surfaces:
 - `GET /api/dias/{data_iso}/eventos/{evento_id}/estado-equipes`
 - `PUT /api/dias/{data_iso}/eventos/{evento_id}/estado-equipes`
 
+Lifecycle nao e contextual por Dia: inicio, encerramento e cancelamento usam exclusivamente os
+comandos por `evento_id` listados abaixo. As antigas variantes
+`/api/dias/{data_iso}/eventos/{evento_id}/start|finish` nao sao contratos ativos.
+
 `GET /api/dias` retorna dias com a lista de eventos carregada para alimentar
 o calendario operacional. A tela `/dias` nao deve depender de chamadas por dia para
 descobrir eventos ja cadastrados.
@@ -119,8 +123,8 @@ Active surfaces:
 - `POST /api/dias/{data_iso}/eventos/{evento_id}/partidas`
 - `PUT /api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}`
 - `DELETE /api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}`
-- `PUT /api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start`
-- `PUT /api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end`
+- `POST /api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start`
+- `POST /api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end`
 - `POST /api/partidas/{partida_id}/lances`
 - `GET /api/eventos/{evento_id}/lances?partida_id={partida_id}&since={iso_datetime}&limit={n}`
 
@@ -136,9 +140,8 @@ Lifecycle contract:
 - each partida has a unique `ordem` inside its evento.
 - each player has at most one statistics row per partida.
 - frontend live state is derived only from partida `EM_ANDAMENTO`.
-- `POST /api/eventos/{evento_id}/partidas/proxima` is the canonical transactional command for the
-  next confrontation. The contextual alias
-  `POST /api/dias/{data_iso}/eventos/{evento_id}/partidas/proxima` calls the same service.
+- `POST /api/eventos/{evento_id}/partidas/proxima` is the only transactional command for the next
+  confrontation. The former contextual alias under `/api/dias/{data_iso}` is removed.
 - The next-match payload contains `partida_origem_id`, `time_a_id`, `time_b_id`,
   `expected_rotation_version`, and `client_command_id`. A successful response includes the active
   partida, `rotation_version`, and `fila_resultante`.

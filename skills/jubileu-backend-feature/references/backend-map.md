@@ -7,7 +7,7 @@ Use this file to orient before backend edits.
 - API: `backend/jubileu-api-fastapi/app/main.py`
 - ORM: `backend/jubileu-api-fastapi/app/models/`
 - Schemas: `backend/jubileu-api-fastapi/app/schemas/`
-- Services: `backend/jubileu-api-fastapi/app/services/` and `app/modules/*/service.py`
+- Services: `backend/jubileu-api-fastapi/app/services/` and capability modules under `app/modules/`
 - Migrations: `backend/jubileu-api-fastapi/alembic/`
 - Tests: `backend/jubileu-api-fastapi/tests/`
 - Generated map: `docs/generated/code-map.md`
@@ -34,6 +34,10 @@ The backend is partially modularized:
 
 - `app/routers/eventos.py`
   `/api/eventos/{evento_id}/...` commands for RSVP, check-in, lifecycle, seed, lances, and rotation.
+
+- `app/modules/eventos/service.py`, `lifecycle.py`, `participants.py`
+  Import-only facade plus extracted lifecycle and participant capabilities. `_legacy.py` is
+  transitional and must not be imported by routers.
 
 - `app/routers/jogadores.py`, `app/routers/turmas.py`, `app/routers/usuarios.py`
   CRUD/profile surfaces for players, classes/groups, and current user profile.
@@ -104,7 +108,7 @@ The backend is partially modularized:
 1. `app/routers/dias.py` or `app/routers/eventos.py`
 2. `app/services/estado_equipes.py`
 3. `app/services/workspace_evento.py`
-4. `app/modules/eventos/service.py`
+4. the capability module exposed by `app/modules/eventos/service.py`
 5. workspace/rotation tests
 
 ### Change auth/users

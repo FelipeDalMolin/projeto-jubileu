@@ -35,7 +35,7 @@ test("DEV-48: jogador e partida navegam para o Evento de origem", async ({ page,
       { data: { status: "presente" } },
     ));
   }
-  await mustJson(await request.post(`${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/start`));
+  await mustJson(await request.post(`${API_URL}/api/eventos/${evento.id}/start`));
   const times = await Promise.all(["A", "B"].map(async (nome) => mustJson<{ id: number }>(
     await request.post(`${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/times`, {
       data: { nome: `E2E Trace ${nome} ${suffix}` },
@@ -51,7 +51,7 @@ test("DEV-48: jogador e partida navegam para o Evento de origem", async ({ page,
     `${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/partidas`,
     { data: { timeAId: times[0].id, timeBId: times[1].id } },
   ));
-  await mustJson(await request.put(
+  await mustJson(await request.post(
     `${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/partidas/${partida.id}/start`,
   ));
   await mustJson(await request.post(`${API_URL}/api/partidas/${partida.id}/lances`, {

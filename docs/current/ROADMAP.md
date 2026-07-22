@@ -120,10 +120,11 @@ Foco:
 
 ## Proximas Entregas
 
-1. DEV-21 PR 1: Security Gate e matriz de autorizacao.
-2. DEV-21 PRs 2-4: contratos/lifecycle, equipes/rotacao, partidas/lances.
-3. DEV-27: Playwright sem skips, runtime promovivel e ensaio rollback.
-4. RC3 e evidencias isoladas; producao somente apos `GO v0.3.0` humano.
+1. DEV-21 PR 1: Security Gate e matriz de autorizacao — integrado no PR #41 (`ffbc290`).
+2. DEV-21 PR 2: contratos canonicos, lifecycle e participantes — slice ativo.
+3. DEV-21 PRs 3-4: equipes/rotacao e partidas/lances.
+4. DEV-27: Playwright sem skips, runtime promovivel e ensaio rollback.
+5. RC3 e evidencias isoladas; producao somente apos `GO v0.3.0` humano.
 
 ## Trabalho Adiado
 

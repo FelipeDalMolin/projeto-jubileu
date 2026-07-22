@@ -147,21 +147,6 @@ def criar_proxima_partida(
     return eventos_service.criar_proxima_partida_flow(db, evento_id, payload, user)
 
 
-@router.post(
-    "/dias/{data_iso}/eventos/{evento_id}/partidas/proxima",
-    response_model=ProximaPartidaOut,
-    dependencies=[Depends(get_operator_user)],
-)
-def criar_proxima_partida_contextual(
-    data_iso: str,
-    evento_id: int,
-    payload: ProximaPartidaIn,
-    db: Session = Depends(get_db),
-    user: AuthUser = Depends(get_current_user),
-) -> ProximaPartidaOut:
-    return eventos_service.criar_proxima_partida_flow(db, evento_id, payload, user, data_iso=data_iso)
-
-
 @router.get("/eventos/{evento_id}/participants", response_model=EventoParticipantesListOut)
 def list_participants(
     evento_id: int,

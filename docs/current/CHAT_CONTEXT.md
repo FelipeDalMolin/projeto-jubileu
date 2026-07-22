@@ -41,6 +41,10 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
 - Manter autorizacao critica no backend conforme `app/modules/auth/policy.py` e a matriz gerada.
 - Allowlist publica: health/readiness minimo e login/refresh; demais rotas exigem autenticacao.
 - `user` tem leitura e self-service; mutacoes operacionais exigem `admin`, `treinador` ou `auxiliar`.
+- Lifecycle canonico usa `POST /api/eventos/{evento_id}/start|end|cancel`; partida usa apenas `POST`
+  nos comandos contextuais `start|end`; proxima partida existe somente sob `/api/eventos/{evento_id}`.
+- Em DEV-21, `app/modules/eventos/service.py` e facade; capacidades extraidas nao devem voltar ao
+  monolito `_legacy.py`.
 - Usar Alembic para mudancas de schema.
 - Evoluir por slices pequenos, com testes e docs atualizados.
 - Para equipes/presenca/workspace, usar: estado local imediato -> persistencia por comando/evento -> polling agora -> WebSocket futuro.

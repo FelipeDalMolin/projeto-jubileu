@@ -40,7 +40,7 @@ test("DEV-49/50: AULA percorre presenca, lance e proxima partida idempotente", a
       { data: { status: "presente" } },
     ));
   }
-  await mustJson(await request.post(`${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/start`));
+  await mustJson(await request.post(`${API_URL}/api/eventos/${evento.id}/start`));
   const times = await Promise.all(["A", "B"].map(async (nome) =>
     mustJson<{ id: number }>(await request.post(`${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/times`, {
       data: { nome: `E2E ${nome} ${suffix}` },
@@ -56,7 +56,7 @@ test("DEV-49/50: AULA percorre presenca, lance e proxima partida idempotente", a
     `${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/partidas`,
     { data: { timeAId: times[0].id, timeBId: times[1].id } },
   ));
-  await mustJson(await request.put(
+  await mustJson(await request.post(
     `${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/partidas/${partida.id}/start`,
   ));
   await mustJson(await request.post(`${API_URL}/api/partidas/${partida.id}/lances`, {
@@ -68,7 +68,7 @@ test("DEV-49/50: AULA percorre presenca, lance e proxima partida idempotente", a
       client_event_id: `e2e-lance-${suffix}`,
     },
   }));
-  await mustJson(await request.put(
+  await mustJson(await request.post(
     `${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/partidas/${partida.id}/end`,
   ));
   const rotation = await mustJson<{ version: number }>(await request.get(
@@ -181,7 +181,7 @@ test("DEV-31/50: JOGO_LIVRE entra por RSVP, chegada, lance e proxima partida", a
         client_event_id: `e2e-livre-lance-${suffix}`,
       },
     }));
-    await mustJson(await request.put(
+    await mustJson(await request.post(
       `${API_URL}/api/dias/${dataIso}/eventos/${evento.id}/partidas/${seed.partida.id}/end`,
     ));
     const rotation = await mustJson<{ version: number }>(await request.get(

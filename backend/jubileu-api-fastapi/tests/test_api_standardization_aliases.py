@@ -1,9 +1,25 @@
+import ast
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.models.dia_evento import Dia, Evento, StatusEventoEnum, TipoEventoEnum
 
 from app.main import app
+
+
+@pytest.mark.contract
+def test_eventos_service_is_import_only_facade():
+    service_path = Path(__file__).parents[1] / "app" / "modules" / "eventos" / "service.py"
+    tree = ast.parse(service_path.read_text(encoding="utf-8"))
+
+    executable_definitions = [
+        node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    ]
+    assert not executable_definitions
 
 
 @pytest.mark.contract
@@ -29,12 +45,27 @@ def test_canonical_api_routes_exist():
         ("/api/eventos/{evento_id}/rotacao/preview-sorteio", "POST"),
         ("/api/eventos/{evento_id}/rotacao/confirmar-sorteio", "POST"),
         ("/api/partidas/{partida_id}/lances", "POST"),
-        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start", "PUT"),
-        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end", "PUT"),
+        ("/api/eventos/{evento_id}/start", "POST"),
+        ("/api/eventos/{evento_id}/end", "POST"),
+        ("/api/eventos/{evento_id}/cancel", "POST"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start", "POST"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end", "POST"),
+        ("/api/eventos/{evento_id}/partidas/proxima", "POST"),
     }
 
     missing = expected_alias_contracts - route_methods
     assert not missing, f"Missing /api standardized contracts: {sorted(missing)}"
+
+    removed_contracts = {
+        ("/api/dias/{data_iso}/eventos/{evento_id}/start", "PUT"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/start", "POST"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/finish", "PUT"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/finish", "POST"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start", "PUT"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end", "PUT"),
+        ("/api/dias/{data_iso}/eventos/{evento_id}/partidas/proxima", "POST"),
+    }
+    assert route_methods.isdisjoint(removed_contracts)
 
 
 @pytest.mark.contract

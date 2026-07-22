@@ -330,7 +330,6 @@ def atualizar_stats_jogador_partida(
     current_version = partidas_service.calcular_version_atual(db, evento)
     return CommandOkOut(status="ok", version=current_version)
 
-
 @router.delete(
     "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -358,7 +357,7 @@ def deletar_partida(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.put(
+@router.post(
     "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start",
     response_model=CommandOkOut,
     dependencies=[Depends(get_operator_user)],
@@ -408,20 +407,6 @@ def iniciar_partida(
 
 
 @router.post(
-    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start",
-    response_model=CommandOkOut,
-    dependencies=[Depends(get_operator_user)],
-)
-def iniciar_partida_post(
-    data_iso: str,
-    evento_id: int,
-    partida_id: int,
-    db: Session = Depends(get_db),
-) -> CommandOkOut:
-    return iniciar_partida(data_iso=data_iso, evento_id=evento_id, partida_id=partida_id, db=db)
-
-
-@router.put(
     "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end",
     response_model=CommandOkOut,
     dependencies=[Depends(get_operator_user)],
@@ -450,17 +435,3 @@ def encerrar_partida(
     db.commit()
     current_version = partidas_service.calcular_version_atual(db, evento)
     return CommandOkOut(status="ok", version=current_version)
-
-
-@router.post(
-    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end",
-    response_model=CommandOkOut,
-    dependencies=[Depends(get_operator_user)],
-)
-def encerrar_partida_post(
-    data_iso: str,
-    evento_id: int,
-    partida_id: int,
-    db: Session = Depends(get_db),
-) -> CommandOkOut:
-    return encerrar_partida(data_iso=data_iso, evento_id=evento_id, partida_id=partida_id, db=db)

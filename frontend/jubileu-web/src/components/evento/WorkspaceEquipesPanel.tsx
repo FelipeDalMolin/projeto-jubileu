@@ -268,7 +268,7 @@ export default function WorkspaceEquipesPanel({
     setStatusLoading(true);
     setStatusError(null);
     try {
-      await iniciarEvento(dataIso, eventoId);
+      await iniciarEvento(eventoId);
       await onRefresh();
     } catch (err: unknown) {
       setStatusError(err instanceof Error ? err.message : "Erro ao iniciar a evento.");
@@ -281,7 +281,7 @@ export default function WorkspaceEquipesPanel({
     setStatusLoading(true);
     setStatusError(null);
     try {
-      await encerrarEvento(dataIso, eventoId);
+      await encerrarEvento(eventoId);
       await onRefresh();
     } catch (err: unknown) {
       setStatusError(err instanceof Error ? err.message : "Erro ao encerrar a evento.");

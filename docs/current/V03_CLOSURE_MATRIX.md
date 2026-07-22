@@ -8,8 +8,8 @@ Legenda: `sim`, `parcial`, `nao`, `aguarda merge`, `aguarda GO humano`.
 
 | Entrega | Implementado | Testado | Documentado | Aprovado | Evidencia/bloqueio |
 |---|---|---|---|---|---|
-| DEV-21 PR 1 - Security Gate | sim | sim | sim | aguarda merge | `259 passed`; cobertura 84%; PostgreSQL `2 integration + 2 postgresql`; Playwright/NGINX `11 passed`; lint/build/contrato/docs/smoke verdes. |
-| DEV-21 PR 2 - contratos/lifecycle/participantes | nao | nao | nao | nao | Depende do merge do PR 1. |
+| DEV-21 PR 1 - Security Gate | sim | sim | sim | sim | PR #41 mesclado em `ffbc290`; seis required checks verdes. |
+| DEV-21 PR 2 - contratos/lifecycle/participantes | sim | sim | sim | aguarda merge | Backend `239 passed`; PostgreSQL `2 integration + 2 postgresql`; Playwright/NGINX `11 passed`; frontend/docs verdes. |
 | DEV-21 PR 3 - equipes/rotacao | nao | nao | nao | nao | Depende do merge do PR 2; concorrencia PostgreSQL obrigatoria. |
 | DEV-21 PR 4 - partidas/lances | nao | nao | nao | nao | Depende do merge do PR 3; nenhuma migration nova esperada. |
 | DEV-27 PR 5 - qualidade/runtime release | nao | nao | nao | nao | Depende do fechamento DEV-21. |
@@ -46,4 +46,20 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
 - Frontend: lint, build e contrato `/api` aprovados.
 - Infra/docs: smoke dev, smoke autenticado, contrato de borda, Bash, ShellCheck 0.10.0,
   code-map e matriz de autorizacao aprovados.
+- Migration: nenhuma nova; head permanece `0020_auth_sessions_rollback_safe`.
+
+## Evidencia do PR 1 integrado
+
+- PR: `https://github.com/FelipeDalMolin/projeto-jubileu/pull/41`.
+- Merge: `ffbc290fb2ee6c048f3c207c0f527a645c7237ff`.
+- Required checks: seis de seis aprovados no GitHub Actions.
+
+## Evidencia local do PR 2
+
+- Contratos de lifecycle/participantes: `186 passed` no conjunto de caracterizacao.
+- Backend completo: `239 passed, 4 skipped`; os quatro skips foram reexecutados em PostgreSQL 16
+  (`2 integration + 2 postgresql`, zero skips).
+- Coverage branch: `84%`, com `fail-under=81` aprovado.
+- Playwright pelo NGINX: `11 passed`, cobrindo AULA, JOGO_LIVRE, auth, dashboards e polling.
+- Frontend: lint, build e contrato `/api` aprovados.
 - Migration: nenhuma nova; head permanece `0020_auth_sessions_rollback_safe`.
