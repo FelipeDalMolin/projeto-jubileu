@@ -4,7 +4,7 @@ Estado de governanca: `NO-GO`. O projeto permanece `atRisk` enquanto autorizacao
 rollback reproduzivel nao estiverem comprovados. Projeto e milestones nao possuem target date
 por decisao explicita do responsavel.
 
-Legenda: `sim`, `parcial`, `nao`, `aguarda merge`, `aguarda GO humano`.
+Legenda: `sim`, `parcial`, `nao`, `aguarda RC3`, `aguarda GO humano`.
 
 | Entrega | Implementado | Testado | Documentado | Aprovado | Evidencia/bloqueio |
 |---|---|---|---|---|---|
@@ -12,7 +12,7 @@ Legenda: `sim`, `parcial`, `nao`, `aguarda merge`, `aguarda GO humano`.
 | DEV-21 PR 2 - contratos/lifecycle/participantes | sim | sim | sim | sim | PR #42 mesclado em `2cdfc02`; seis required checks verdes. |
 | DEV-21 PR 3 - equipes/rotacao | sim | sim | sim | sim | PR #43 mesclado em `a19927e`; seis required checks verdes. |
 | DEV-21 PR 4 - partidas/lances | sim | sim | sim | sim | PR #44 mesclado em `4664eba`; seis required checks verdes. |
-| DEV-27 PR 5 - qualidade/runtime release | sim | parcial | sim | aguarda merge | Suite integral sem skips, bancos Alembic-managed, runtime unico por digest, bundle e rehearsal implementados; gates em execucao. |
+| DEV-27 PR 5 - qualidade/runtime release | sim | sim | sim | sim | PR #45 mesclado em `72d5856`; seis required checks verdes. A issue permanece aberta ate o aceite operacional completo. |
 | RC3 por digest | nao | nao | parcial | nao | RC1/RC2 permanecem historicos e nao promoviveis. |
 | Artefato imutavel do runtime anterior | nao | nao | parcial | nao | Producao atual usa checkout/bind mounts e nao expoe identidade de release. |
 | Upgrade Alembic de producao `0016 -> 0020` | nao | nao | parcial | nao | Revisao `0016_usuarios_legacy_nullable` inventariada read-only; ensaio isolado pendente. |
@@ -108,7 +108,7 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
 - Merge: `4664eba69536a21a1df96b0f718843ef16f96d25`.
 - Required checks: seis de seis aprovados no GitHub Actions.
 
-## Evidencia em construcao do PR 5
+## Evidencia do PR 5
 
 - Playwright passa a executar todos os specs ativos pelo NGINX, sem declaracoes de skip e com
   relatorio JSON validado contra skips/flaky.
@@ -119,7 +119,11 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
   publicam portas.
 - Bundle, backup, restore e rehearsal geram checksums/evidencias redigidas e bloqueiam alvos com
   nome produtivo.
-- Resultados exatos e aprovacao desta linha dependem dos gates locais e do merge do PR DEV-27.
+- PR: `https://github.com/FelipeDalMolin/projeto-jubileu/pull/45`.
+- Merge: `72d5856a74f7065188b8cb7d02f3fc5859283867`.
+- Required checks: seis de seis aprovados no GitHub Actions.
+- DEV-27 permanece `Em Progresso`: o merge comprova o slice, mas o aceite da issue exige RC3,
+  restore/rollback por digest e promocao/smoke autorizados.
 
 ### Resultados locais DEV-27 em 2026-07-22 UTC
 

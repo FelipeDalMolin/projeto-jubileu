@@ -124,8 +124,9 @@ Foco:
 2. DEV-21 PR 2: contratos canonicos, lifecycle e participantes — integrado no PR #42 (`2cdfc02`).
 3. DEV-21 PR 3: equipes/rotacao — integrado no PR #43 (`a19927e`).
 4. DEV-21 PR 4: partidas/lances — integrado no PR #44 (`4664eba`); DEV-21 concluida.
-5. DEV-27: Playwright sem skips, runtime promovivel, bundle e ensaio rollback — slice ativo.
-6. RC3 e evidencias isoladas; producao somente apos `GO v0.3.0` humano.
+5. DEV-27 PR #45: Playwright sem skips, runtime promovivel, bundle e rehearsal — integrado em
+   `72d5856`; a issue permanece aberta pelo aceite operacional.
+6. RC3 e evidencias isoladas — etapa ativa; producao somente apos `GO v0.3.0` humano.
 
 ## Trabalho Adiado
 
