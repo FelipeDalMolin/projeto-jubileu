@@ -432,3 +432,16 @@ medida neste slice foi 81%, aplicada por `coverage report --fail-under=81`.
 - Evidencia local: caracterizacao `186 passed`; suite completa `239 passed, 4 skipped`; skips
   reexecutados em PostgreSQL (`2 integration + 2 postgresql`, zero skips); Playwright/NGINX
   `11 passed`; coverage branch `84%`; frontend lint/build/contrato aprovados.
+
+### DEV-21 PR 3 - equipes e rotacao
+
+- `test_api_standardization_aliases.py` garante por AST que `_legacy.py` ficou restrito a lances,
+  que equipes/rotacao vivem em modulos separados e que conflitos esperados usam savepoints sem
+  `Session.rollback()` global.
+- Os testes de equipes, snapshots, fila, sorteio, seed, idempotencia e reenfileiramento preservam os
+  contratos existentes; `test_proxima_partida_postgres.py` valida dois comandos concorrentes em
+  PostgreSQL 16 e exige somente uma partida ativa.
+- Evidencia local: suite completa `240 passed, 4 skipped`; skips reexecutados em PostgreSQL
+  (`2 integration + 2 postgresql`, zero skips); coverage branch `84%`; Playwright/NGINX
+  `11 passed`; frontend lint/build/contrato aprovados. Migration: nenhuma; head permanece
+  `0020_auth_sessions_rollback_safe`.

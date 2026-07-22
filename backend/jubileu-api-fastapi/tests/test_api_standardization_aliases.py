@@ -23,6 +23,47 @@ def test_eventos_service_is_import_only_facade():
 
 
 @pytest.mark.contract
+def test_equipes_e_rotacao_estao_em_capacidades_isoladas_e_sem_rollback_global():
+    modules_dir = Path(__file__).parents[1] / "app" / "modules" / "eventos"
+    teams_source = (modules_dir / "teams.py").read_text(encoding="utf-8")
+    rotation_source = (modules_dir / "rotation.py").read_text(encoding="utf-8")
+    legacy_tree = ast.parse((modules_dir / "_legacy.py").read_text(encoding="utf-8"))
+
+    legacy_functions = {
+        node.name
+        for node in legacy_tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+    assert legacy_functions == {"lance_out", "create_lance_flow", "list_lances_flow"}
+
+    assert "def criar_time_flow(" in teams_source
+    assert "def rebuild_estado_equipes(" in teams_source
+    assert "def criar_proxima_partida_flow(" in rotation_source
+    assert "def preview_rotacao_sorteio_flow(" in rotation_source
+    assert "db.rollback(" not in teams_source
+    assert "db.rollback(" not in rotation_source
+    assert "with db.begin_nested():" in teams_source
+    assert rotation_source.count("with db.begin_nested():") >= 2
+
+    rotation_tree = ast.parse(rotation_source)
+    locked_flows = {
+        "seed_primeira_partida_flow",
+        "get_rotacao_estado_flow",
+        "criar_proxima_partida_flow",
+        "update_rotacao_estado_flow",
+        "preview_rotacao_sorteio_flow",
+        "confirm_rotacao_sorteio_flow",
+    }
+    for node in rotation_tree.body:
+        if not isinstance(node, ast.FunctionDef) or node.name not in locked_flows:
+            continue
+        flow_source = ast.get_source_segment(rotation_source, node) or ""
+        assert flow_source.index("_lock_evento_for_command(") < flow_source.index(
+            "_get_or_init_rotacao_estado("
+        ), node.name
+
+
+@pytest.mark.contract
 def test_canonical_api_routes_exist():
     route_methods = {
         (route.path, method)

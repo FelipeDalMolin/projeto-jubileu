@@ -24,7 +24,7 @@ from app.schemas.dia_evento import (
     PresencaJogadorDiaOut,
     TimeEventoOut,
 )
-from app.services.estado_equipes import rebuild_estado_equipes
+from app.modules.eventos import teams as teams_service
 
 
 def assert_evento_editavel(evento: EventoModel) -> None:
@@ -74,25 +74,11 @@ def get_evento_no_dia_or_404(
 
 
 def get_active_team_config(db: Session, evento_id: int) -> TeamConfigModel | None:
-    return (
-        db.query(TeamConfigModel)
-        .filter(TeamConfigModel.evento_id == evento_id, TeamConfigModel.is_active.is_(True))
-        .order_by(TeamConfigModel.version.desc(), TeamConfigModel.id.desc())
-        .first()
-    )
+    return teams_service.get_active_team_config(db, evento_id)
 
 
 def ensure_active_team_config(db: Session, evento: EventoModel) -> TeamConfigModel | None:
-    team_config = get_active_team_config(db, evento.id)
-    if team_config:
-        return team_config
-
-    db.refresh(evento, attribute_names=["jogadores", "times"])
-    team_config = rebuild_estado_equipes(db, evento)
-    db.commit()
-    if team_config:
-        db.refresh(team_config)
-    return team_config
+    return teams_service.ensure_active_team_config(db, evento)
 
 
 def build_estado_evento_response(

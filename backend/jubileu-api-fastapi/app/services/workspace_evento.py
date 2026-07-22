@@ -25,7 +25,7 @@ from app.schemas.workspace import (
     WorkspaceEventoOut,
     WorkspaceEventoWarningOut,
 )
-from app.services.estado_equipes import rebuild_estado_equipes
+from app.modules.eventos.teams import rebuild_estado_equipes
 
 
 def _carregar_snapshot_equipes(

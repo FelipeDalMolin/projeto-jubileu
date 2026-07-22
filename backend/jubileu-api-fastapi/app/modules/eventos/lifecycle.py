@@ -13,9 +13,9 @@ from app.models.dia_evento import (
     StatusEventoEnum,
     StatusPresencaEnum,
 )
-from app.modules.eventos._legacy import evento_out, get_evento_or_404
+from app.modules.eventos.rotation import evento_out, get_evento_or_404
 from app.schemas.eventos import EventoActionOut
-from app.services.estado_equipes import rebuild_estado_equipes
+from app.modules.eventos.teams import rebuild_estado_equipes
 
 
 def start_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActionOut:

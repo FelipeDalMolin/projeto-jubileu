@@ -16,7 +16,7 @@ from app.models.dia_evento import (
     StatusPresencaEnum,
 )
 from app.models.jogador_turma import Jogador as JogadorModel
-from app.modules.eventos._legacy import (
+from app.modules.eventos.rotation import (
     _lock_evento_for_command,
     assert_evento_em_andamento,
     assert_evento_tipo_jogo_livre,

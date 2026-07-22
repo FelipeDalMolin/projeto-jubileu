@@ -45,6 +45,9 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
   nos comandos contextuais `start|end`; proxima partida existe somente sob `/api/eventos/{evento_id}`.
 - Em DEV-21, `app/modules/eventos/service.py` e facade; capacidades extraidas nao devem voltar ao
   monolito `_legacy.py`.
+- Equipes/snapshots pertencem a `app/modules/eventos/teams.py`; fila, sorteio, seed e proxima partida
+  pertencem a `rotation.py`. Em rotacao, adquirir locks sempre como `Evento -> Rotacao -> filhos` e
+  tratar conflitos esperados com savepoint, sem rollback global.
 - Usar Alembic para mudancas de schema.
 - Evoluir por slices pequenos, com testes e docs atualizados.
 - Para equipes/presenca/workspace, usar: estado local imediato -> persistencia por comando/evento -> polling agora -> WebSocket futuro.
