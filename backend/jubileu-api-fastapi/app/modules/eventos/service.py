@@ -381,7 +381,7 @@ def checkin_manual_flow(
     jogador_id: int,
     user: AuthUser,
 ) -> dict[str, EventoParticipanteOut]:
-    require_roles(user, "admin", "treinador")
+    require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     assert_evento_em_andamento(evento)
     assert_jogador_na_evento(db, evento.id, jogador_id)
@@ -399,7 +399,7 @@ def checkin_manual_flow(
 
 
 def start_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActionOut:
-    require_roles(user, "admin", "treinador")
+    require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     if evento.status != StatusEventoEnum.PLANEJADO:
         raise HTTPException(status_code=409, detail="Evento nao pode iniciar neste status")
@@ -416,7 +416,7 @@ def start_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActi
 
 
 def end_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActionOut:
-    require_roles(user, "admin", "treinador")
+    require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     if evento.status != StatusEventoEnum.EM_ANDAMENTO:
         raise HTTPException(status_code=409, detail="Evento nao pode ser encerrado neste status")
@@ -448,7 +448,7 @@ def end_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoAction
 
 
 def cancel_evento_flow(db: Session, evento_id: int, user: AuthUser) -> EventoActionOut:
-    require_roles(user, "admin", "treinador")
+    require_roles(user, "admin", "treinador", "auxiliar")
     evento = get_evento_or_404(db, evento_id)
     if evento.status != StatusEventoEnum.PLANEJADO:
         raise HTTPException(status_code=409, detail="Cancelamento permitido apenas em PLANEJADO")
@@ -464,7 +464,7 @@ def seed_primeira_partida_flow(
     payload: SeedPartidaIn,
     user: AuthUser,
 ) -> SeedPartidaOut:
-    require_roles(user, "admin", "treinador")
+    require_roles(user, "admin", "treinador", "auxiliar")
     if payload.players_count != payload.team_size * 2:
         raise HTTPException(status_code=422, detail="players_count deve ser team_size*2")
 

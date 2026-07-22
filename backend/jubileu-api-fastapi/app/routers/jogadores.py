@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
+from app.modules.auth.deps import get_operator_user
 from app.models.jogador_turma import Jogador
 from app.schemas.jogador import JogadorOut, JogadorCreate, JogadorUpdate
 
@@ -26,12 +27,17 @@ def normalizar_status(v: str | None) -> str:
     return s
 
 
-@router.get("/", response_model=List[JogadorOut])
+@router.get("", response_model=List[JogadorOut])
 def listar_jogadores(db: Session = Depends(get_db)) -> List[Jogador]:
     return db.query(Jogador).order_by(Jogador.nome).all()
 
 
-@router.post("/", response_model=JogadorOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=JogadorOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_operator_user)],
+)
 def criar_jogador(payload: JogadorCreate, db: Session = Depends(get_db)) -> Jogador:
     nome = (payload.nome or "").strip()
     if not nome:
@@ -59,7 +65,11 @@ def obter_jogador(jogador_id: int, db: Session = Depends(get_db)) -> Jogador:
     return jogador
 
 
-@router.put("/{jogador_id}", response_model=JogadorOut)
+@router.put(
+    "/{jogador_id}",
+    response_model=JogadorOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def atualizar_jogador(
     jogador_id: int,
     payload: JogadorUpdate,
@@ -86,7 +96,11 @@ def atualizar_jogador(
     return jogador
 
 
-@router.delete("/{jogador_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{jogador_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_operator_user)],
+)
 def deletar_jogador(jogador_id: int, db: Session = Depends(get_db)) -> None:
     jogador = db.get(Jogador, jogador_id)
     if not jogador:

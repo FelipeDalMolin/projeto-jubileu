@@ -41,9 +41,9 @@ export function resolveEventoCapabilities(input: ResolveInput): Set<EventoCapabi
   }
 
   if (tipo === "JOGO_LIVRE") {
-    add(caps, "rsvp", "checkin_self", "lances");
+    add(caps, "rsvp", "checkin_self");
     if (isAdminRole) {
-      add(caps, "checkin_manual", "seed_partida", "event_admin_actions");
+      add(caps, "checkin_manual", "seed_partida", "event_admin_actions", "lances");
     }
     return caps;
   }

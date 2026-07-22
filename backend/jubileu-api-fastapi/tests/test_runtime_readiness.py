@@ -32,7 +32,7 @@ def test_readiness_requires_expected_alembic_revision(client):
         response = client.get("/api/ready")
 
     assert response.status_code == 503
-    assert response.json()["reason"] == "schema_revision"
+    assert response.json() == {"status": "not_ready"}
 
 
 @pytest.mark.contract
@@ -41,4 +41,4 @@ def test_readiness_reports_database_failure(client):
         response = client.get("/api/ready")
 
     assert response.status_code == 503
-    assert response.json() == {"status": "not_ready", "reason": "database"}
+    assert response.json() == {"status": "not_ready"}

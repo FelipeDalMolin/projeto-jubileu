@@ -33,13 +33,14 @@ Estado consolidado:
 
 ## Marco Ativo
 
-O marco ativo e a estabilizacao operacional com validacao auditavel de UC/CT:
+O marco ativo e o fechamento formal da v0.3.0. A decisao permanece `NO-GO` e o projeto `atRisk`
+ate o Security Gate DEV-21 e o rollback DEV-27 produzirem evidencia. A ordem bloqueante e:
 
-- provar que o app continua buildando;
-- provar que contratos backend/API nao quebram;
-- provar que o frontend nao chama `/api/api`;
-- iniciar cobertura E2E de navegador com Playwright;
-- registrar lacunas honestamente quando a UI ou o ambiente ainda nao permitem automacao completa.
+1. quatro PRs DEV-21 para autorizacao e decomposicao do dominio;
+2. PR DEV-27 para qualidade e runtime de release;
+3. `v0.3.0-rc.3` imutavel por digest;
+4. ensaio isolado de upgrade desde a revisao produtiva `0016`, restore e rollback;
+5. pedido de `GO v0.3.0` humano antes de qualquer operacao produtiva.
 
 ## Trilhas de Execucao
 
@@ -47,8 +48,8 @@ O marco ativo e a estabilizacao operacional com validacao auditavel de UC/CT:
 
 Foco:
 
-- preservar rotas canonicas sob `/api`;
-- manter rotas legadas apenas por compatibilidade, sem trata-las como contrato novo;
+- preservar exclusivamente rotas canonicas de dados sob `/api`;
+- manter aliases sem `/api` removidos e sem redirect automatico de barra;
 - manter `/health` e `/api/health`;
 - manter `X-Request-ID` em responses;
 - ampliar testes `pytest` por UC/CT;
@@ -60,7 +61,7 @@ Foco:
 Foco:
 
 - manter rotas SPA separadas das chamadas de dados;
-- migrar services gradualmente para `apiClient`, sem big bang;
+- manter todos os services HTTP ativos no `apiClient` comum;
 - manter `npm run check:api-contract`;
 - adicionar `data-testid` apenas como camada minima de testabilidade;
 - evitar refatoracao visual fora de escopo; quando o slice for de UI/UX, justificar a
@@ -115,15 +116,14 @@ Foco:
 - Nao reintroduzir `/aulas`, `aulaId`, `aula_id` ou `WorkspaceAula`.
 - Migrations historicas podem conter nomes antigos; contratos publicos e modelos ativos devem seguir `Evento`.
 - `OUTRO` continua reservado para preparacao de modelagem ate existir fluxo operacional dedicado.
-- Rotas legadas sem `/api` podem existir por compatibilidade, mas nao devem orientar novo desenvolvimento frontend.
+- Rotas de dados sem `/api` retornam `404` e nao sao compatibilidade suportada.
 
 ## Proximas Entregas
 
-1. Entregar rastreabilidade Dia -> Evento -> Partida nos dashboards (DEV-48).
-2. Corrigir o cleanup Tailwind dos dashboards em issue própria, sem rebranding.
-3. Executar auth hardening (DEV-43).
-4. Tornar PostgreSQL, Alembic e Playwright operacional gates bloqueantes do CI (DEV-44).
-5. Executar smoke e preparar a tag `v0.3.0` (DEV-45).
+1. DEV-21 PR 1: Security Gate e matriz de autorizacao.
+2. DEV-21 PRs 2-4: contratos/lifecycle, equipes/rotacao, partidas/lances.
+3. DEV-27: Playwright sem skips, runtime promovivel e ensaio rollback.
+4. RC3 e evidencias isoladas; producao somente apos `GO v0.3.0` humano.
 
 ## Trabalho Adiado
 

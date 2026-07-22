@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
-from app.modules.auth.deps import AuthUser, get_current_user, require_roles
+from app.modules.auth.deps import AuthUser, get_current_user, get_operator_user
 from app.modules.auth.service import get_usuario_by_user_id
 from app.models.dia_evento import (
     Dia as DiaModel,
@@ -22,7 +22,7 @@ from app.schemas.usuarios import (
     UsuarioPerfilOut,
 )
 
-router = APIRouter(prefix="/api/usuarios", tags=["Usuarios"])
+router = APIRouter(prefix="/usuarios", tags=["Usuarios"])
 
 
 def _build_usuario_me(
@@ -103,13 +103,16 @@ def obter_usuario_me(
     return _build_usuario_me(db, usuario)
 
 
-@router.put("/me/jogador", response_model=UsuarioMeOut)
+@router.put(
+    "/me/jogador",
+    response_model=UsuarioMeOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def atualizar_usuario_jogador(
     payload: UsuarioJogadorUpdateIn,
     db: Session = Depends(get_db),
     user: AuthUser = Depends(get_current_user),
 ) -> UsuarioMeOut:
-    require_roles(user, "admin", "treinador")
     usuario = get_usuario_by_user_id(db, user.user_id)
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario nao encontrado")

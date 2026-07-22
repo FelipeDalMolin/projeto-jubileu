@@ -33,7 +33,7 @@ def client():
 
     app.dependency_overrides[get_db] = override_get_db
 
-    with TestClient(app) as test_client:
+    with TestClient(app, headers={"X-User-Id": "mvp-admin", "X-Role": "admin"}) as test_client:
         yield test_client
 
     app.dependency_overrides.clear()
@@ -48,14 +48,14 @@ def client():
 @pytest.mark.uc07
 def test_fluxo_mvp(client: TestClient):
     # cria turma
-    resp = client.post("/turmas", json={"nome": "Turma Teste"})
+    resp = client.post("/api/turmas", json={"nome": "Turma Teste"})
     assert resp.status_code == 201, resp.text
     turma = resp.json()
     turma_id = turma["id"]
 
     # cria jogador
     resp = client.post(
-        "/jogadores",
+        "/api/jogadores",
         json={"nome": "João", "apelido": "J", "status": "ativo"},
     )
     assert resp.status_code == 201, resp.text
@@ -64,14 +64,14 @@ def test_fluxo_mvp(client: TestClient):
 
     # cria (ou obtém) dia
     data_iso = "2025-12-31"
-    resp = client.get(f"/dias/{data_iso}")
+    resp = client.get(f"/api/dias/{data_iso}")
     assert resp.status_code == 200, resp.text
     dia = resp.json()
     assert dia["data_iso"] == data_iso
 
     # cria evento no dia usando turma_id int
     resp = client.post(
-        f"/dias/{data_iso}/eventos",
+        f"/api/dias/{data_iso}/eventos",
         json={
             "turma_id": turma_id,
             "turma_nome": "ignorado",
@@ -115,13 +115,13 @@ def test_fluxo_mvp(client: TestClient):
         ],
     }
     resp = client.put(
-        f"/dias/{data_iso}/eventos/{evento_id}/estado-equipes",
+        f"/api/dias/{data_iso}/eventos/{evento_id}/estado-equipes",
         json=payload_estado,
     )
     assert resp.status_code == 200, resp.text
 
     # lê estado-equipes e valida estrutura
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento_id}/estado-equipes")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento_id}/estado-equipes")
     assert resp.status_code == 200, resp.text
     estado = resp.json()
     assert estado["evento_id"] == evento_id
@@ -136,7 +136,7 @@ def test_criacao_evento_condiciona_turma_por_tipo(client: TestClient):
     data_iso = "2026-05-09"
 
     resp = client.post(
-        f"/dias/{data_iso}/eventos",
+        f"/api/dias/{data_iso}/eventos",
         json={
             "tipo": "JOGO_LIVRE",
             "horario_inicio": "19:00",
@@ -152,7 +152,7 @@ def test_criacao_evento_condiciona_turma_por_tipo(client: TestClient):
     assert evento["numero_evento_na_turma"] is None
 
     resp = client.post(
-        f"/dias/{data_iso}/eventos",
+        f"/api/dias/{data_iso}/eventos",
         json={
             "tipo": "AULA",
             "horario_inicio": "20:00",

@@ -1,4 +1,4 @@
-import { apiFetch, apiJson } from "../lib/apiClient";
+import { apiFetch, apiJson, refreshSessionSingleFlight } from "../lib/apiClient";
 
 export type UserRole = "admin" | "treinador" | "auxiliar" | "user";
 
@@ -25,6 +25,9 @@ export function getCurrentUser(): Promise<AuthMeResponse> {
 }
 
 export async function logoutAuth(): Promise<void> {
-  const response = await apiFetch("/auth/logout", { method: "POST" });
+  let response = await apiFetch("/auth/logout", { method: "POST" });
+  if (response.status === 401 && await refreshSessionSingleFlight()) {
+    response = await apiFetch("/auth/logout", { method: "POST" });
+  }
   if (!response.ok && response.status !== 401) throw new Error(`Logout ${response.status}`);
 }

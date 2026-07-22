@@ -259,8 +259,8 @@ Resultados abaixo sao evidencia local desta revisao para o marco tecnico `94d4f4
 | `cd frontend/jubileu-web && npm run lint` | `eslint .` concluiu com exit code 0. | covered-contract |
 | `npm run build` | Vite build concluiu com sucesso. | covered-contract |
 | `npm run check:api-contract` | `API contract check OK: no suspicious service calls, /api/api, or Vite rewrite found.` | covered-contract |
-| `LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh` | `Smoke OK: NGINX + Frontend + FastAPI respondendo.` | covered-contract |
-| `PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh` | `Smoke OK: NGINX + Frontend + FastAPI respondendo.` | covered-contract |
+| `LOCAL_BASE_URL=... scripts/server/smoke_server.sh` | Evidencia historica anterior ao Security Gate; o comando atual tambem exige credenciais de smoke injetadas. | historical-covered-contract |
+| `PUBLIC_BASE_URL=... scripts/server/smoke_server.sh` | Evidencia historica anterior ao Security Gate; repetir com conta autorizada e segredos fora do repositorio. | historical-covered-contract |
 | `npx playwright install-deps --dry-run chromium` | Historico do host fora do container: `Missing system dependencies (1): libcups2t64`. No container Alpine, usar Chromium nativo via `E2E_CHROMIUM_EXECUTABLE_PATH`. | historical-blocked-e2e |
 | `npx playwright --version` | `Version 1.60.0`. | created-e2e |
 | `E2E_RUNTIME_MODE=nginx E2E_REUSE_EXISTING_SERVER=1 E2E_BASE_URL=http://127.0.0.1:5173 npm run test:e2e -- --project=chromium e2e/contract.spec.ts --reporter=list` | Historico anterior: `contract.spec.ts` 2 passed e 1 failed por `/login` com `ERR_CONNECTION_RESET`. | historical-partial-e2e |
@@ -380,8 +380,10 @@ Server/contrato de borda, quando a stack estiver ativa:
 
 ```bash
 scripts/dev/check_frontend_api_prefixes.sh
-LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
-PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh
+SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
+  LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
+  PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh
 ```
 
 ## Conclusao
@@ -407,3 +409,16 @@ Required checks estaveis: `Docs sync`, `Backend unit`, `PostgreSQL + Alembic`, `
 upgrade desde `0019` e integracao. A selecao PostgreSQL falha se `DATABASE_URL_TEST` nao estiver
 configurada; Playwright executa contrato, auth, dashboards e workspace pelo NGINX. A baseline
 medida neste slice foi 81%, aplicada por `coverage report --fail-under=81`.
+
+## DEV-21 - Security Gate v0.3
+
+- `test_api_authorization_policy.py` compara todas as rotas da aplicacao com o registro executavel
+  de `app/modules/auth/policy.py`; rota ausente, duplicada ou sem classe de acesso falha o contrato.
+- Cada rota protegida possui caso anonimo `401`; cada comando de operador possui `user -> 403` e
+  aceita `auxiliar` na camada de autorizacao; leituras/self-service aceitam `user`.
+- `test_api_standardization_aliases.py` comprova colecoes sem barra final e `404` para aliases sem
+  `/api`; `test_smoke_api.py` comprova root removido e docs desabilitadas em producao.
+- A matriz publicada e regenerada por `python3 scripts/docs/generate_authorization_matrix.py`.
+- Evidencia local do PR 1: backend `259 passed, 4 skipped`; os skips foram cobertos separadamente
+  em PostgreSQL (`2 integration + 2 postgresql`, zero skips); cobertura branch `84%`; Playwright
+  via NGINX `11 passed`; frontend lint/build/contrato e smokes aprovados.

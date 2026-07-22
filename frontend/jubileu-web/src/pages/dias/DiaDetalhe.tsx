@@ -12,6 +12,7 @@ import {
 } from "../../services/diasService";
 import { listarTurmas, type Turma } from "../../services/turmasService";
 import type { Dia, EventoDia, TipoEventoModo } from "../../types/dia";
+import { useAuth } from "../../context/AuthContext";
 
 const EVENTO_MODO_OPTIONS: Array<{ value: TipoEventoModo; label: string; hint: string }> = [
   {
@@ -50,6 +51,8 @@ function errorMessage(err: unknown, fallback: string) {
 export default function DiaDetalhe() {
   const { dataIso } = useParams<{ dataIso: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManage = Boolean(user && user.role !== "user");
 
   const [dia, setDia] = useState<Dia | null>(null);
   const [turmas, setTurmas] = useState<Turma[]>([]);
@@ -203,7 +206,7 @@ export default function DiaDetalhe() {
       </header>
 
       {/* Form de novo evento */}
-      <section
+      {canManage ? <section
         style={{
           borderRadius: 12,
           border: "1px solid #e2e8f0",
@@ -374,7 +377,7 @@ export default function DiaDetalhe() {
             </button>
           </div>
         </form>
-      </section>
+      </section> : null}
 
       {/* Lista de eventos */}
       <section>
@@ -392,7 +395,7 @@ export default function DiaDetalhe() {
                 key={evento.id}
                 evento={evento}
                 onAbrir={() => irParaEvento(evento)}
-                onExcluir={() => handleExcluirEvento(evento)}
+                onExcluir={canManage ? () => handleExcluirEvento(evento) : undefined}
               />
             ))}
           </div>
@@ -405,7 +408,7 @@ export default function DiaDetalhe() {
 type EventoCardProps = {
   evento: EventoDia;
   onAbrir: () => void;
-  onExcluir: () => void;
+  onExcluir?: () => void;
 };
 
 function EventoCard({ evento, onAbrir, onExcluir }: EventoCardProps) {
@@ -442,7 +445,7 @@ function EventoCard({ evento, onAbrir, onExcluir }: EventoCardProps) {
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button
+          {onExcluir ? <button
             onClick={onExcluir}
             style={{
               padding: "4px 10px",
@@ -456,7 +459,7 @@ function EventoCard({ evento, onAbrir, onExcluir }: EventoCardProps) {
             }}
           >
             Excluir evento
-          </button>
+          </button> : null}
           <button
             data-testid="button-abrir-evento"
             onClick={onAbrir}

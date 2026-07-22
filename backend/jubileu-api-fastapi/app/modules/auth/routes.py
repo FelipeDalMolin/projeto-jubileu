@@ -90,9 +90,10 @@ def logout(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
+    user: AuthUser = Depends(get_current_user),
     refresh_cookie: str | None = Cookie(default=None, alias=settings.REFRESH_TOKEN_COOKIE),
 ) -> Response:
-    sid = refresh_cookie.split(".", 1)[0] if refresh_cookie else None
+    sid = user.sid or (refresh_cookie.split(".", 1)[0] if refresh_cookie else None)
     if sid:
         service.validate_csrf(sid, request.cookies.get(settings.CSRF_COOKIE), request.headers.get("X-CSRF-Token"))
         service.revoke_session(db, sid)

@@ -7,8 +7,7 @@ from app.main import app, create_app
 @pytest.mark.smoke
 def test_smoke_root_and_health(client: TestClient):
     root_resp = client.get("/")
-    assert root_resp.status_code == 200, root_resp.text
-    assert root_resp.json()["status"] == "ok"
+    assert root_resp.status_code == 404, root_resp.text
     assert root_resp.headers["X-Request-ID"]
 
     health_resp = client.get("/health")
@@ -46,19 +45,13 @@ def test_smoke_critical_route_contracts_exist():
     }
 
     expected_contracts = {
-        ("/", "GET"),
         ("/health", "GET"),
         ("/api/health", "GET"),
-        ("/api/jogadores/", "GET"),
-        ("/api/turmas/", "GET"),
-        ("/api/dias/", "GET"),
+        ("/api/jogadores", "GET"),
+        ("/api/turmas", "GET"),
+        ("/api/dias", "GET"),
         ("/api/dias/{data_iso}", "GET"),
         ("/api/dias/{data_iso}/eventos/{evento_id}/workspace", "GET"),
-        ("/jogadores/", "GET"),
-        ("/turmas/", "GET"),
-        ("/dias/", "GET"),
-        ("/dias/{data_iso}", "GET"),
-        ("/dias/{data_iso}/eventos/{evento_id}/workspace", "GET"),
         ("/api/eventos/{evento_id}/rsvp", "POST"),
         ("/api/eventos/{evento_id}/checkin", "POST"),
         ("/api/eventos/{evento_id}/partidas/seed", "POST"),
@@ -71,6 +64,10 @@ def test_smoke_critical_route_contracts_exist():
     # Keep the /api gateway assumption explicit in stabilization checks.
     assert any(path.startswith("/api/") for path, _ in route_methods)
     assert not any(path.startswith("/api/api") for path, _ in route_methods)
+    assert not any(
+        path.startswith(("/dias", "/jogadores", "/turmas", "/partidas", "/dashboards"))
+        for path, _ in route_methods
+    )
 
 
 @pytest.mark.smoke
@@ -78,3 +75,16 @@ def test_create_app_preserves_startup_contract():
     new_app = create_app()
     assert new_app.title == app.title == "Jubileu API"
     assert new_app.version == app.version == "0.1.0"
+
+
+@pytest.mark.contract
+def test_production_disables_api_documentation(monkeypatch):
+    from app.main import settings
+
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    production_app = create_app()
+    paths = {route.path for route in production_app.routes}
+
+    assert "/openapi.json" not in paths
+    assert "/docs" not in paths
+    assert "/redoc" not in paths

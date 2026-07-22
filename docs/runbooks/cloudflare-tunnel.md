@@ -41,20 +41,21 @@ O runtime server Docker usa o projeto Compose `jubileu-prod` e o volume de banco
 
 ```bash
 curl -i http://127.0.0.1/health
-curl -i http://127.0.0.1/api/dias/
+curl -i http://127.0.0.1/api/health
 ```
 
 ## Validação pública
 
 ```bash
 curl -i https://app.jubileuweb.com/health
-curl -i https://app.jubileuweb.com/api/dias/
+curl -i https://app.jubileuweb.com/api/health
 ```
 
 ## Smoke test público
 
 ```bash
-PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh
+SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
+  PUBLIC_BASE_URL=https://app.jubileuweb.com scripts/server/smoke_server.sh
 ```
 
 ## Arquivos sensíveis

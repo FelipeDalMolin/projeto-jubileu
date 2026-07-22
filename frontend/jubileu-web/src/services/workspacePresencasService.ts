@@ -1,3 +1,5 @@
+import { apiFetch } from "../lib/apiClient";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -20,7 +22,7 @@ export async function confirmarPresencasEvento(
   eventoId: string | number,
   presentesIds: number[],
 ): Promise<{ version?: number }> {
-  const resp = await fetch(
+  const resp = await apiFetch(
     buildUrl(`/api/dias/${dataIso}/eventos/${eventoId}/confirmar-presencas`),
     {
       method: "PUT",

@@ -3,7 +3,8 @@
 Este projeto usa dois tipos de documentacao:
 
 - docs vivos escritos por humanos em `docs/current/`;
-- inventario gerado do codigo em `docs/generated/code-map.md`.
+- inventarios gerados em `docs/generated/code-map.md` e
+  `docs/generated/authorization-matrix.md`.
 
 O objetivo e reduzir drift entre backend, frontend, banco e conversas de planejamento.
 
@@ -11,12 +12,14 @@ O objetivo e reduzir drift entre backend, frontend, banco e conversas de planeja
 
 ```bash
 python3 scripts/docs/generate_code_map.py
+python3 scripts/docs/generate_authorization_matrix.py
 ```
 
 Validacao sem escrever arquivo:
 
 ```bash
 python3 scripts/docs/generate_code_map.py --check
+python3 scripts/docs/generate_authorization_matrix.py --check
 ```
 
 O gerador usa apenas biblioteca padrao do Python. Ele nao precisa de FastAPI, Alembic,
@@ -34,6 +37,9 @@ Node ou venv instalada.
 - rotas React;
 - chamadas `/api/...` encontradas nos services do frontend;
 - leitura arquitetural curta derivada do codigo.
+
+`docs/generated/authorization-matrix.md` contem todos os metodos/paths de produto, politica,
+papeis e regra CSRF, derivados do registro executavel do backend.
 
 ## Regra De Atualizacao
 
@@ -69,7 +75,7 @@ Atualize docs junto com codigo quando mexer em:
 O check de CI deve falhar quando `docs/generated/code-map.md` estiver desatualizado.
 Quando isso acontecer:
 
-1. rode `python3 scripts/docs/generate_code_map.py`;
+1. rode os dois geradores quando o slice alterar rotas ou autorizacao;
 2. revise se o diff representa mudanca real de contrato ou apenas descoberta nova;
 3. atualize docs humanos quando o codigo mudou a regra de negocio;
 4. commit o mapa gerado junto com a mudanca de codigo.

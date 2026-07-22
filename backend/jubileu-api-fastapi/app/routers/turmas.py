@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
+from app.modules.auth.deps import get_operator_user
 from app.models.jogador_turma import Turma, TurmaJogador, Jogador
 from app.schemas.jogador_turma import JogadorOut, TurmaOut, TurmaCreate, TurmaUpdate
 
@@ -14,12 +15,17 @@ router = APIRouter(
 # TURMAS
 # ---------------------------
 
-@router.get("/", response_model=list[TurmaOut])
+@router.get("", response_model=list[TurmaOut])
 def listar_turmas(db: Session = Depends(get_db)):
     return db.query(Turma).order_by(Turma.nome).all()
 
 
-@router.post("/", response_model=TurmaOut, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=TurmaOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_operator_user)],
+)
 def criar_turma(payload: TurmaCreate, db: Session = Depends(get_db)):
     turma = Turma(nome=payload.nome)
     db.add(turma)
@@ -36,7 +42,11 @@ def obter_turma(turma_id: int, db: Session = Depends(get_db)):
     return turma
 
 
-@router.put("/{turma_id}", response_model=TurmaOut)
+@router.put(
+    "/{turma_id}",
+    response_model=TurmaOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def atualizar_turma(turma_id: int, payload: TurmaUpdate, db: Session = Depends(get_db)):
     turma = db.get(Turma, turma_id)
     if not turma:
@@ -50,7 +60,11 @@ def atualizar_turma(turma_id: int, payload: TurmaUpdate, db: Session = Depends(g
     return turma
 
 
-@router.delete("/{turma_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{turma_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_operator_user)],
+)
 def deletar_turma(turma_id: int, db: Session = Depends(get_db)):
     turma = db.get(Turma, turma_id)
     if not turma:
@@ -84,7 +98,11 @@ def listar_jogadores_da_turma(turma_id: int, db: Session = Depends(get_db)):
     return [v.jogador for v in vinculacoes]
 
 
-@router.post("/{turma_id}/jogadores", status_code=status.HTTP_204_NO_CONTENT)
+@router.post(
+    "/{turma_id}/jogadores",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_operator_user)],
+)
 def adicionar_jogador_na_turma(
     turma_id: int,
     payload: dict,
@@ -125,6 +143,7 @@ def adicionar_jogador_na_turma(
 @router.delete(
     "/{turma_id}/jogadores/{jogador_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_operator_user)],
 )
 def remover_jogador_da_turma(
     turma_id: int,

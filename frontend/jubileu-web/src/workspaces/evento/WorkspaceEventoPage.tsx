@@ -111,6 +111,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       role: auth.user.role,
     });
   }, [auth.user, workspace]);
+  const isOperator = Boolean(auth.user && auth.user.role !== "user");
 
   const partidaEmAndamento = useMemo(() => {
     if (!workspaceLegacy) return null;
@@ -163,8 +164,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       requestAuth &&
         eventoIdNum &&
         selectedTab === "partida-atual" &&
-        partidaEmAndamento &&
-        caps?.has("lances"),
+        partidaEmAndamento,
     ),
     queryFn: async () => {
       if (!requestAuth || !eventoIdNum || !partidaEmAndamento) return [];
@@ -483,7 +483,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
             </div>
           )}
 
-          {!isJogoLivre ? (
+          {!isJogoLivre && isOperator ? (
             <WorkspaceEquipesPanel
               dataIso={workspaceLegacy.meta.data_iso}
               eventoId={eventoIdNum}
@@ -495,6 +495,8 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
                 await workspaceQuery.refetch();
               }}
             />
+          ) : !isJogoLivre ? (
+            <TimesPanel equipes={workspaceLegacy.equipes} />
           ) : null}
 
           <div className="flex justify-end">
@@ -508,7 +510,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       label: "Equipes",
       content: (
         <div className="space-y-4">
-          <WorkspaceEquipesPanel
+          {isOperator ? <WorkspaceEquipesPanel
             dataIso={workspaceLegacy.meta.data_iso}
             eventoId={eventoIdNum}
             meta={workspaceLegacy.meta}
@@ -531,7 +533,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
             onRefresh={async () => {
               await Promise.all([workspaceQuery.refetch(), rotacaoQuery.refetch()]);
             }}
-          />
+          /> : <TimesPanel equipes={workspaceLegacy.equipes} />}
           <div className="flex justify-between gap-2">
             <Button variant="outline" onClick={() => setSelectedTab("presenca")}>Voltar para Presenca</Button>
             <Button onClick={() => setSelectedTab("fila")}>Avancar para Fila</Button>
@@ -544,7 +546,7 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
       label: "Fila",
       content: (
         <div className="space-y-4">
-          <RotacaoFilaPanel
+          {isOperator ? <RotacaoFilaPanel
             estado={rotacaoQuery.data ?? null}
             jogadorNomeById={jogadorNomeById}
             times={workspaceLegacy.equipes.times}
@@ -602,7 +604,12 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
               await Promise.all([workspaceQuery.refetch(), rotacaoQuery.refetch()]);
               return { ...time, jogadoresIds: [...grupo.jogadores_ids] };
             }}
-          />
+          /> : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <FilaChegadaPanel presentes={presentesItems} />
+              <TimesPanel equipes={workspaceLegacy.equipes} />
+            </div>
+          )}
           <div className="flex justify-between gap-2">
             <Button variant="outline" onClick={() => setSelectedTab("equipes")}>Voltar para Equipes</Button>
             <Button onClick={() => setSelectedTab("partida-atual")}>Ver Partida Atual</Button>
@@ -649,7 +656,12 @@ export default function WorkspaceEventoPage({ dataIso, eventoId, source }: Props
                     </div>
                   ) : null}
                 </div>
-                {primeiraPartidaPlanejada ? (
+                {!isOperator ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => setSelectedTab("fila")}>Consultar Fila</Button>
+                    <Button variant="outline" onClick={() => setSelectedTab("historico")}>Consultar Historico</Button>
+                  </div>
+                ) : primeiraPartidaPlanejada ? (
                   <div className="flex flex-wrap gap-2">
                     <Button
                       onClick={() => void startPartidaMutation.mutateAsync({ partidaId: primeiraPartidaPlanejada.id })}

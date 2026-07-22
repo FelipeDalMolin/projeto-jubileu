@@ -138,7 +138,7 @@ def test_workspace_returns_structure(client: TestClient, db_session):
         jogadores_por_time=[1],
     )
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
 
     payload = resp.json()
@@ -156,11 +156,11 @@ def test_workspace_since_version_returns_204(client: TestClient, db_session):
         jogadores_por_time=[1],
     )
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
     version = resp.json()["meta"]["version"]
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace?since_version={version}")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace?since_version={version}")
     assert resp.status_code == 204, resp.text
 
 
@@ -174,7 +174,7 @@ def test_workspace_warning_player_without_team(client: TestClient, db_session):
         jogadores_sem_time=1,
     )
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
 
     codes = {w["code"] for w in resp.json().get("warnings", [])}
@@ -190,7 +190,7 @@ def test_workspace_warning_unbalanced_teams(client: TestClient, db_session):
         jogadores_por_time=[3, 1],
     )
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
 
     codes = {w["code"] for w in resp.json().get("warnings", [])}
@@ -217,7 +217,7 @@ def test_workspace_kpis_counts_players(client: TestClient, db_session):
     jogadores[1].status = StatusPresencaEnum.faltou
     db_session.commit()
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
 
     kpis = resp.json().get("kpis", {})
@@ -252,7 +252,7 @@ def test_workspace_kpis_goals_total(client: TestClient, db_session):
         gols_time_b=1,
     )
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
 
     kpis = resp.json().get("kpis", {})
@@ -269,7 +269,7 @@ def test_team_config_version_increments_on_move(client: TestClient, db_session):
         jogadores_por_time=[1, 1],
     )
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
     first_version = resp.json()["meta"]["version"]
 
@@ -289,7 +289,7 @@ def test_team_config_version_increments_on_move(client: TestClient, db_session):
     assert len(jogadores) == 2
 
     resp = client.put(
-        f"/dias/{data_iso}/eventos/{evento.id}/jogadores/{jogadores[0].id}/time",
+        f"/api/dias/{data_iso}/eventos/{evento.id}/jogadores/{jogadores[0].id}/time",
         json={"time_id": times[1].id},
     )
     assert resp.status_code == 200, resp.text
@@ -304,7 +304,7 @@ def test_team_config_version_increments_on_move(client: TestClient, db_session):
     assert configs[-1].version == configs[-2].version + 1
     assert sum(1 for c in configs if c.is_active) == 1
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
     second_version = resp.json()["meta"]["version"]
     assert second_version != first_version
@@ -320,7 +320,7 @@ def test_workspace_version_changes_when_event_status_changes(client: TestClient,
         jogadores_por_time=[1, 1],
     )
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
     version_before = resp.json()["meta"]["version"]
 
@@ -329,7 +329,7 @@ def test_workspace_version_changes_when_event_status_changes(client: TestClient,
     evento_db.status = StatusEventoEnum.EM_ANDAMENTO
     db_session.commit()
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace?since_version={version_before}")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace?since_version={version_before}")
     assert resp.status_code == 200, resp.text
     version_after = resp.json()["meta"]["version"]
     assert version_after != version_before
@@ -373,7 +373,7 @@ def test_workspace_placar_reflete_lance_gol_e_muda_versao(client: TestClient, db
     )
     db_session.commit()
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace")
     assert resp.status_code == 200, resp.text
     version_before = resp.json()["meta"]["version"]
     partida_out = resp.json()["partidas"][0]
@@ -392,7 +392,7 @@ def test_workspace_placar_reflete_lance_gol_e_muda_versao(client: TestClient, db
     )
     db_session.commit()
 
-    resp = client.get(f"/dias/{data_iso}/eventos/{evento.id}/workspace?since_version={version_before}")
+    resp = client.get(f"/api/dias/{data_iso}/eventos/{evento.id}/workspace?since_version={version_before}")
     assert resp.status_code == 200, resp.text
     partida_after = resp.json()["partidas"][0]
     assert partida_after["golsTimeA"] == 1

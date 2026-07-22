@@ -1,3 +1,5 @@
+import { apiFetch } from "../lib/apiClient";
+
 // src/services/eventoEstadoService.ts
 import type { EventoEstadoDTO, EventoEstadoResponse } from "../types/eventoEstado";
 
@@ -46,7 +48,7 @@ export async function obterEstadoEvento(
 
   const query = params.toString();
 
-  const resp = await fetch(
+  const resp = await apiFetch(
     buildUrl(
       `/api/dias/${dataIso}/eventos/${eventoId}/estado${query ? `?${query}` : ""}`,
     ),

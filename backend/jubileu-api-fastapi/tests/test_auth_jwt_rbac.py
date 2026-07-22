@@ -90,7 +90,7 @@ def test_auth_legacy_uses_persisted_player_link(client: TestClient, db_session):
 
 @pytest.mark.uc01
 @pytest.mark.uc05
-def test_rbac_preserved_event_start_requires_admin_or_treinador(client: TestClient, db_session):
+def test_rbac_event_start_requires_operator_role(client: TestClient, db_session):
     evento_id = _criar_evento_jogo_livre(db_session)
 
     denied = client.post(
@@ -101,6 +101,6 @@ def test_rbac_preserved_event_start_requires_admin_or_treinador(client: TestClie
 
     allowed = client.post(
         f"/api/eventos/{evento_id}/start",
-        headers={"X-User-Id": "u-coach", "X-Role": "treinador"},
+        headers={"X-User-Id": "u-aux", "X-Role": "auxiliar"},
     )
     assert allowed.status_code == 200, allowed.text

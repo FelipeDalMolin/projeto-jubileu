@@ -2,7 +2,7 @@ import logging
 import time
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.database import engine
 from app.modules.auth import routes as auth_routes
+from app.modules.auth.deps import get_current_user
 from app.routers import jogadores, dias, turmas, partidas, eventos, usuarios
 from app.api.dashboards import jogadores as dashboards_jogadores
 from app.api.dashboards import partidas as dashboards_partidas
@@ -19,9 +20,14 @@ logger = logging.getLogger("jubileu.request")
 
 
 def create_app() -> FastAPI:
+    docs_enabled = settings.APP_ENV.strip().lower() != "production"
     app = FastAPI(
         title=settings.PROJECT_NAME,
         version=settings.APP_VERSION,
+        docs_url="/docs" if docs_enabled else None,
+        redoc_url="/redoc" if docs_enabled else None,
+        openapi_url="/openapi.json" if docs_enabled else None,
+        redirect_slashes=False,
     )
 
     app.add_middleware(
@@ -56,10 +62,6 @@ def create_app() -> FastAPI:
                 duration_ms,
             )
 
-    @app.get("/")
-    def read_root():
-        return {"status": "ok", "message": "Jubileu API rodando"}
-
     @app.get("/health")
     @app.get("/api/health")
     def health():
@@ -73,25 +75,23 @@ def create_app() -> FastAPI:
                 connection.execute(text("SELECT 1")).scalar_one()
         except Exception:
             logger.exception("readiness database check failed")
-            return JSONResponse(status_code=503, content={"status": "not_ready", "reason": "database"})
+            return JSONResponse(status_code=503, content={"status": "not_ready"})
 
         if revision != settings.ALEMBIC_EXPECTED_REVISION:
+            logger.error(
+                "readiness schema mismatch current=%s expected=%s",
+                revision,
+                settings.ALEMBIC_EXPECTED_REVISION,
+            )
             return JSONResponse(
                 status_code=503,
-                content={
-                    "status": "not_ready",
-                    "reason": "schema_revision",
-                    "schema_revision": revision,
-                    "expected_schema_revision": settings.ALEMBIC_EXPECTED_REVISION,
-                },
+                content={"status": "not_ready"},
             )
-        return {
-            "status": "ready",
-            "schema_revision": revision,
-            "git_sha": settings.GIT_SHA,
-        }
+        return {"status": "ready"}
 
-    @app.get("/api/version")
+    protected_api = APIRouter(prefix="/api", dependencies=[Depends(get_current_user)])
+
+    @protected_api.get("/version")
     def version():
         return {
             "release_ref": settings.RELEASE_REF,
@@ -101,24 +101,17 @@ def create_app() -> FastAPI:
             "schema_revision": settings.ALEMBIC_EXPECTED_REVISION,
         }
 
-    app.include_router(jogadores.router)
-    app.include_router(dias.router)
-    app.include_router(turmas.router)
-    app.include_router(partidas.router)
-    app.include_router(eventos.router)
-    app.include_router(usuarios.router)
     app.include_router(auth_routes.router)
-    app.include_router(dashboards_jogadores.router)
-    app.include_router(dashboards_partidas.router)
-    app.include_router(dashboards_estatisticas.router)
-
-    app.include_router(jogadores.router, prefix="/api")
-    app.include_router(dias.router, prefix="/api")
-    app.include_router(turmas.router, prefix="/api")
-    app.include_router(partidas.router, prefix="/api")
-    app.include_router(dashboards_jogadores.router, prefix="/api")
-    app.include_router(dashboards_partidas.router, prefix="/api")
-    app.include_router(dashboards_estatisticas.router, prefix="/api")
+    protected_api.include_router(jogadores.router)
+    protected_api.include_router(dias.router)
+    protected_api.include_router(turmas.router)
+    protected_api.include_router(partidas.router)
+    protected_api.include_router(eventos.router)
+    protected_api.include_router(usuarios.router)
+    protected_api.include_router(dashboards_jogadores.router)
+    protected_api.include_router(dashboards_partidas.router)
+    protected_api.include_router(dashboards_estatisticas.router)
+    app.include_router(protected_api)
 
     return app
 

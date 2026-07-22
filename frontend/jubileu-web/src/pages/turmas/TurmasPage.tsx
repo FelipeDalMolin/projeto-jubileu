@@ -14,8 +14,11 @@ import {
   TableRow,
 } from "../../components/ui/responsive-table";
 import { criarTurma, listarTurmas, type Turma } from "../../services/turmasService";
+import { useAuth } from "../../context/AuthContext";
 
 export default function TurmasPage() {
+  const { user } = useAuth();
+  const canManage = Boolean(user && user.role !== "user");
   const [turmas, setTurmas] = useState<Turma[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -70,7 +73,7 @@ export default function TurmasPage() {
       <PageHeader
         title="Turmas"
         description="Grupos de jogadores usados para eventos do tipo AULA."
-        actions={
+        actions={canManage ? (
           <Button
             type="button"
             size="sm"
@@ -81,10 +84,10 @@ export default function TurmasPage() {
           >
             + Nova turma
           </Button>
-        }
+        ) : undefined}
       />
 
-      {showCreate ? (
+      {canManage && showCreate ? (
         <Card>
           <CardHeader>
             <CardTitle>Nova turma</CardTitle>

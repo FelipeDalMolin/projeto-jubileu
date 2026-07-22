@@ -57,6 +57,8 @@ em codigo ativo. `AULA` e somente valor de `Evento.tipo`.
 - Rotas de tela como `/dias` sao diferentes de rotas de dados como `/api/dias`.
 - `npm run check:api-contract` protege contra `/api/api` e chamadas suspeitas sem `/api`.
 - O frontend pode mostrar affordances por papel, mas autorizacao critica pertence ao backend.
+- `user` recebe superficies de consulta e self-service; formularios e comandos de operador ficam
+  ocultos ou desabilitados. Respostas `403` nao iniciam refresh nem encerram a sessao.
 - Services devem preservar `Evento`, `eventoId` e `evento_id` como linguagem publica.
 - A sessao do navegador usa cookies HttpOnly same-origin. Token, papel e identidade nao sao persistidos em storage.
 - Renovacao e single-flight: Web Locks coordena abas, BroadcastChannel notifica mudancas e cada request repete no maximo uma vez.
@@ -92,7 +94,8 @@ nas abas que consomem cada canal.
 
 ## Direcao De Evolucao
 
-- Migrar services gradualmente para um cliente comum sem big bang.
+- Services HTTP ativos usam o `apiClient` comum para cookies same-origin, CSRF, request id e retry
+  unico de `401`; `fetch` direto fica restrito a implementacao interna desse cliente.
 - Manter mappers nos services quando backend usa snake_case e frontend camelCase.
 - Adicionar testes Playwright quando mudar navegacao, formularios, auth ou workspace operacional.
 - Atualizar `docs/generated/code-map.md` quando rotas ou services mudarem.

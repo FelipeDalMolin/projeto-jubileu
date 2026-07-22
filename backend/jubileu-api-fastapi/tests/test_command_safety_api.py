@@ -100,11 +100,11 @@ def _criar_evento_base(
 def test_criar_time_com_nome_repetido_gera_nome_unico(client: TestClient, db_session):
     data_iso, evento_id, _ = _criar_evento_base(db_session, with_times=False)
 
-    first = client.post(f"/dias/{data_iso}/eventos/{evento_id}/times", json={"nome": "Time 1"})
+    first = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/times", json={"nome": "Time 1"})
     assert first.status_code == 201, first.text
     assert first.json()["nome"] == "Time 1"
 
-    second = client.post(f"/dias/{data_iso}/eventos/{evento_id}/times", json={"nome": "Time 1"})
+    second = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/times", json={"nome": "Time 1"})
     assert second.status_code == 201, second.text
     assert second.json()["nome"] == "Time 2"
 
@@ -121,12 +121,12 @@ def test_criar_time_com_nome_repetido_gera_nome_unico(client: TestClient, db_ses
 @pytest.mark.uc07
 def test_estado_equipes_rejeita_expected_version_stale(client: TestClient, db_session):
     data_iso, evento_id, _ = _criar_evento_base(db_session, with_times=False)
-    current = client.get(f"/dias/{data_iso}/eventos/{evento_id}/estado-equipes")
+    current = client.get(f"/api/dias/{data_iso}/eventos/{evento_id}/estado-equipes")
     assert current.status_code == 200, current.text
     version = current.json()["version"]
 
     resp = client.put(
-        f"/dias/{data_iso}/eventos/{evento_id}/estado-equipes",
+        f"/api/dias/{data_iso}/eventos/{evento_id}/estado-equipes",
         json={
             "expected_version": version + 1,
             "jogadores": current.json()["jogadores"],
@@ -171,7 +171,7 @@ def test_stats_por_jogador_sao_atualizadas_sem_duplicar_linha(client: TestClient
     )
 
     url = (
-        f"/dias/{data_iso}/eventos/{evento_id}/partidas/{ids['partida']}"
+        f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{ids['partida']}"
         f"/jogadores/{ids['jogador_evento_1']}/stats"
     )
     first = client.put(url, json={"gols": 1, "assistencias": 0, "chiliques": 0, "faltas": 0})
@@ -217,7 +217,7 @@ def test_atualizar_partida_substitui_estatisticas_sem_violar_unicidade(client: T
     db_session.commit()
 
     resp = client.put(
-        f"/dias/{data_iso}/eventos/{evento_id}/partidas/{ids['partida']}",
+        f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{ids['partida']}",
         json={
             "estatisticas": [
                 {
@@ -247,7 +247,7 @@ def test_criar_partida_rejeita_ordem_duplicada(client: TestClient, db_session):
         with_partida=True,
     )
     resp = client.post(
-        f"/dias/{data_iso}/eventos/{evento_id}/partidas",
+        f"/api/dias/{data_iso}/eventos/{evento_id}/partidas",
         json={"ordem": 1, "timeAId": ids["time_a"], "timeBId": ids["time_b"]},
     )
     assert resp.status_code == 409, resp.text

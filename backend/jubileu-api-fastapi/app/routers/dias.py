@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
+from app.modules.auth.deps import get_operator_user
 from app.models.jogador_turma import (
     Jogador as JogadorModel,
     Turma as TurmaModel,
@@ -93,7 +94,7 @@ def _nome_unico_time(db: Session, evento_id: int, nome_sugerido: str) -> str:
         suffix += 1
 
 
-@router.get("/", response_model=List[DiaOut])
+@router.get("", response_model=List[DiaOut])
 def listar_dias(db: Session = Depends(get_db)) -> List[DiaOut]:
     return (
         db.query(DiaModel)
@@ -123,6 +124,7 @@ def obter_dia_por_data(data_iso: str, db: Session = Depends(get_db)) -> DiaOut:
     "/{data_iso}/eventos",
     response_model=EventoDiaOut,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_operator_user)],
 )
 def criar_evento_no_dia(
     data_iso: str,
@@ -198,7 +200,11 @@ def obter_evento_no_dia(
     return dias_service.get_evento_no_dia_or_404(db, data_iso, evento_id, eager_jogadores=True)
 
 
-@router.put("/{data_iso}/eventos/{evento_id}/start", response_model=EventoDiaOut)
+@router.put(
+    "/{data_iso}/eventos/{evento_id}/start",
+    response_model=EventoDiaOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def iniciar_evento(
     data_iso: str,
     evento_id: int,
@@ -226,7 +232,11 @@ def iniciar_evento(
     return evento
 
 
-@router.post("/{data_iso}/eventos/{evento_id}/start", response_model=EventoDiaOut)
+@router.post(
+    "/{data_iso}/eventos/{evento_id}/start",
+    response_model=EventoDiaOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def iniciar_evento_post(
     data_iso: str,
     evento_id: int,
@@ -235,7 +245,11 @@ def iniciar_evento_post(
     return iniciar_evento(data_iso=data_iso, evento_id=evento_id, db=db)
 
 
-@router.put("/{data_iso}/eventos/{evento_id}/finish", response_model=EventoDiaOut)
+@router.put(
+    "/{data_iso}/eventos/{evento_id}/finish",
+    response_model=EventoDiaOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def finalizar_evento(
     data_iso: str,
     evento_id: int,
@@ -270,7 +284,11 @@ def finalizar_evento(
     return evento
 
 
-@router.post("/{data_iso}/eventos/{evento_id}/finish", response_model=EventoDiaOut)
+@router.post(
+    "/{data_iso}/eventos/{evento_id}/finish",
+    response_model=EventoDiaOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def finalizar_evento_post(
     data_iso: str,
     evento_id: int,
@@ -279,7 +297,11 @@ def finalizar_evento_post(
     return finalizar_evento(data_iso=data_iso, evento_id=evento_id, db=db)
 
 
-@router.put("/{data_iso}/eventos/{evento_id}/confirmar-presencas", response_model=CommandOkOut)
+@router.put(
+    "/{data_iso}/eventos/{evento_id}/confirmar-presencas",
+    response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def confirmar_presencas(
     data_iso: str,
     evento_id: int,
@@ -312,7 +334,11 @@ def confirmar_presencas(
     return CommandOkOut(status="ok", version=version)
 
 
-@router.delete("/{data_iso}/eventos/{evento_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{data_iso}/eventos/{evento_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_operator_user)],
+)
 def deletar_evento_no_dia(
     data_iso: str,
     evento_id: int,
@@ -328,6 +354,7 @@ def deletar_evento_no_dia(
     "/{data_iso}/eventos/{evento_id}/times",
     response_model=TimeEventoOut,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_operator_user)],
 )
 def criar_time_na_evento(
     data_iso: str,
@@ -371,6 +398,7 @@ def criar_time_na_evento(
 @router.put(
     "/{data_iso}/eventos/{evento_id}/jogadores/{jogador_evento_id}/time",
     response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
 )
 def mover_jogador_para_time(
     data_iso: str,
@@ -415,6 +443,7 @@ def mover_jogador_para_time(
 @router.put(
     "/{data_iso}/eventos/{evento_id}/jogadores/{jogador_evento_id}/status",
     response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
 )
 def atualizar_status_jogador(
     data_iso: str,
@@ -446,7 +475,11 @@ def atualizar_status_jogador(
     return CommandOkOut(status="ok", version=version)
 
 
-@router.delete("/{data_iso}/eventos/{evento_id}/times/{time_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{data_iso}/eventos/{evento_id}/times/{time_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_operator_user)],
+)
 def deletar_time(
     data_iso: str,
     evento_id: int,
@@ -502,7 +535,11 @@ def obter_estado_equipes_evento(
     return EstadoEquipesEventoOut(evento_id=evento.id, jogadores=jogadores, times=times, version=version)
 
 
-@router.put("/{data_iso}/eventos/{evento_id}/estado-equipes", response_model=EstadoEquipesEventoOut)
+@router.put(
+    "/{data_iso}/eventos/{evento_id}/estado-equipes",
+    response_model=EstadoEquipesEventoOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def salvar_estado_equipes_evento(
     data_iso: str,
     evento_id: int,

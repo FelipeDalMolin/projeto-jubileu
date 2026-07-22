@@ -11,7 +11,8 @@
 
 - `/health` validates backend health through NGINX.
 - `/api/health` validates API gateway path.
-- `/api/dias` redirects to `/api/dias/`.
+- Canonical collections have no trailing slash; NGINX must not redirect contracts before auth.
+- `/api/version` is authenticated; release smoke logs in before validating identity.
 - SPA routes must fall back to React `index.html` in server NGINX.
 - Dev NGINX proxies `/` to Vite and `/api/` to backend.
 

@@ -1,3 +1,5 @@
+import { apiFetch } from "../lib/apiClient";
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -20,7 +22,7 @@ async function executarAcao(
   eventoId: number,
   action: "start" | "finish",
 ) {
-  const resp = await fetch(
+  const resp = await apiFetch(
     buildUrl(`/api/dias/${dataIso}/eventos/${eventoId}/${action}`),
     {
       method: "POST",

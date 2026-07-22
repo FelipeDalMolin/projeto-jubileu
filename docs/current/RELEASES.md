@@ -48,13 +48,17 @@ Every slice delivery should include:
   SHA completa.
 - `release-manifest.json` registra os dois digests, Git SHA, Alembic head, workflow e a
   classe de compatibilidade da migration.
-- `v0.3.0-rc.1` usa os digests do manifesto em uma stack isolada e executa readiness,
-  smoke e Playwright via NGINX.
+- RC1 e RC2 sao historicos e nao promoviveis. Somente `v0.3.0-rc.3`, criado depois de DEV-21 e
+  DEV-27, podera ser candidato de promocao.
+- RC3 usa os digests do manifesto em uma stack isolada e executa readiness, smoke e Playwright via
+  NGINX; `/api/version` e consultado apenas depois do login do smoke.
 - Producao, quando autorizada, reutiliza exatamente esses digests. A tag `v0.3.0` e o
   deploy produtivo nao fazem parte da aprovacao do RC.
 - A migration `0020_auth_sessions_rollback_safe` e compativel durante a janela v0.3 porque
   preserva o hash legado. Migration incompativel exige restore explicito; scripts nunca
   executam downgrade ou restore automaticamente.
+- A producao observada esta em `0016_usuarios_legacy_nullable`; o gate exige ensaio isolado
+  `0016 -> 0020`, retorno do runtime anterior contra o schema migrado e nova subida do RC3.
 
 ## Current Planned Milestones
 

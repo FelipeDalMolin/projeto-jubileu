@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.deps import get_db
+from app.modules.auth.deps import get_operator_user
 from app.models.dia_evento import (
     Evento as EventoModel,
     EstatisticaJogadorPartida as EstatisticaModel,
@@ -86,6 +87,7 @@ def listar_partidas(
     "/{data_iso}/eventos/{evento_id}/partidas",
     response_model=PartidaOut,
     status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(get_operator_user)],
 )
 def criar_partida(
     data_iso: str,
@@ -151,7 +153,11 @@ def criar_partida(
     return _to_partida_out(nova_partida)
 
 
-@router.put("/{data_iso}/eventos/{evento_id}/partidas/{partida_id}", response_model=PartidaOut)
+@router.put(
+    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}",
+    response_model=PartidaOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def atualizar_partida(
     data_iso: str,
     evento_id: int,
@@ -235,6 +241,7 @@ def atualizar_partida(
 @router.put(
     "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/jogadores/{jogador_evento_id}/stats",
     response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
 )
 def atualizar_stats_jogador_partida(
     data_iso: str,
@@ -324,7 +331,11 @@ def atualizar_stats_jogador_partida(
     return CommandOkOut(status="ok", version=current_version)
 
 
-@router.delete("/{data_iso}/eventos/{evento_id}/partidas/{partida_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(get_operator_user)],
+)
 def deletar_partida(
     data_iso: str,
     evento_id: int,
@@ -347,7 +358,11 @@ def deletar_partida(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.put("/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start", response_model=CommandOkOut)
+@router.put(
+    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start",
+    response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def iniciar_partida(
     data_iso: str,
     evento_id: int,
@@ -392,7 +407,11 @@ def iniciar_partida(
     return CommandOkOut(status="ok", version=current_version)
 
 
-@router.post("/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start", response_model=CommandOkOut)
+@router.post(
+    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start",
+    response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def iniciar_partida_post(
     data_iso: str,
     evento_id: int,
@@ -402,7 +421,11 @@ def iniciar_partida_post(
     return iniciar_partida(data_iso=data_iso, evento_id=evento_id, partida_id=partida_id, db=db)
 
 
-@router.put("/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end", response_model=CommandOkOut)
+@router.put(
+    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end",
+    response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def encerrar_partida(
     data_iso: str,
     evento_id: int,
@@ -429,7 +452,11 @@ def encerrar_partida(
     return CommandOkOut(status="ok", version=current_version)
 
 
-@router.post("/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end", response_model=CommandOkOut)
+@router.post(
+    "/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end",
+    response_model=CommandOkOut,
+    dependencies=[Depends(get_operator_user)],
+)
 def encerrar_partida_post(
     data_iso: str,
     evento_id: int,
