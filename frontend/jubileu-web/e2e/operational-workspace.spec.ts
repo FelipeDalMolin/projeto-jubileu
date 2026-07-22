@@ -20,7 +20,7 @@ async function mustJson<T>(response: Awaited<ReturnType<APIRequestContext["get"]
 }
 
 test("DEV-49/50: AULA percorre presenca, lance e proxima partida idempotente", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
   const suffix = Date.now();
   const dataIso = "2026-12-20";
   const jogadores = await Promise.all([
@@ -102,7 +102,7 @@ test("DEV-49/50: AULA percorre presenca, lance e proxima partida idempotente", a
 });
 
 test("DEV-32: canais inativos nao fazem polling e 401 tem retry limitado", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
   const suffix = Date.now();
   const dataIso = "2026-12-21";
   const jogador = await seedJogador(request, `E2E Polling ${suffix}`);
@@ -132,7 +132,7 @@ test("DEV-32: canais inativos nao fazem polling e 401 tem retry limitado", async
 });
 
 test("DEV-31/50: JOGO_LIVRE entra por RSVP, chegada, lance e proxima partida", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
   const suffix = Date.now();
   const dataIso = "2026-12-23";
   const jogadores = await Promise.all([
@@ -220,7 +220,7 @@ test("DEV-31/50: JOGO_LIVRE entra por RSVP, chegada, lance e proxima partida", a
 
 test("DEV-32: polling respeita orcamento por canal em janela de 30 segundos", async ({ page, request }) => {
   test.setTimeout(50_000);
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
   const suffix = Date.now();
   const dataIso = "2026-12-22";
   const jogador = await seedJogador(request, `E2E Budget ${suffix}`);

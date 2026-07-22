@@ -51,4 +51,5 @@ scripts/dev/smoke_dev.sh
 scripts/dev/down_dev.sh
 ```
 
-No app-host/VS Code, encaminhe a porta `8080` para desenvolvimento. A porta `80` pertence ao runtime server/producao local e deve ficar reservada para o Cloudflare Tunnel.
+No app-host/VS Code, encaminhe a porta `8080` para desenvolvimento. A porta de release e definida
+por `NGINX_PORT`; em producao, a porta `80` fica reservada para o Cloudflare Tunnel.

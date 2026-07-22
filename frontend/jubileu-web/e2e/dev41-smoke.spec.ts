@@ -5,7 +5,7 @@ import { expectOnlyApiDataCalls, observeApiRequests } from "./support/network";
 import { testIds } from "./support/testIds";
 
 test("DEV-39: login abre /usuario com perfil e historico operacional", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
 
   const observer = observeApiRequests(page);
   try {
@@ -25,7 +25,7 @@ test("DEV-39: login abre /usuario com perfil e historico operacional", async ({ 
 });
 
 test("DEV-32: erro em /usuario mostra falha operacional sem flood de chamadas", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
 
   await loginViaUi(page);
 

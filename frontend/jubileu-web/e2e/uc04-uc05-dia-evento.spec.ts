@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { isApiHealthy, seedDia, seedTurma } from "./support/api";
+import { apiHealthBlockedReason, isApiHealthy, seedDia, seedTurma } from "./support/api";
 import { loginViaUi } from "./support/auth";
 import { expectOnlyApiDataCalls, observeApiRequests } from "./support/network";
 import { testIds } from "./support/testIds";
 
 test("E2E-UC04/UC05: abrir dia e criar evento/aula pela UI", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), "blocked: API local indisponivel para dia/evento via UI");
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
 
   const dataIso = "2026-06-15";
   const turma = await seedTurma(request, `E2E Turma Evento ${Date.now()}`);
@@ -28,7 +28,7 @@ test("E2E-UC04/UC05: abrir dia e criar evento/aula pela UI", async ({ page, requ
     await page.getByTestId(testIds.buttonCriarEvento).click();
     await createResponse;
 
-    await expect(page.getByText(turma.nome).first()).toBeVisible();
+    await expect(page.getByText(turma.nome).last()).toBeVisible();
     expect(
       observer.apiUrls.some((url) => url.includes(`/api/dias/${dataIso}/eventos`)),
     ).toBeTruthy();

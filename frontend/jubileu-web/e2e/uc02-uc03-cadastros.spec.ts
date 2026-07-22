@@ -1,11 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { isApiHealthy } from "./support/api";
+import { apiHealthBlockedReason, isApiHealthy } from "./support/api";
 import { loginViaUi } from "./support/auth";
 import { expectOnlyApiDataCalls, observeApiRequests } from "./support/network";
 import { testIds } from "./support/testIds";
 
 test("E2E-UC02: criar jogador pela UI chama /api/jogadores", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), "blocked: API local indisponivel para cadastro de jogador via UI");
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
 
   const observer = observeApiRequests(page);
   const nome = `E2E Jogador UI ${Date.now()}`;
@@ -34,7 +34,7 @@ test("E2E-UC02: criar jogador pela UI chama /api/jogadores", async ({ page, requ
 });
 
 test("E2E-UC03: criar turma pela UI chama /api/turmas", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), "blocked: API local indisponivel para cadastro de turma via UI");
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
 
   const observer = observeApiRequests(page);
   const nome = `E2E Turma UI ${Date.now()}`;

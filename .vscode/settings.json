@@ -20,7 +20,7 @@
     "frontend/jubileu-web/dist": true,
     ".env": true,
     ".env.dev": true,
-    ".env.server": true
+    ".env.release": true
   },
   "search.exclude": {
     "**/node_modules": true,
@@ -31,7 +31,7 @@
     "backups": true,
     ".env": true,
     ".env.dev": true,
-    ".env.server": true
+    ".env.release": true
   },
   "files.associations": {
     "compose*.yml": "dockercompose"

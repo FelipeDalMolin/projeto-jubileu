@@ -52,13 +52,21 @@ jobs:
         run: python -m coverage run --branch -m pytest -q -rs
 
       - name: Report backend coverage
-        run: python -m coverage report -m --fail-under=81
+        run: |
+          python -m coverage report -m --fail-under=81
+          python -m coverage xml -o coverage.xml
 
       - name: Run backend smoke tests
         run: python -m pytest -q -m smoke -rs
 
       - name: Run backend contract tests
         run: python -m pytest -q -m contract -rs
+
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/jubileu-api-fastapi/coverage.xml
 
   frontend:
     name: Frontend
@@ -132,19 +140,37 @@ jobs:
         run: |
           createdb -h 127.0.0.1 -U jubileu auth_migrated
           createdb -h 127.0.0.1 -U jubileu integration_test
+          createdb -h 127.0.0.1 -U jubileu production_upgrade
           alembic upgrade 0019_proxima_partida_idempotente
           alembic upgrade head
           alembic upgrade head
+          DATABASE_URL=postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/integration_test alembic upgrade head
+          DATABASE_URL=postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/production_upgrade alembic upgrade 0016_usuarios_legacy_nullable
+          DATABASE_URL=postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/production_upgrade alembic upgrade head
+          DATABASE_URL=postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/production_upgrade alembic upgrade head
+      - name: Enforce integration database boundary
+        working-directory: ${{ github.workspace }}
+        run: python scripts/ci/check_test_db_boundaries.py
       - name: PostgreSQL integration without skips
         env:
           DATABASE_URL: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_clean
           DATABASE_URL_TEST: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/integration_test
-        run: python -m pytest -q -m integration --strict-markers -rs
+        run: |
+          python -m pytest -q -m integration --strict-markers -rs --junitxml=integration-junit.xml
+          python ../../scripts/ci/assert_junit_no_skips.py integration-junit.xml
       - name: PostgreSQL concurrency without skips
         env:
           DATABASE_URL: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_clean
           DATABASE_URL_TEST: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_clean
-        run: python -m pytest -q -m postgresql --strict-markers -rs
+        run: |
+          python -m pytest -q -m postgresql --strict-markers -rs --junitxml=postgresql-junit.xml
+          python ../../scripts/ci/assert_junit_no_skips.py postgresql-junit.xml
+
+      - name: Upload PostgreSQL reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgresql-test-reports
+          path: backend/jubileu-api-fastapi/*-junit.xml
 
   auth-e2e:
     name: Playwright operational
@@ -169,19 +195,35 @@ jobs:
           done
           docker compose --env-file .env.dev -f compose.dev.yml logs
           exit 1
-      - name: Cookie auth through NGINX
+      - name: Enforce zero Playwright skips
+        run: scripts/ci/check_playwright_no_skips.sh
+      - name: Full operational suite through NGINX
         working-directory: frontend/jubileu-web
         env:
+          CI: "1"
+          E2E_RUNTIME_MODE: nginx
           E2E_BASE_URL: http://127.0.0.1:8080
           E2E_API_URL: http://127.0.0.1:8080
           E2E_REUSE_EXISTING_SERVER: "1"
-        run: >-
-          npx playwright test
-          e2e/contract.spec.ts
-          e2e/auth-cookie.spec.ts
-          e2e/dashboard-traceability.spec.ts
-          e2e/operational-workspace.spec.ts
-          --project=chromium --workers=1
+        run: |
+          npx playwright test --project=chromium --workers=1
+          node ../../scripts/ci/assert_playwright_results.mjs test-results/results.json
+      - name: Capture redacted runtime logs
+        if: always()
+        run: |
+          set -o pipefail
+          docker compose --env-file .env.dev -f compose.dev.yml logs --no-color \
+            | scripts/release/redact_evidence.sh >playwright-runtime.log
+      - name: Upload Playwright and authorization evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-operational-evidence
+          path: |
+            frontend/jubileu-web/playwright-report/
+            frontend/jubileu-web/test-results/results.json
+            playwright-runtime.log
+            docs/generated/authorization-matrix.md
       - name: Runtime logs on failure
         if: failure()
         run: docker compose --env-file .env.dev -f compose.dev.yml logs --tail=200
@@ -194,14 +236,18 @@ jobs:
       - name: Validate Compose files
         run: |
           cp .env.dev.example .env.dev
-          cp .env.server.example .env.server
           cp .env.release.example .env.release
           docker compose --env-file .env.dev -f compose.dev.yml config >/dev/null
-          docker compose --env-file .env.server -f compose.server.yml config >/dev/null
           docker compose --env-file .env.release -f compose.release.yml config >/dev/null
+      - name: Validate release bundle
+        run: |
+          checks='[{"name":"Docs sync","conclusion":"success"},{"name":"Backend unit","conclusion":"success"},{"name":"PostgreSQL + Alembic","conclusion":"success"},{"name":"Frontend","conclusion":"success"},{"name":"Playwright operational","conclusion":"success"},{"name":"Compose + Shell","conclusion":"success"}]'
+          jq -n --arg checks "$checks" '{release_ref:"v0.3.0-rc.3",git_sha:("a"*40),backend_image:("ghcr.io/example/backend@sha256:"+("a"*64)),frontend_image:("ghcr.io/example/frontend@sha256:"+("b"*64)),alembic_head:"0020_auth_sessions_rollback_safe",checks:($checks|fromjson)}' >release-manifest.json
+          scripts/release/build_release_bundle.sh release-manifest.json /tmp/jubileu-bundles >/dev/null
+          sha256sum --check /tmp/jubileu-bundles/*.tar.gz.sha256
       - name: Validate Bash syntax
         run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
       - name: ShellCheck 0.10.0
         run: >-
           docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.10.0@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb
-          scripts/dev/*.sh scripts/server/*.sh scripts/release/*.sh
+          ops/*.sh scripts/dev/*.sh scripts/ci/*.sh scripts/release/*.sh

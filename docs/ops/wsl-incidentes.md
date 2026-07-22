@@ -62,13 +62,14 @@ NGINX, FastAPI ou PostgreSQL.
 
 Comandos úteis:
 
-- `docker compose --env-file .env.server -f compose.server.yml ps`
-- `docker logs --tail=120 jubileu-nginx`
-- `docker logs --tail=120 jubileu-api`
-- `docker logs --tail=120 jubileu-db`
+- `docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release -f compose.release.yml ps`
+- `docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release -f compose.release.yml logs --tail=120 nginx`
+- `docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release -f compose.release.yml logs --tail=120 jubileu-api`
+- `docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release -f compose.release.yml logs --tail=120 jubileu-db`
 - `curl -i http://127.0.0.1/health`
 
-O runtime server oficial deve reportar o projeto Compose `jubileu-prod`. Se aparecer `jubileu-dev`, a stack foi iniciada pelo checkout de desenvolvimento e deve passar por cutover controlado.
+O runtime oficial deve partir do bundle em `/srv/ops/stacks/jubileu-v03`, com project name,
+manifesto, digests e volume externo registrados. Uma stack `jubileu-dev` nao e runtime promovido.
 
 ### Local /health retorna 200, mas público falha
 

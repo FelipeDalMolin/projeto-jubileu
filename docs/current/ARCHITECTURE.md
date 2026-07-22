@@ -20,6 +20,7 @@ Regras nao negociaveis:
 - Backend: FastAPI, SQLAlchemy, Alembic.
 - Banco: PostgreSQL em dev/prod.
 - Gateway: NGINX atras do Cloudflare.
+- Release: imagens imutaveis por digest em `compose.release.yml`; sem build ou bind mount.
 
 ## Dominio Canonico
 
@@ -75,7 +76,7 @@ explicitos no PR.
 
 - `docs/current/` e a fonte humana viva.
 - `docs/current/FRONTEND.md` descreve a arquitetura React/Vite, rotas, services, estado e checks.
-- `docs/current/INFRASTRUCTURE.md` descreve Docker, NGINX, runtime dev/server, env e smoke.
+- `docs/current/INFRASTRUCTURE.md` descreve Docker, NGINX, runtime dev/release, env e smoke.
 - `docs/generated/code-map.md` e o espelho gerado do codigo para entidades, rotas e chamadas API.
 - `docs/current/DOCS_SYNC.md` define quando atualizar docs e como rodar o gerador.
 - `docs/current/CHAT_CONTEXT.md` e a memoria curta recomendada para novas conversas e agentes.

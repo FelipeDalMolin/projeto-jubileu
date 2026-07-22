@@ -47,42 +47,36 @@ scripts/dev/smoke_dev.sh
 scripts/dev/down_dev.sh
 ```
 
-## Runtime Server
-
-Arquivo principal: `compose.server.yml`.
-
-Servicos:
-
-- `jubileu-db`: PostgreSQL 16 interno.
-- `jubileu-api`: FastAPI com `alembic upgrade head` no startup.
-- `nginx`: serve `frontend/jubileu-web/dist` e proxy `/api`.
-
-Porta local do servidor:
-
-- `127.0.0.1:80:80`, normalmente consumida pelo Cloudflare Tunnel.
-
 ## Runtime De Release Imutavel
 
-`compose.release.yml` e o runtime promovivel. Ele recebe `BACKEND_IMAGE` e
-`FRONTEND_IMAGE` completos com `@sha256:...`, nao possui build ou bind mount e cria volume
-de banco no escopo do project name. Migration e um job one-shot separado; a API so inicia
-depois dele e o NGINX aguarda `/api/ready`.
+`compose.release.yml` e o unico runtime promovivel. `compose.server.yml`, `.env.server` e os
+scripts que compilavam ou faziam pull a partir de checkout foram descontinuados. O Compose recebe
+`BACKEND_IMAGE` e `FRONTEND_IMAGE` completos com `@sha256:...`, nao possui build ou bind mount e
+exige `POSTGRES_VOLUME_NAME` apontando para um volume externo criado pelo operador. Migration e
+executada explicitamente como job one-shot antes da API; `/api/ready` impede que uma API com schema
+incorreto seja considerada pronta.
 
-Somente o NGINX publica porta, por padrao `127.0.0.1:18080`. API e PostgreSQL usam apenas
-a rede interna. RC e producao devem consumir o mesmo par de digests registrado em
-`release-manifest.json`; rebuild no servidor nao e promocao valida.
+Somente o NGINX publica `127.0.0.1:${NGINX_PORT}:80`. API e PostgreSQL usam apenas a rede interna.
+RC e producao devem consumir o mesmo par de digests registrado em `release-manifest.json`; rebuild
+no servidor nao e promocao valida.
 
-Comandos principais:
+Sequencia operacional minima:
 
 ```bash
-scripts/server/build_frontend.sh
-scripts/server/up_server.sh
-SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
-  LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
-scripts/server/logs_server.sh
-scripts/server/restart_server.sh
-scripts/server/down_server.sh
+docker volume create "$POSTGRES_VOLUME_NAME"
+docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release \
+  -f compose.release.yml up -d --wait jubileu-db
+docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release \
+  -f compose.release.yml run --rm migration
+docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release \
+  -f compose.release.yml up -d --wait jubileu-api nginx
+scripts/release/smoke_release.sh
 ```
+
+`scripts/release/build_release_bundle.sh` gera um pacote sem segredos com Compose, manifesto,
+scripts, runbooks e `SHA256SUMS`. `backup_release.sh`, `restore_release.sh` e
+`rehearse_restore_rollback.sh` implementam backup custom-format, restore isolado e ensaio de
+compatibilidade sem downgrade ou restore automatico.
 
 ## NGINX
 
@@ -99,8 +93,8 @@ scripts/server/down_server.sh
 
 ## Ambientes E Segredos
 
-- Versionar somente `.env.dev.example`, `.env.server.example` e `.env.release.example`.
-- Nunca versionar `.env.dev`, `.env.server` ou segredos reais.
+- Versionar somente `.env.dev.example` e `.env.release.example`.
+- Nunca versionar `.env.dev`, `.env.release` ou segredos reais.
 - Nao copiar valores reais de secrets para documentacao, issues, PRs ou respostas.
 - Arquivos locais de env devem permanecer ignorados e preferencialmente com permissao restrita.
 - Producao exige `APP_ENV=production`, `AUTH_MODE=secure`, cookies seguros e segredos distintos para JWT e digest HMAC de refresh.
@@ -118,7 +112,6 @@ Config compose:
 
 ```bash
 docker compose --env-file .env.dev -f compose.dev.yml config
-docker compose --env-file .env.server -f compose.server.yml config
 cp .env.release.example .env.release
 docker compose --env-file .env.release -f compose.release.yml config
 ```
@@ -131,11 +124,11 @@ Smoke dev:
 scripts/dev/smoke_dev.sh
 ```
 
-Smoke server:
+Smoke de release:
 
 ```bash
 SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
-  LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+  RELEASE_BASE_URL=http://127.0.0.1:"$NGINX_PORT" scripts/release/smoke_release.sh
 ```
 
 Contrato frontend/API:

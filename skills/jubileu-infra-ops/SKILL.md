@@ -1,6 +1,6 @@
 ---
 name: jubileu-infra-ops
-description: Implement or analyze infrastructure and operations changes for Projeto Jubileu. Use when Codex works on Docker Compose, NGINX, Cloudflare tunnel, env files, deployment scripts, dev/server runtime, ports, health checks, logs, backups, smoke tests, or PostgreSQL/Alembic operational flows.
+description: Implement or analyze infrastructure and operations changes for Projeto Jubileu. Use when Codex works on Docker Compose, NGINX, Cloudflare tunnel, env files, immutable release runtime, ports, health checks, logs, backups, smoke tests, or PostgreSQL/Alembic operational flows.
 ---
 
 # Jubileu Infra Ops
@@ -14,7 +14,7 @@ Read only the references needed:
 
 ## Workflow
 
-1. Identify whether the change targets dev runtime, server runtime, or public Cloudflare/NGINX runtime.
+1. Identify whether the change targets dev runtime, isolated RC, or approved production promotion.
 2. Preserve the official topology and `/api` gateway.
 3. Keep secrets out of versioned files.
 4. Validate compose/nginx/scripts before claiming success.
@@ -32,13 +32,13 @@ scripts/dev/logs_dev.sh
 scripts/dev/down_dev.sh
 ```
 
-Server/runtime:
+Release runtime:
 
 ```bash
-docker compose --env-file .env.server -f compose.server.yml config
-scripts/server/build_frontend.sh
-scripts/server/up_server.sh
-LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+docker compose --env-file .env.release -f compose.release.yml config
+scripts/release/smoke_release.sh
+scripts/release/backup_release.sh
+scripts/release/build_release_bundle.sh release-manifest.json
 ```
 
 ## Core Rules
@@ -47,9 +47,10 @@ LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
 - NGINX is the only public entrypoint.
 - FastAPI and PostgreSQL must not be publicly exposed in production.
 - Dev entrypoint is `http://127.0.0.1:8080`.
-- Server local entrypoint is `http://127.0.0.1:80`.
-- PostgreSQL in dev/server compose stays on internal Docker networks.
-- Version `.env.*.example`, never real `.env.dev` or `.env.server`.
+- Release NGINX port is explicit through `NGINX_PORT` and bound only to loopback.
+- PostgreSQL uses an explicitly named external volume and remains on the internal Docker network.
+- Version `.env.*.example`, never real `.env.dev` or `.env.release`.
+- Promotable images must use digests; checkout builds and bind mounts are forbidden.
 - Do not print or copy secret values into docs, logs, or final summaries.
 
 ## Closeout

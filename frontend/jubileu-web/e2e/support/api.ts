@@ -41,7 +41,7 @@ export function apiHealthBlockedReason(): string {
     `blocked: /api/health did not respond at ${apiPath("/api/health")}`,
     `mode=${E2E_RUNTIME_MODE}`,
     apiRuntimeDescription(),
-    "Use E2E_API_URL to override, or E2E_RUNTIME_MODE=nginx for the server runtime.",
+    "Use E2E_API_URL to override, or E2E_RUNTIME_MODE=nginx for the canonical gateway runtime.",
   ].join("; ");
 }
 

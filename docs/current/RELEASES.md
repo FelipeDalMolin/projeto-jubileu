@@ -52,6 +52,10 @@ Every slice delivery should include:
   DEV-27, podera ser candidato de promocao.
 - RC3 usa os digests do manifesto em uma stack isolada e executa readiness, smoke e Playwright via
   NGINX; `/api/version` e consultado apenas depois do login do smoke.
+- `compose.release.yml` e o unico runtime promovivel; `compose.server.yml` e scripts que compilavam
+  ou atualizavam um checkout foram removidos. O banco usa volume externo explicitamente nomeado.
+- O bundle do RC contem Compose, manifesto, scripts, runbooks e checksums, mas nunca env real,
+  segredo ou dump.
 - Producao, quando autorizada, reutiliza exatamente esses digests. A tag `v0.3.0` e o
   deploy produtivo nao fazem parte da aprovacao do RC.
 - A migration `0020_auth_sessions_rollback_safe` e compativel durante a janela v0.3 porque

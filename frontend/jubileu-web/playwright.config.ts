@@ -12,11 +12,17 @@ const serverEnv = [`E2E_API_URL=${apiURL}`, runtimeMode ? `E2E_RUNTIME_MODE=${ru
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
+  forbidOnly: Boolean(process.env.CI),
+  retries: 0,
   expect: {
     timeout: 8_000,
   },
   fullyParallel: false,
-  reporter: [["list"], ["html", { open: "never" }]],
+  reporter: [
+    ["list"],
+    ["html", { open: "never" }],
+    ["json", { outputFile: "test-results/results.json" }],
+  ],
   use: {
     baseURL,
     trace: "on-first-retry",
