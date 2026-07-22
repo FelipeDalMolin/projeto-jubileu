@@ -24,22 +24,15 @@
 | `GET` | `/api/dias/{data_iso}/eventos/{evento_id}/estado` | `authenticated_read` | admin, treinador, auxiliar, user | Nao |
 | `GET` | `/api/dias/{data_iso}/eventos/{evento_id}/estado-equipes` | `authenticated_read` | admin, treinador, auxiliar, user | Nao |
 | `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/estado-equipes` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
-| `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/finish` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
-| `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/finish` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/jogadores/{jogador_evento_id}/status` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/jogadores/{jogador_evento_id}/time` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `GET` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas` | `authenticated_read` | admin, treinador, auxiliar, user | Nao |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
-| `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/proxima` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `DELETE` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
-| `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/jogadores/{jogador_evento_id}/stats` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
-| `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
-| `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/start` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
-| `PUT` | `/api/dias/{data_iso}/eventos/{evento_id}/start` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `POST` | `/api/dias/{data_iso}/eventos/{evento_id}/times` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `DELETE` | `/api/dias/{data_iso}/eventos/{evento_id}/times/{time_id}` | `operator` | admin, treinador, auxiliar | Cookie: sim; Bearer: nao |
 | `GET` | `/api/dias/{data_iso}/eventos/{evento_id}/workspace` | `authenticated_read` | admin, treinador, auxiliar, user | Nao |

@@ -84,7 +84,7 @@ def _criar_evento_com_partida(
 def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
-    resp = client.put(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
+    resp = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "ok"
     assert isinstance(resp.json().get("version"), int)
@@ -97,7 +97,7 @@ def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_sessi
     assert resp.status_code == 422, resp.text
     assert "nao pertence ao evento" in resp.text
 
-    resp = client.put(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
+    resp = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "ok"
 
@@ -114,7 +114,7 @@ def test_partida_lifecycle_start_end_and_lance_gate(client: TestClient, db_sessi
 def test_partida_nao_inicia_com_evento_fora_de_andamento(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.PLANEJADO)
 
-    resp = client.put(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
+    resp = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
     assert resp.status_code == 409, resp.text
     assert "Evento precisa estar EM_ANDAMENTO" in resp.text
 
@@ -123,7 +123,7 @@ def test_partida_nao_inicia_com_evento_fora_de_andamento(client: TestClient, db_
 def test_partida_nao_encerra_sem_estar_em_andamento(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
-    resp = client.put(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
+    resp = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
     assert resp.status_code == 409, resp.text
     assert "Partida nao pode encerrar neste status" in resp.text
 
@@ -133,10 +133,10 @@ def test_partida_nao_encerra_sem_estar_em_andamento(client: TestClient, db_sessi
 def test_finalizar_evento_bloqueia_com_partida_ativa(client: TestClient, db_session):
     data_iso, evento_id, partida_id = _criar_evento_com_partida(db_session, status_evento=StatusEventoEnum.EM_ANDAMENTO)
 
-    resp = client.put(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
+    resp = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start")
     assert resp.status_code == 200, resp.text
 
-    resp = client.put(f"/api/dias/{data_iso}/eventos/{evento_id}/finish")
+    resp = client.post(f"/api/eventos/{evento_id}/end")
     assert resp.status_code == 409, resp.text
     assert "partida em andamento" in resp.text.lower()
 
@@ -149,6 +149,6 @@ def test_encerrar_partida_permite_reconciliar_evento_concluida(client: TestClien
         status_partida=PartidaStatusEnum.EM_ANDAMENTO,
     )
 
-    resp = client.put(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
+    resp = client.post(f"/api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/end")
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "ok"

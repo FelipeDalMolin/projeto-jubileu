@@ -36,6 +36,19 @@ Usuarios -> Jogadores -> Dias -> Eventos -> Times -> Partidas -> Estatisticas
 - Rotas, payloads e componentes baseados em `Aula` nao devem voltar ao codigo ativo.
 - A autorizacao critica pertence ao backend.
 
+## Modulos De Evento
+
+`app/modules/eventos/service.py` e uma facade import-only durante a decomposicao DEV-21. Lifecycle
+vive em `lifecycle.py` e RSVP/check-in/consultas de participantes em `participants.py`. As
+capacidades ainda nao extraidas permanecem temporariamente em `_legacy.py`; routers nao importam o
+legado diretamente. Os PRs seguintes extraem equipes/rotacao e depois partidas/lances.
+
+Comandos canonicos:
+
+- Evento: `POST /api/eventos/{evento_id}/start|end|cancel`;
+- partida: `POST /api/dias/{data_iso}/eventos/{evento_id}/partidas/{partida_id}/start|end`;
+- proxima partida: `POST /api/eventos/{evento_id}/partidas/proxima`.
+
 ## Direcao De Evolucao
 
 O ciclo `v0.3.x` deve fechar:

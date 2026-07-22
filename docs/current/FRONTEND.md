@@ -96,6 +96,8 @@ nas abas que consomem cada canal.
 
 - Services HTTP ativos usam o `apiClient` comum para cookies same-origin, CSRF, request id e retry
   unico de `401`; `fetch` direto fica restrito a implementacao interna desse cliente.
+- `eventoLifecycleService` usa somente `/api/eventos/{evento_id}/start|end`; partida usa `POST` nos
+  comandos contextuais `start|end`, e proxima partida usa somente a rota canonica por `evento_id`.
 - Manter mappers nos services quando backend usa snake_case e frontend camelCase.
 - Adicionar testes Playwright quando mudar navegacao, formularios, auth ou workspace operacional.
 - Atualizar `docs/generated/code-map.md` quando rotas ou services mudarem.

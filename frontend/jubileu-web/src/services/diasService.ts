@@ -487,7 +487,7 @@ export async function iniciarPartidaNoEvento(
   partidaId: string | number,
 ): Promise<{ version?: number }> {
   const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/start`), {
-    method: "PUT",
+    method: "POST",
   });
 
   if (!resp.ok) {
@@ -506,7 +506,7 @@ export async function encerrarPartidaNoEvento(
   partidaId: string | number,
 ): Promise<{ version?: number }> {
   const resp = await apiFetch(url(`/api/dias/${dataIso}/eventos/${eventoId}/partidas/${partidaId}/end`), {
-    method: "PUT",
+    method: "POST",
   });
 
   if (!resp.ok) {
