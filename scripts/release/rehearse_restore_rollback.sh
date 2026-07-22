@@ -7,16 +7,21 @@ PREVIOUS_MANIFEST="${1:?usage: rehearse_restore_rollback.sh <previous-manifest> 
 CURRENT_MANIFEST="${2:?current manifest is required}"
 BACKUP_FILE="${3:?backup dump is required}"
 RELEASE_ENV_FILE="${RELEASE_ENV_FILE:-$ROOT_DIR/.env.release}"
-REHEARSAL_ID="${REHEARSAL_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+REHEARSAL_ID="${REHEARSAL_ID:-$(date -u +%Y%m%dt%H%M%Sz)}"
 EVIDENCE_DIR="${EVIDENCE_DIR:-$ROOT_DIR/reports/release-rehearsal/$REHEARSAL_ID}"
 REHEARSAL_OPERATOR="${REHEARSAL_OPERATOR:-${USER:-unknown}}"
 COMPOSE_PROJECT_NAME="jubileu-rehearsal-$REHEARSAL_ID"
 POSTGRES_VOLUME_NAME="jubileu-rehearsal-$REHEARSAL_ID-postgres"
 NGINX_PORT="${NGINX_PORT:-18081}"
-EVENTS_FILE="$(mktemp)"
+EVENTS_FILE=""
 PREVIOUS_CONTAINER="$COMPOSE_PROJECT_NAME-previous-api"
 
 export COMPOSE_PROJECT_NAME POSTGRES_VOLUME_NAME NGINX_PORT RELEASE_ENV_FILE
+
+if [[ ! "$REHEARSAL_ID" =~ ^[a-z0-9][a-z0-9_.-]*$ ]]; then
+  echo "REHEARSAL_ID must be a lowercase Docker Compose identifier." >&2
+  exit 1
+fi
 
 for file in "$PREVIOUS_MANIFEST" "$CURRENT_MANIFEST" "$BACKUP_FILE" "$RELEASE_ENV_FILE"; do
   if [ ! -f "$file" ]; then
@@ -61,12 +66,24 @@ cleanup() {
     compose down --remove-orphans >/dev/null 2>&1 || true
     docker volume rm "$POSTGRES_VOLUME_NAME" >/dev/null 2>&1 || true
   fi
-  rm -f "$EVENTS_FILE"
+  if [ -n "$EVENTS_FILE" ]; then
+    rm -f "$EVENTS_FILE"
+  fi
 }
 trap cleanup EXIT
+EVENTS_FILE="$(mktemp)"
+
+database_revision() {
+  # Variables in this command are intentionally expanded inside the database container.
+  # shellcheck disable=SC2016
+  compose exec -T jubileu-db sh -c \
+    'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select version_num from alembic_version"'
+}
 
 run_previous_api_smoke() {
   local phase="$1"
+  local expected_revision="$2"
+  local actual_revision
   docker rm -f "$PREVIOUS_CONTAINER" >/dev/null 2>&1 || true
   BACKEND_IMAGE="$previous_backend" FRONTEND_IMAGE="$previous_frontend" \
     compose run -d --name "$PREVIOUS_CONTAINER" --no-deps jubileu-api >/dev/null
@@ -81,7 +98,11 @@ run_previous_api_smoke() {
   docker exec "$PREVIOUS_CONTAINER" python -c \
     "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)" \
     >/dev/null
-  docker exec "$PREVIOUS_CONTAINER" alembic current >/dev/null
+  actual_revision="$(database_revision)"
+  if [ "$actual_revision" != "$expected_revision" ]; then
+    echo "Previous runtime smoke observed schema $actual_revision; expected $expected_revision." >&2
+    exit 1
+  fi
   docker rm -f "$PREVIOUS_CONTAINER" >/dev/null
   record "$phase" "passed"
 }
@@ -93,19 +114,13 @@ for image in "$previous_backend" "$previous_frontend" "$current_backend" "$curre
 done
 
 "$ROOT_DIR/scripts/release/restore_release.sh" "$BACKUP_FILE"
-# Variables in this command are intentionally expanded inside the database container.
-# shellcheck disable=SC2016
-initial_revision="$(compose exec -T jubileu-db sh -c \
-  'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select version_num from alembic_version"')"
+initial_revision="$(database_revision)"
 record "restore_validated_backup" "passed"
 
-run_previous_api_smoke "previous_runtime_on_restored_schema"
+run_previous_api_smoke "previous_runtime_on_restored_schema" "$initial_revision"
 
 BACKEND_IMAGE="$current_backend" FRONTEND_IMAGE="$current_frontend" compose run --rm migration >/dev/null
-# Variables in this command are intentionally expanded inside the database container.
-# shellcheck disable=SC2016
-migrated_revision="$(compose exec -T jubileu-db sh -c \
-  'psql -At -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "select version_num from alembic_version"')"
+migrated_revision="$(database_revision)"
 if [ "$migrated_revision" != "$expected_head" ]; then
   echo "Migration ended at $migrated_revision; expected $expected_head." >&2
   exit 1
@@ -119,7 +134,7 @@ COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" RELEASE_BASE_URL="http://127.0.0.1:
 record "current_runtime_after_migration" "passed"
 
 compose stop nginx jubileu-api >/dev/null
-run_previous_api_smoke "previous_runtime_on_migrated_schema"
+run_previous_api_smoke "previous_runtime_on_migrated_schema" "$migrated_revision"
 
 BACKEND_IMAGE="$current_backend" FRONTEND_IMAGE="$current_frontend" compose up -d --wait jubileu-api nginx
 COMPOSE_PROJECT_NAME="$COMPOSE_PROJECT_NAME" RELEASE_BASE_URL="http://127.0.0.1:$NGINX_PORT" \

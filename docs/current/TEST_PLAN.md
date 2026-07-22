@@ -110,7 +110,9 @@ com `release-manifest.json` e confirma que API/PostgreSQL nao publicam portas.
 
 Backup usa `pg_dump -Fc`, `pg_restore --list`, SHA-256 e retencao de 30 dias. O rehearsal restaura
 em project/volume isolados, valida runtime anterior, migra, valida RC, testa runtime anterior contra
-o schema migrado e retorna ao RC. Evidencias JSON/Markdown sao redigidas. Nenhum dump vira artifact.
+o schema migrado e retorna ao RC. A revisao do schema e lida diretamente no PostgreSQL: a copia
+Alembic do runtime anterior nao precisa conhecer revisions criadas pelo RC. Evidencias JSON/Markdown
+sao redigidas. Nenhum dump vira artifact.
 
 ## Estado do fechamento v0.3
 
@@ -118,7 +120,9 @@ o schema migrado e retorna ao RC. Evidencias JSON/Markdown sao redigidas. Nenhum
 - DEV-27 PR #45: gate, runtime unico por digest, bundle e rehearsal integrados em `72d5856`; a
   issue permanece aberta ate as evidencias operacionais e eventual promocao autorizada.
 - RC1 e RC2: historicos e nao promoviveis.
-- RC3: unico candidato; producao permanece `NO-GO` ate evidencia isolada e resposta humana
-  `GO v0.3.0`.
+- RC3: build, smoke e Playwright verdes, mas rejeitado depois da construcao porque o rehearsal
+  executava `alembic current` com a copia antiga sobre o schema `0020`.
+- RC4: proximo candidato obrigatorio depois do corretivo DEV-27; producao permanece `NO-GO` ate
+  evidencia isolada completa e resposta humana `GO v0.3.0`.
 
 Resultados exatos por PR e bloqueios pendentes ficam em `V03_CLOSURE_MATRIX.md`.

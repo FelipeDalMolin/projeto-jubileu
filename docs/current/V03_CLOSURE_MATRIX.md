@@ -4,7 +4,7 @@ Estado de governanca: `NO-GO`. O projeto permanece `atRisk` enquanto autorizacao
 rollback reproduzivel nao estiverem comprovados. Projeto e milestones nao possuem target date
 por decisao explicita do responsavel.
 
-Legenda: `sim`, `parcial`, `nao`, `aguarda RC3`, `aguarda GO humano`.
+Legenda: `sim`, `parcial`, `nao`, `aguarda RC4`, `aguarda GO humano`.
 
 | Entrega | Implementado | Testado | Documentado | Aprovado | Evidencia/bloqueio |
 |---|---|---|---|---|---|
@@ -13,13 +13,13 @@ Legenda: `sim`, `parcial`, `nao`, `aguarda RC3`, `aguarda GO humano`.
 | DEV-21 PR 3 - equipes/rotacao | sim | sim | sim | sim | PR #43 mesclado em `a19927e`; seis required checks verdes. |
 | DEV-21 PR 4 - partidas/lances | sim | sim | sim | sim | PR #44 mesclado em `4664eba`; seis required checks verdes. |
 | DEV-27 PR 5 - qualidade/runtime release | sim | sim | sim | sim | PR #45 mesclado em `72d5856`; seis required checks verdes. A issue permanece aberta ate o aceite operacional completo. |
-| RC3 por digest | nao | nao | parcial | nao | RC1/RC2 permanecem historicos e nao promoviveis. |
-| Artefato imutavel do runtime anterior | nao | nao | parcial | nao | Producao atual usa checkout/bind mounts e nao expoe identidade de release. |
-| Upgrade Alembic de producao `0016 -> 0020` | nao | nao | parcial | nao | Revisao `0016_usuarios_legacy_nullable` inventariada read-only; ensaio isolado pendente. |
-| Backup/restore/rollback isolado | nao | nao | parcial | nao | Nenhuma operacao produtiva autorizada; dump nunca sera artifact publico. |
+| RC por digest | sim | parcial | sim | nao | RC3 foi construido e validado no CI, mas rejeitado no rehearsal pos-build; a regra imutavel exige RC4. |
+| Artefato imutavel do runtime anterior | sim | sim | sim | nao | Backend preservado pelo image ID original; frontend empacota byte a byte os bind mounts produtivos; ambos possuem OCI/checksum privado. |
+| Upgrade Alembic de producao `0016 -> 0020` | sim | sim | sim | nao | Dump real restaurado em volume isolado e migrado ate `0020`; rehearsal completo sera repetido no RC4. |
+| Backup/restore/rollback isolado | parcial | parcial | sim | nao | Backup e restore reais passaram; RC3 falhou no script depois da saude do runtime anterior sobre `0020`, exigindo corretivo e novo RC. |
 | Promocao de producao | nao | nao | parcial | aguarda GO humano | Proibida antes das evidencias e de resposta humana `GO v0.3.0`. |
 | Documentacao e reconciliacao CORE | nao | nao | parcial | nao | Executar somente apos promocao/smoke e PR documental DEV-27. |
-| Release final `v0.3.0` | nao | nao | parcial | nao | Deve apontar para o mesmo commit e digests do RC3, sem rebuild. |
+| Release final `v0.3.0` | nao | nao | parcial | nao | Deve apontar para o mesmo commit e digests do RC aprovado, sem rebuild. |
 
 ## Inventario inicial read-only
 
@@ -122,7 +122,7 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
 - PR: `https://github.com/FelipeDalMolin/projeto-jubileu/pull/45`.
 - Merge: `72d5856a74f7065188b8cb7d02f3fc5859283867`.
 - Required checks: seis de seis aprovados no GitHub Actions.
-- DEV-27 permanece `Em Progresso`: o merge comprova o slice, mas o aceite da issue exige RC3,
+- DEV-27 permanece `Em Progresso`: o merge comprova o slice, mas o aceite da issue exige RC aprovado,
   restore/rollback por digest e promocao/smoke autorizados.
 
 ### Resultados locais DEV-27 em 2026-07-22 UTC
@@ -143,3 +143,28 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
   e schema `0020 -> 0020`; comprova a mecanica, mas nao substitui o rehearsal bloqueante por digest
   com o runtime produtivo anterior e backup restaurado.
 - Producao alterada: nao. Volumes isolados do ensaio foram removidos depois da validacao.
+
+## Evidencia RC3 e decisao de substituicao
+
+- PR documental #46 integrado em `05defd5c320ffff6050ba627898e69821c231b66`; os seis required
+  checks passaram novamente nesse SHA.
+- `v0.3.0-rc.3` foi criado nesse commit. O workflow `29894288063` publicou backend
+  `sha256:e1f7e63e3e2cb094a29f8998e405af4e4b862d4ad1e222febe5fd30d549c98d5` e frontend
+  `sha256:0d65b5c5e17e13f29f6eebeb1f8440e42a028f34e70eb2a90d996407a7856474` e passou
+  smoke mais `18 passed`, `0 skipped`, `0 flaky`.
+- O runtime anterior foi associado ao commit produtivo `3210dd81d9126b2df20744f5a4087baaf7d34dfb`.
+  O image ID backend coincide com os fontes copiados para a imagem; o frontend preservado coincide
+  byte a byte com `dist` e NGINX montados. Os arquivos OCI privados possuem checksums validados.
+- Um dump real `pg_dump -Fc` de producao foi criado com permissao `0600`, validado por
+  `pg_restore --list` e restaurado apenas em volume isolado. Nenhum dump foi publicado.
+- O rehearsal comprovou restore `0016`, saude do runtime anterior, upgrade `0016 -> 0020`, smoke
+  RC3 e saude do runtime anterior sobre `0020`. Depois disso, a copia Alembic antiga rejeitou o nome
+  desconhecido `0020_auth_sessions_rollback_safe`; esse check nao mede a compatibilidade da API e
+  tornou o script incorretamente vermelho.
+- Pela politica imutavel, RC3 permanece historico e nao promovivel. O corretivo DEV-27 valida a
+  revisao pelo PostgreSQL, mantem o smoke da API anterior e exige um novo `v0.3.0-rc.4`.
+- Na branch corretiva, o mesmo dump e os mesmos quatro digests passaram pelas seis fases, com
+  `local_tag_override=false`, schema `0016 -> 0020` e evidencias privadas com checksum. A suite
+  browser sobre a base restaurada passou `18 passed`, `0 skipped`, `0 flaky`. Essa prova aprova o
+  corretivo, mas nao promove RC3 porque seu bundle imutavel ainda contem o script anterior.
+- Producao alterada: nao. A decisao continua `NO-GO`.

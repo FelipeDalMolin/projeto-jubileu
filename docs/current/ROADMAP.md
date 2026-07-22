@@ -16,7 +16,7 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 Base integrada: `origin/jubileu-v2`.
 
-Marco integrado mais recente: `4664eba DEV-21: extrai partidas, estatisticas e lances (#44)`.
+Marco integrado mais recente: `05defd5 docs: sync DEV-27 RC3 evidence (#46)`.
 
 Estado consolidado:
 
@@ -38,7 +38,7 @@ ate o Security Gate DEV-21 e o rollback DEV-27 produzirem evidencia. A ordem blo
 
 1. quatro PRs DEV-21 para autorizacao e decomposicao do dominio;
 2. PR DEV-27 para qualidade e runtime de release;
-3. `v0.3.0-rc.3` imutavel por digest;
+3. RC imutavel por digest; RC3 foi rejeitado no rehearsal e sera substituido por RC4;
 4. ensaio isolado de upgrade desde a revisao produtiva `0016`, restore e rollback;
 5. pedido de `GO v0.3.0` humano antes de qualquer operacao produtiva.
 
@@ -126,7 +126,8 @@ Foco:
 4. DEV-21 PR 4: partidas/lances — integrado no PR #44 (`4664eba`); DEV-21 concluida.
 5. DEV-27 PR #45: Playwright sem skips, runtime promovivel, bundle e rehearsal — integrado em
    `72d5856`; a issue permanece aberta pelo aceite operacional.
-6. RC3 e evidencias isoladas — etapa ativa; producao somente apos `GO v0.3.0` humano.
+6. Corretivo do rehearsal DEV-27 e RC4 — etapa ativa. RC3 permanece historico e nao promovivel;
+   producao somente apos evidencia completa e `GO v0.3.0` humano.
 
 ## Trabalho Adiado
 

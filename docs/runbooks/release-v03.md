@@ -13,7 +13,8 @@ O SHA precisa pertencer ao historico de `origin/jubileu-v2`, e os seis checks de
 exatamente nele:
 
 ```bash
-sha="$(scripts/release/resolve_release_ref.sh v0.3.0-rc.3)"
+JUBILEU_RC_TAG=v0.3.0-rc.4
+sha="$(scripts/release/resolve_release_ref.sh "$JUBILEU_RC_TAG")"
 GH_TOKEN="$GITHUB_TOKEN" scripts/release/verify_required_checks.sh "$sha" required-checks.json
 ```
 
@@ -31,7 +32,7 @@ O bundle verificavel nao inclui segredos:
 
 ```bash
 scripts/release/build_release_bundle.sh release-manifest.json release-bundles
-sha256sum --check release-bundles/jubileu-v0.3.0-rc.3.tar.gz.sha256
+sha256sum --check "release-bundles/jubileu-$JUBILEU_RC_TAG.tar.gz.sha256"
 ```
 
 ## Stack isolada
@@ -40,8 +41,8 @@ Preencha `.env.release` fora do Git a partir do exemplo. `BACKEND_IMAGE` e `FRON
 conter `@sha256:...`; `POSTGRES_VOLUME_NAME` e `NGINX_PORT` sao obrigatorios.
 
 ```bash
-export COMPOSE_PROJECT_NAME=jubileu-rc3-validation
-export POSTGRES_VOLUME_NAME=jubileu-rc3-validation-postgres
+export COMPOSE_PROJECT_NAME=jubileu-rc4-validation
+export POSTGRES_VOLUME_NAME=jubileu-rc4-validation-postgres
 docker volume create "$POSTGRES_VOLUME_NAME"
 docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file .env.release \
   -f compose.release.yml up -d --wait jubileu-db
@@ -86,12 +87,12 @@ com mais de 30 dias no diretorio configurado:
 BACKUP_DIR=/srv/backups/jubileu/v0.3.0 RETENTION_DAYS=30 scripts/release/backup_release.sh
 ```
 
-Restore so aceita project e volume prefixados por `jubileu-rehearsal-` e rejeita qualquer nome com
-`prod`:
+Restore so aceita project e volume em minusculas prefixados por `jubileu-rehearsal-` e rejeita
+qualquer nome com `prod`:
 
 ```bash
-COMPOSE_PROJECT_NAME=jubileu-rehearsal-rc3 \
-POSTGRES_VOLUME_NAME=jubileu-rehearsal-rc3-postgres \
+COMPOSE_PROJECT_NAME=jubileu-rehearsal-rc4 \
+POSTGRES_VOLUME_NAME=jubileu-rehearsal-rc4-postgres \
 scripts/release/restore_release.sh /caminho/backup.dump
 ```
 
@@ -108,13 +109,21 @@ O rehearsal operacional aceita somente imagens `@sha256`. `ALLOW_LOCAL_TAGS=1` e
 testar a mecanica durante desenvolvimento; uma evidencia com esse override nao comprova rollback
 produtivo.
 
+Quando o dump ainda contiver senhas no hash legado, o `.env.release` protegido do rehearsal deve
+usar o mesmo `JWT_SECRET` vigente no runtime anterior. O valor nunca deve ser exibido, versionado ou
+incluido na evidencia; um segredo aleatorio impediria deliberadamente a validacao e o rehash legado.
+`REFRESH_TOKEN_HMAC_SECRET` continua separado. Ao testar o runtime anterior sobre o schema migrado,
+o script consulta `alembic_version` pelo PostgreSQL e valida a saude da API; a copia Alembic antiga
+nao precisa reconhecer revisions novas.
+
 O dump nunca vira artifact publico. `rollback_release.sh` apenas avalia a classificacao; nunca faz
 downgrade ou restore automaticamente.
 
 ## Promocao e rollback
 
 Depois do `GO v0.3.0`, copie somente o bundle aprovado para `/srv/ops/stacks/jubileu-v03`, valide
-checksums/digests, gere backup fresco, execute migration one-shot e suba os mesmos digests do RC3.
+checksums/digests, gere backup fresco, execute migration one-shot e suba os mesmos digests do RC
+aprovado.
 Observe readiness e logs por 15 minutos, exigindo zero `5xx` inesperado no smoke.
 
 - Antes da migration: mantenha o runtime anterior.
