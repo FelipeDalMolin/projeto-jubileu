@@ -16,7 +16,7 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 Base integrada: `origin/jubileu-v2`.
 
-Marco integrado mais recente antes do ciclo de dashboards: `35e868c DEV-51: Close operational flow QA and reconciliation (#34)`.
+Marco integrado mais recente: `4664eba DEV-21: extrai partidas, estatisticas e lances (#44)`.
 
 Estado consolidado:
 
@@ -26,8 +26,8 @@ Estado consolidado:
 - Frontend possui `apiClient` minimo com base relativa `/api` e `X-Request-ID`.
 - `npm run check:api-contract` valida separacao entre rotas SPA e chamadas de API.
 - `pytest` cobre smoke, contratos e fluxos backend/API.
-- Playwright cobre o fluxo operacional AULA/JOGO_LIVRE, polling/auth e dashboards no compose dev
-  usando Chromium nativo do Alpine via `E2E_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser`.
+- Playwright cobre a suite completa UC01-UC10, auth, contratos, AULA/JOGO_LIVRE, polling e
+  dashboards pelo NGINX canonico, sem declaracoes de skip.
 - GitHub Actions passa a ser o gate oficial minimo de CI para backend, frontend e contratos.
 - Vercel pode aparecer no historico por integracao externa, mas nao e gate oficial de qualidade ou runtime do projeto.
 
@@ -103,10 +103,10 @@ Foco:
 | Frontend lint/build | Operacional | `npm run lint` e `npm run build` passam. |
 | Contrato frontend/API | Operacional | `npm run check:api-contract` passa. |
 | Smoke server | Operacional | Smoke local em `127.0.0.1` e publico em `https://app.jubileuweb.com` passam pelo runtime NGINX/API. |
-| Playwright E2E | passed-e2e-dev | Fluxos AULA/JOGO_LIVRE e workspace operacional possuem fixtures executáveis. |
-| PostgreSQL real | passed-local/pending-CI | Concorrência de próxima partida passou localmente; falta tornar PostgreSQL gate do CI. |
-| GitHub Actions | Operacional | Backend, frontend, docs sync e preflight são gates de PR para `jubileu-v2`. |
-| UC06-UC09 E2E | passed-e2e-dev | Presença/RSVP, fila, partida, lance e próxima partida cobertos no compose dev. |
+| Playwright E2E | gate bloqueante | Suite integral pelo NGINX, resultado JSON e zero skips/flaky. |
+| PostgreSQL real | gate bloqueante | Banco limpo, `0019 -> head`, `0016 -> head`, integracao e concorrencia. |
+| GitHub Actions | Operacional | Seis required checks com nomes estaveis. |
+| UC06-UC09 E2E | coberto | Fixtures auditaveis de presenca/RSVP, fila, partida, lance e proxima partida. |
 
 ## Regras de Compatibilidade
 
@@ -122,9 +122,10 @@ Foco:
 
 1. DEV-21 PR 1: Security Gate e matriz de autorizacao — integrado no PR #41 (`ffbc290`).
 2. DEV-21 PR 2: contratos canonicos, lifecycle e participantes — integrado no PR #42 (`2cdfc02`).
-3. DEV-21 PR 3: equipes/rotacao — integrado no PR #43 (`a19927e`); PR 4: partidas/lances — slice ativo.
-4. DEV-27: Playwright sem skips, runtime promovivel e ensaio rollback.
-5. RC3 e evidencias isoladas; producao somente apos `GO v0.3.0` humano.
+3. DEV-21 PR 3: equipes/rotacao — integrado no PR #43 (`a19927e`).
+4. DEV-21 PR 4: partidas/lances — integrado no PR #44 (`4664eba`); DEV-21 concluida.
+5. DEV-27: Playwright sem skips, runtime promovivel, bundle e ensaio rollback — slice ativo.
+6. RC3 e evidencias isoladas; producao somente apos `GO v0.3.0` humano.
 
 ## Trabalho Adiado
 
@@ -132,4 +133,3 @@ Foco:
 - Fluxo realtime com WebSocket/MQTT.
 - Remocao da compatibilidade de auth por headers legados.
 - Redesign visual amplo de Turmas, Turma detalhe, dashboards ou workspace.
-- Cobertura E2E completa de UC06-UC09 sem fixtures auditaveis.

@@ -10,7 +10,7 @@ import { testIds } from "./support/testIds";
 
 test("E2E-CONTRACT: /api/health responde com X-Request-ID", async ({ request }) => {
   const response = await apiHealth(request);
-  test.skip(!response, apiHealthBlockedReason());
+  expect(response, apiHealthBlockedReason()).not.toBeNull();
 
   expect(response!.ok()).toBeTruthy();
   expect(response!.headers()["x-request-id"]).toBeTruthy();
@@ -31,7 +31,7 @@ test("E2E-CONTRACT: navegador nao gera /api/api e usa /api para dados", async ({
 });
 
 test("E2E-CONTRACT: responses observaveis carregam X-Request-ID", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
 
   const observer = observeApiRequests(page);
   try {

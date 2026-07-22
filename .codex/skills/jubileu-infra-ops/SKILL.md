@@ -1,6 +1,6 @@
 ---
 name: jubileu-infra-ops
-description: Local launcher for the versioned Projeto Jubileu infra/ops skill. Use when Codex changes or analyzes Docker Compose, NGINX, Cloudflare tunnel, env files, deployment scripts, dev/server runtime, ports, health checks, logs, backups, smoke tests, or PostgreSQL/Alembic operations.
+description: Local launcher for the versioned Projeto Jubileu infra/ops skill. Use when Codex changes or analyzes Docker Compose, NGINX, Cloudflare tunnel, env files, immutable release runtime, ports, health checks, logs, backups, smoke tests, or PostgreSQL/Alembic operations.
 ---
 
 # Jubileu Infra Ops

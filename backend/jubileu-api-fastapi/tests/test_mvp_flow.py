@@ -1,6 +1,6 @@
 import os
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
@@ -12,6 +12,14 @@ from app.deps import get_db
 TEST_DB_URL = os.getenv("DATABASE_URL_TEST")
 
 
+def _truncate_migrated_schema(engine) -> None:
+    table_names = ", ".join(f'"{table.name}"' for table in Base.metadata.sorted_tables)
+    if not table_names:
+        return
+    with engine.begin() as connection:
+        connection.execute(text(f"TRUNCATE TABLE {table_names} RESTART IDENTITY CASCADE"))
+
+
 @pytest.fixture(scope="module")
 def client():
     if not TEST_DB_URL:
@@ -20,9 +28,9 @@ def client():
     engine = create_engine(TEST_DB_URL, future=True)
     TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-    # recria schema do zero para o teste
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    # O job PostgreSQL aplica Alembic antes desta suite. A integracao somente
+    # limpa dados; criar ou remover schema via ORM mascararia drift de migration.
+    _truncate_migrated_schema(engine)
 
     def override_get_db():
         db = TestingSessionLocal()
@@ -37,7 +45,8 @@ def client():
         yield test_client
 
     app.dependency_overrides.clear()
-    Base.metadata.drop_all(bind=engine)
+    _truncate_migrated_schema(engine)
+    engine.dispose()
 
 
 @pytest.mark.integration

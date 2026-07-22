@@ -18,15 +18,15 @@
 
 ## Secrets
 
-- Never commit `.env.dev` or `.env.server`.
+- Never commit `.env.dev` or `.env.release`.
 - Never paste actual secret values into docs or summaries.
-- Use `.env.dev.example` and `.env.server.example` for documented shape only.
+- Use `.env.dev.example` and `.env.release.example` for documented shape only.
 - Prefer `chmod 600` for created local env files.
 
 ## Database and migrations
 
 - PostgreSQL 16 is the official dev/prod database.
-- Backend containers run `alembic upgrade head` on startup.
+- Release migrations run as an explicit one-shot job before application startup.
 - Migration changes need clean-database and upgrade-path awareness.
 - SQLite test success is not enough for PostgreSQL-specific migration behavior.
 
@@ -36,14 +36,14 @@ For compose changes:
 
 ```bash
 docker compose --env-file .env.dev -f compose.dev.yml config
-docker compose --env-file .env.server -f compose.server.yml config
+docker compose --env-file .env.release -f compose.release.yml config
 ```
 
 For runtime changes:
 
 ```bash
 scripts/dev/smoke_dev.sh
-LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+scripts/release/smoke_release.sh
 ```
 
 For frontend/API edge contracts:
@@ -54,6 +54,6 @@ cd frontend/jubileu-web && npm run check:api-contract
 
 ## Rollback thinking
 
-- Keep old scripts runnable while introducing replacements.
-- Prefer additive runbook updates before deleting operational paths.
-- State whether a change affects dev only, server only, or public runtime.
+- Rollback reuses a previous manifest only when the migration compatibility class permits it.
+- Never run downgrade, restore, or production promotion automatically.
+- State whether a change affects dev only, isolated RC, or approved public runtime.

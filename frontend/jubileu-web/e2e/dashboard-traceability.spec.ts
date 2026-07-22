@@ -17,7 +17,7 @@ async function mustJson<T>(response: Awaited<ReturnType<APIRequestContext["get"]
 }
 
 test("DEV-48: jogador e partida navegam para o Evento de origem", async ({ page, request }) => {
-  test.skip(!(await isApiHealthy(request)), apiHealthBlockedReason());
+  expect(await isApiHealthy(request), apiHealthBlockedReason()).toBe(true);
   const suffix = Date.now();
   const dataIso = "2026-12-24";
   const jogador = await seedJogador(request, `E2E Rastreavel ${suffix}`);

@@ -3,8 +3,10 @@
 set -u
 
 MODE="full"
-PROJECT_DIR="${PROJECT_DIR:-/opt/projeto-jubileu}"
+PROJECT_DIR="${PROJECT_DIR:-/srv/ops/stacks/jubileu-v03}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-https://app.jubileuweb.com}"
+LOCAL_BASE_URL="${LOCAL_BASE_URL:-http://127.0.0.1:80}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-jubileu-v03}"
 SINCE="${SINCE:-24h}"
 MASK_PII="${MASK_PII:-0}"
 LOCK_DIR="${JUBILEU_REPORT_LOCK:-/tmp/jubileu-report.lock}"
@@ -20,7 +22,7 @@ Modos:
   --full   checks completos, logs resumidos e dados funcionais (padrao)
 
 Variaveis:
-  PROJECT_DIR       default: /opt/projeto-jubileu
+  PROJECT_DIR       default: /srv/ops/stacks/jubileu-v03
   PUBLIC_BASE_URL   default: https://app.jubileuweb.com
   SINCE             default: 24h
   REPORT_DIR        default: $PROJECT_DIR/reports/ops
@@ -50,8 +52,8 @@ while (($#)); do
 done
 
 REPORT_DIR="${REPORT_DIR:-$PROJECT_DIR/reports/ops}"
-COMPOSE_FILE="$PROJECT_DIR/compose.server.yml"
-ENV_FILE="$PROJECT_DIR/.env.server"
+COMPOSE_FILE="$PROJECT_DIR/compose.release.yml"
+ENV_FILE="${RELEASE_ENV_FILE:-$PROJECT_DIR/.env.release}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 GENERATED_AT="$(date -Iseconds)"
 HOST="$(hostname 2>/dev/null || echo unknown)"
@@ -89,6 +91,11 @@ cd "$PROJECT_DIR" 2>/dev/null || {
   echo "Nao foi possivel acessar PROJECT_DIR=$PROJECT_DIR" >&2
   exit 1
 }
+
+COMPOSE=(docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
+DB_CONTAINER="$("${COMPOSE[@]}" ps -q jubileu-db 2>/dev/null || true)"
+API_CONTAINER="$("${COMPOSE[@]}" ps -q jubileu-api 2>/dev/null || true)"
+NGINX_CONTAINER="$("${COMPOSE[@]}" ps -q nginx 2>/dev/null || true)"
 
 BRANCH="$(git branch --show-current 2>/dev/null || echo unknown)"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -246,8 +253,8 @@ curl_get_check() {
 
 docker_status_check() {
   local expected missing=0 unhealthy=0 warn=0 output name status
-  output="$(docker ps --filter name=jubileu --format '{{.Names}}|{{.Status}}' 2>&1 || true)"
-  for expected in jubileu-api jubileu-db jubileu-nginx; do
+  output="$("${COMPOSE[@]}" ps --format '{{.Service}}|{{.Status}}' 2>&1 || true)"
+  for expected in jubileu-api jubileu-db nginx; do
     if ! grep -q "^$expected|" <<<"$output"; then
       missing=$((missing + 1))
     fi
@@ -275,8 +282,8 @@ docker_status_check() {
 
 postgres_check() {
   local ready recovery status detail
-  ready="$(docker exec jubileu-db sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' 2>&1 || true)"
-  recovery="$(docker exec jubileu-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT pg_is_in_recovery();"' 2>/dev/null | tr -d '[:space:]' || true)"
+  ready="$(docker exec "$DB_CONTAINER" sh -lc 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"' 2>&1 || true)"
+  recovery="$(docker exec "$DB_CONTAINER" sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT pg_is_in_recovery();"' 2>/dev/null | tr -d '[:space:]' || true)"
 
   if ! grep -qi 'accepting connections' <<<"$ready"; then
     status="FAIL"
@@ -336,9 +343,16 @@ cloudflared_check() {
 }
 
 vscode_tunnel_check() {
-  local active connected high_cpu status detail cpu_rows
+  local active connected status detail cpu_rows
   active="$(systemctl --user is-active code-tunnel.service 2>/dev/null || true)"
-  connected="$(cd "$HOME/.local/bin/vscode-cli" 2>/dev/null && ./code tunnel status 2>/dev/null | head -c 2000 || true)"
+  if cd "$HOME/.local/bin/vscode-cli" 2>/dev/null; then
+    connected="$(./code tunnel status 2>/dev/null | head -c 2000 || true)"
+    cd "$PROJECT_DIR" || exit 1
+  else
+    connected=""
+  fi
+  # CPU snapshots require the process list because the percentage is not exposed by pgrep.
+  # shellcheck disable=SC2009
   cpu_rows="$(ps -eo pcpu=,cmd= --sort=-pcpu 2>/dev/null \
     | grep -Ei 'code|vscode|codex|server-main|extensionHost|fileWatcher' \
     | grep -v grep \
@@ -364,7 +378,7 @@ vscode_tunnel_check() {
 
 nginx_error_check() {
   local count
-  count="$(docker logs --since="$SINCE" jubileu-nginx 2>&1 \
+  count="$(docker logs --since="$SINCE" "$NGINX_CONTAINER" 2>&1 \
     | grep -Ec '"[^"]+" 50[234] | 50[234] |upstream.*(failed|error)' || true)"
   if [[ "$count" -gt 0 ]]; then
     record_check "nginx_5xx" "FAIL" "" "" "NGINX 502/503/504 recentes=$count" ""
@@ -387,7 +401,7 @@ public_head_diagnostic() {
 
 functional_evidence_check() {
   local participantes_count
-  participantes_count="$(docker exec jubileu-db sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT COUNT(*) FROM evento_participantes;"' 2>/dev/null | tr -d '[:space:]' || true)"
+  participantes_count="$(docker exec "$DB_CONTAINER" sh -lc 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT COUNT(*) FROM evento_participantes;"' 2>/dev/null | tr -d '[:space:]' || true)"
   if [[ "$participantes_count" == "0" ]]; then
     record_check "participantes" "WARN" "" "" "evento_participantes vazio; sem evidencia operacional de RSVP/check-in" ""
     add_alert "WARN" "evento_participantes esta vazio; RSVP/check-in ainda sem evidencia operacional."
@@ -402,16 +416,16 @@ functional_evidence_check() {
 
 run_checks() {
   docker_status_check
-  curl_get_check "local_health" "Health local /health" "http://127.0.0.1/health" "2"
-  curl_get_check "local_api_dias" "API local /api/dias/" "http://127.0.0.1/api/dias/" "2"
+  curl_get_check "local_health" "Health local /health" "$LOCAL_BASE_URL/health" "2"
+  curl_get_check "local_ready" "Readiness local /api/ready" "$LOCAL_BASE_URL/api/ready" "2"
   curl_get_check "public_health" "Health publico /health" "$PUBLIC_BASE_URL/health" "5"
-  curl_get_check "api_dias" "API publica /api/dias/" "$PUBLIC_BASE_URL/api/dias/" "5"
+  curl_get_check "api_ready" "Readiness publica /api/ready" "$PUBLIC_BASE_URL/api/ready" "5"
   postgres_check
   zombie_check
   cloudflared_check
   vscode_tunnel_check
   public_head_diagnostic "head_public_health" "$PUBLIC_BASE_URL/health"
-  public_head_diagnostic "head_api_dias" "$PUBLIC_BASE_URL/api/dias/"
+  public_head_diagnostic "head_api_ready" "$PUBLIC_BASE_URL/api/ready"
 
   if [[ "$MODE" == "full" ]]; then
     nginx_error_check
@@ -506,20 +520,20 @@ write_markdown() {
 
   emit_section_cmd "Git" "git branch --show-current; git status -sb; git log --oneline --decorate -5" 40
   emit_section_cmd "Maquina" "uptime; free -h; df -h /; echo; ps -eo pid,ppid,stat,pcpu,pmem,etime,cmd --sort=-pcpu | head -25" 80
-  emit_section_cmd "Docker Compose" "docker compose --env-file '$ENV_FILE' -f '$COMPOSE_FILE' ps || docker ps --filter name=jubileu" 80
+  emit_section_cmd "Docker Compose" "docker compose --project-name '$COMPOSE_PROJECT_NAME' --env-file '$ENV_FILE' -f '$COMPOSE_FILE' ps" 80
 
   {
     echo "## Health local"
     echo '```'
-    capture "curl -sS -o /dev/null -w 'GET /health HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 http://127.0.0.1/health; curl -sS -o /dev/null -w 'GET /api/dias/ HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 http://127.0.0.1/api/dias/" 20
+    capture "curl -sS -o /dev/null -w 'GET /health HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 '$LOCAL_BASE_URL/health'; curl -sS -o /dev/null -w 'GET /api/ready HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 '$LOCAL_BASE_URL/api/ready'" 20
     echo '```'
     echo
     echo "## Health publico"
     echo '```'
-    capture "curl -sS -o /dev/null -w 'GET /health HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 '$PUBLIC_BASE_URL/health'; curl -sS -o /dev/null -w 'GET /api/dias/ HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 '$PUBLIC_BASE_URL/api/dias/'" 20
+    capture "curl -sS -o /dev/null -w 'GET /health HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 '$PUBLIC_BASE_URL/health'; curl -sS -o /dev/null -w 'GET /api/ready HTTP=%{http_code} tempo=%{time_total}s\n' --max-time 20 '$PUBLIC_BASE_URL/api/ready'" 20
     echo
     echo "HEAD diagnostico informativo, nao usado como criterio principal:"
-    capture "curl -sS -I -L --max-time 15 '$PUBLIC_BASE_URL/health' | sed -n '1,8p'; echo; curl -sS -I -L --max-time 15 '$PUBLIC_BASE_URL/api/dias/' | sed -n '1,8p'" 30
+    capture "curl -sS -I -L --max-time 15 '$PUBLIC_BASE_URL/health' | sed -n '1,8p'; echo; curl -sS -I -L --max-time 15 '$PUBLIC_BASE_URL/api/ready' | sed -n '1,8p'" 30
     echo '```'
     echo
   } >> "$RAW_MD"
@@ -527,11 +541,11 @@ write_markdown() {
   emit_section_cmd "Cloudflared" "ps aux | grep -Ei 'cloudflared' | grep -v grep || true; echo; systemctl status cloudflared --no-pager 2>/dev/null || true; echo; journalctl -u cloudflared --since '$(journal_since)' --no-pager -n 80 2>/dev/null || true" 140
 
   if [[ "$MODE" == "full" ]]; then
-    emit_section_cmd "NGINX acessos recentes" "docker logs --since='$SINCE' --tail=120 jubileu-nginx 2>&1" 140
-    emit_section_cmd "NGINX contagem por status" "docker logs --since='$SINCE' jubileu-nginx 2>&1 | awk '{print \$9}' | grep -E '^[0-9]{3}$' | sort | uniq -c | sort -nr" 40
-    emit_section_cmd "NGINX rotas mais acessadas" "docker logs --since='$SINCE' jubileu-nginx 2>&1 | awk '{print \$7}' | grep '^/' | sort | uniq -c | sort -nr | head -30" 50
-    emit_section_cmd "API logs recentes" "docker logs --since='$SINCE' --tail=160 jubileu-api 2>&1" 180
-    emit_section_cmd "Banco logs recentes" "docker logs --since='$SINCE' --tail=120 jubileu-db 2>&1" 140
+    emit_section_cmd "NGINX acessos recentes" "docker logs --since='$SINCE' --tail=120 '$NGINX_CONTAINER' 2>&1" 140
+    emit_section_cmd "NGINX contagem por status" "docker logs --since='$SINCE' '$NGINX_CONTAINER' 2>&1 | awk '{print \$9}' | grep -E '^[0-9]{3}$' | sort | uniq -c | sort -nr" 40
+    emit_section_cmd "NGINX rotas mais acessadas" "docker logs --since='$SINCE' '$NGINX_CONTAINER' 2>&1 | awk '{print \$7}' | grep '^/' | sort | uniq -c | sort -nr | head -30" 50
+    emit_section_cmd "API logs recentes" "docker logs --since='$SINCE' --tail=160 '$API_CONTAINER' 2>&1" 180
+    emit_section_cmd "Banco logs recentes" "docker logs --since='$SINCE' --tail=120 '$DB_CONTAINER' 2>&1" 140
   else
     {
       echo "## NGINX acessos recentes"
@@ -557,7 +571,7 @@ write_markdown() {
     } >> "$RAW_MD"
   fi
 
-  emit_section_cmd "Banco estado atual" "docker exec jubileu-db sh -lc 'pg_isready -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\"' || true; docker exec jubileu-db sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT now() AS agora, pg_is_in_recovery() AS em_recovery;\"' || true; echo; docker exec jubileu-db sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"\\dt\"' || true" 120
+  emit_section_cmd "Banco estado atual" "docker exec '$DB_CONTAINER' sh -lc 'pg_isready -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\"' || true; docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT now() AS agora, pg_is_in_recovery() AS em_recovery;\"' || true; echo; docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"\\dt\"' || true" 120
 
   {
     echo "## Eventos funcionais"
@@ -565,11 +579,11 @@ write_markdown() {
   } >> "$RAW_MD"
 
   if [[ "$MODE" == "full" ]]; then
-    emit_section_functional "### Eventos" "docker exec jubileu-db sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM eventos ORDER BY id DESC LIMIT 20;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Participantes/RSVP/check-in" "docker exec jubileu-db sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM evento_participantes ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 30;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Lances" "docker exec jubileu-db sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM lances ORDER BY created_at DESC LIMIT 30;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Partidas" "docker exec jubileu-db sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM partidas ORDER BY id DESC LIMIT 30;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Team configs" "docker exec jubileu-db sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT id, evento_id, version, created_at, is_active, estado FROM team_configs ORDER BY created_at DESC LIMIT 20;\"' 2>/dev/null || true" 120
+    emit_section_functional "### Eventos" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM eventos ORDER BY id DESC LIMIT 20;\"' 2>/dev/null || true" 90
+    emit_section_functional "### Participantes/RSVP/check-in" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM evento_participantes ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 30;\"' 2>/dev/null || true" 90
+    emit_section_functional "### Lances" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM lances ORDER BY created_at DESC LIMIT 30;\"' 2>/dev/null || true" 90
+    emit_section_functional "### Partidas" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM partidas ORDER BY id DESC LIMIT 30;\"' 2>/dev/null || true" 90
+    emit_section_functional "### Team configs" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT id, evento_id, version, created_at, is_active, estado FROM team_configs ORDER BY created_at DESC LIMIT 20;\"' 2>/dev/null || true" 120
   else
     {
       echo "### Eventos"

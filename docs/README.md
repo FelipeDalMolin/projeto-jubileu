@@ -43,6 +43,8 @@ python3 scripts/docs/generate_code_map.py --check
 
 ## Ciclo Atual
 
-O ciclo ativo e `v0.3.x`. O objetivo e fechar a base operacional com `Evento` canonico, `Usuario` persistido, validacao PostgreSQL, hardening de auth/polling, UI Tailwind-only e release gate.
+O ciclo ativo e o fechamento de `v0.3.0`. DEV-21 foi integrado; DEV-27 consolida PostgreSQL,
+Playwright sem skips, bundle e runtime imutavel antes do RC3. Producao permanece `NO-GO` ate
+evidencia de restore/rollback e aprovacao humana explicita.
 
 Nao abrir `v0.4` neste ciclo.

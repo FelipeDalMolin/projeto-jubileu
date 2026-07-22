@@ -13,6 +13,7 @@ on:
 permissions:
   contents: write
   packages: write
+  checks: read
 
 jobs:
   publish-and-smoke:
@@ -35,6 +36,10 @@ jobs:
           sha="$(scripts/release/resolve_release_ref.sh "$REQUESTED_REF")"
           echo "sha=$sha" >>"$GITHUB_OUTPUT"
           echo "release_ref=$REQUESTED_REF" >>"$GITHUB_OUTPUT"
+      - name: Verify required checks on the exact SHA
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: scripts/release/verify_required_checks.sh "${{ steps.identity.outputs.sha }}" required-checks.json
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -83,7 +88,8 @@ jobs:
             --arg alembic_head "$ALEMBIC_HEAD" \
             --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
             --arg workflow "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
-            '{release_ref:$release_ref,git_sha:$git_sha,backend_image:$backend_image,frontend_image:$frontend_image,backend_digest:$backend_digest,frontend_digest:$frontend_digest,alembic_head:$alembic_head,generated_at:$generated_at,workflow:$workflow,migration_compatibility:"compatible_during_v0.3_transition"}' \
+            --slurpfile required_checks required-checks.json \
+            '{release_ref:$release_ref,git_sha:$git_sha,backend_image:$backend_image,frontend_image:$frontend_image,backend_digest:$backend_digest,frontend_digest:$frontend_digest,alembic_head:$alembic_head,generated_at:$generated_at,workflow:$workflow,migration_compatibility:"compatible_during_v0.3_transition",checks:$required_checks[0].checks}' \
             > release-manifest.json
       - name: Start isolated RC from published digests
         env:
@@ -115,10 +121,14 @@ jobs:
             echo "FRONTEND_IMAGE_DIGEST=$FRONTEND_DIGEST"
             echo "BACKEND_IMAGE=$backend_image"
             echo "FRONTEND_IMAGE=$frontend_image"
-            echo "RELEASE_HTTP_PORT=18080"
+            echo "POSTGRES_VOLUME_NAME=jubileu-rc-${GITHUB_RUN_ID}-postgres"
+            echo "NGINX_PORT=18080"
             echo "RELEASE_ENV_FILE=.env.release"
           } >.env.release
-          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml up -d --wait
+          docker volume create "jubileu-rc-${GITHUB_RUN_ID}-postgres" >/dev/null
+          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml up -d --wait jubileu-db
+          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml run --rm migration
+          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml up -d --wait jubileu-api nginx
           docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml \
             exec -T jubileu-api python -m app.modules.auth.seed
       - uses: actions/setup-node@v4
@@ -136,26 +146,52 @@ jobs:
           E2E_BASE_URL: http://127.0.0.1:18080
           E2E_API_URL: http://127.0.0.1:18080
           E2E_REUSE_EXISTING_SERVER: "1"
+          E2E_RUNTIME_MODE: nginx
+          CI: "1"
           SMOKE_USERNAME: admin
           SMOKE_PASSWORD: admin123
         run: |
           scripts/release/smoke_release.sh
+          scripts/ci/check_playwright_no_skips.sh
           cd frontend/jubileu-web
-          npx playwright test e2e/contract.spec.ts e2e/auth-cookie.spec.ts e2e/dev41-smoke.spec.ts e2e/dashboard-traceability.spec.ts e2e/operational-workspace.spec.ts --project=chromium --workers=1
-      - name: Upload manifest
+          npx playwright test --project=chromium --workers=1
+          node ../../scripts/ci/assert_playwright_results.mjs test-results/results.json
+      - name: Build bundle and redact runtime evidence
+        if: always() && hashFiles('release-manifest.json') != ''
+        run: |
+          mkdir -p release-evidence
+          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml logs --no-color \
+            >release-evidence/runtime.raw.log 2>&1 || true
+          scripts/release/redact_evidence.sh <release-evidence/runtime.raw.log >release-evidence/runtime.log
+          rm -f release-evidence/runtime.raw.log
+          scripts/release/build_release_bundle.sh release-manifest.json release-evidence
+          cp release-manifest.json required-checks.json release-evidence/
+      - name: Upload RC evidence
         if: always() && hashFiles('release-manifest.json') != ''
         uses: actions/upload-artifact@v4
         with:
-          name: release-manifest-${{ steps.identity.outputs.sha }}
-          path: release-manifest.json
+          name: release-evidence-${{ steps.identity.outputs.sha }}
+          path: |
+            release-evidence/
+            frontend/jubileu-web/playwright-report/
+            frontend/jubileu-web/test-results/results.json
+            docs/generated/authorization-matrix.md
       - name: Publish prerelease evidence
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ steps.identity.outputs.release_ref }}" release-manifest.json --verify-tag --prerelease --title "${{ steps.identity.outputs.release_ref }}" --notes "Immutable RC built and smoke-tested from the attached digests."
+        run: >-
+          gh release create "${{ steps.identity.outputs.release_ref }}"
+          release-evidence/*
+          frontend/jubileu-web/test-results/results.json
+          --verify-tag --prerelease
+          --title "${{ steps.identity.outputs.release_ref }}"
+          --notes "Immutable RC built once, validated from digests, and accompanied by redacted evidence."
       - name: Runtime logs on failure
         if: failure()
         run: docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml logs --tail=300
       - name: Remove isolated RC
         if: always()
-        run: docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml down -v || true
+        run: |
+          docker compose --project-name jubileu-rc-${GITHUB_RUN_ID} --env-file .env.release -f compose.release.yml down --remove-orphans || true
+          docker volume rm "jubileu-rc-${GITHUB_RUN_ID}-postgres" || true

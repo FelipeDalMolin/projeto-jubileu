@@ -11,8 +11,8 @@ Legenda: `sim`, `parcial`, `nao`, `aguarda merge`, `aguarda GO humano`.
 | DEV-21 PR 1 - Security Gate | sim | sim | sim | sim | PR #41 mesclado em `ffbc290`; seis required checks verdes. |
 | DEV-21 PR 2 - contratos/lifecycle/participantes | sim | sim | sim | sim | PR #42 mesclado em `2cdfc02`; seis required checks verdes. |
 | DEV-21 PR 3 - equipes/rotacao | sim | sim | sim | sim | PR #43 mesclado em `a19927e`; seis required checks verdes. |
-| DEV-21 PR 4 - partidas/lances | sim | sim | sim | aguarda merge | Backend `241 passed`; PostgreSQL `2 integration + 2 postgresql`; coverage `84%`; E2E `11 passed`. |
-| DEV-27 PR 5 - qualidade/runtime release | nao | nao | nao | nao | Depende do fechamento DEV-21. |
+| DEV-21 PR 4 - partidas/lances | sim | sim | sim | sim | PR #44 mesclado em `4664eba`; seis required checks verdes. |
+| DEV-27 PR 5 - qualidade/runtime release | sim | parcial | sim | aguarda merge | Suite integral sem skips, bancos Alembic-managed, runtime unico por digest, bundle e rehearsal implementados; gates em execucao. |
 | RC3 por digest | nao | nao | parcial | nao | RC1/RC2 permanecem historicos e nao promoviveis. |
 | Artefato imutavel do runtime anterior | nao | nao | parcial | nao | Producao atual usa checkout/bind mounts e nao expoe identidade de release. |
 | Upgrade Alembic de producao `0016 -> 0020` | nao | nao | parcial | nao | Revisao `0016_usuarios_legacy_nullable` inventariada read-only; ensaio isolado pendente. |
@@ -101,3 +101,41 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
 - Transacoes: locks adquirem Evento antes do filho e conflitos esperados usam savepoints, sem
   rollback global nos modulos de Partida.
 - Migration: nenhuma nova; head permanece `0020_auth_sessions_rollback_safe`.
+
+## Evidencia do PR 4 integrado
+
+- PR: `https://github.com/FelipeDalMolin/projeto-jubileu/pull/44`.
+- Merge: `4664eba69536a21a1df96b0f718843ef16f96d25`.
+- Required checks: seis de seis aprovados no GitHub Actions.
+
+## Evidencia em construcao do PR 5
+
+- Playwright passa a executar todos os specs ativos pelo NGINX, sem declaracoes de skip e com
+  relatorio JSON validado contra skips/flaky.
+- PostgreSQL de integracao recebe schema somente por Alembic; um gate estatico impede
+  `Base.metadata.create_all/drop_all` em testes marcados `integration`.
+- `compose.server.yml`, `.env.server.example` e scripts de build/deploy por checkout foram removidos.
+- `compose.release.yml` exige volume PostgreSQL externo e porta NGINX explicita; API e banco nao
+  publicam portas.
+- Bundle, backup, restore e rehearsal geram checksums/evidencias redigidas e bloqueiam alvos com
+  nome produtivo.
+- Resultados exatos e aprovacao desta linha dependem dos gates locais e do merge do PR DEV-27.
+
+### Resultados locais DEV-27 em 2026-07-22 UTC
+
+- Backend unitario: `241 passed, 4 skipped`; os quatro cenarios condicionais foram reexecutados nos
+  lanes PostgreSQL correspondentes.
+- Coverage branch: `84%`, acima do gate `81%`; smoke `4 passed`; contract `175 passed`.
+- PostgreSQL 16: `2 passed` integration e `2 passed` postgresql, zero skips. Alembic passou em banco
+  limpo, `0019 -> 0020`, revisao produtiva observada `0016 -> 0020` e segunda execucao de `head`.
+- Frontend: lint, build Vite e contrato `/api` aprovados.
+- Playwright pelo NGINX: `18 passed`, `0 skipped`, `0 flaky`, cobrindo todos os specs ativos.
+- Compose dev/release, Bash, ShellCheck 0.10.0, code-map, matriz de autorizacao e bundle com
+  checksums aprovados.
+- Smoke do runtime imutavel local: identidade, readiness, frontend e portas privadas aprovados.
+- Rehearsal local: seis fases aprovadas; dump `pg_dump -Fc` de `69.398 bytes`, SHA-256
+  `67b58ebabbb8b042a6eee0f9fca9e3a8afcedddf99fa232599e12df7aa04d68c`, restore e evidencias
+  JSON/Markdown com checksums. Esse ensaio usou `ALLOW_LOCAL_TAGS=1`, a mesma imagem nos dois lados
+  e schema `0020 -> 0020`; comprova a mecanica, mas nao substitui o rehearsal bloqueante por digest
+  com o runtime produtivo anterior e backup restaurado.
+- Producao alterada: nao. Volumes isolados do ensaio foram removidos depois da validacao.

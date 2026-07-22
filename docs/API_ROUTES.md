@@ -92,5 +92,5 @@ Smoke de runtime via NGINX:
 
 ```bash
 SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
-  LOCAL_BASE_URL=http://127.0.0.1 scripts/server/smoke_server.sh
+  RELEASE_BASE_URL=http://127.0.0.1:"$NGINX_PORT" scripts/release/smoke_release.sh
 ```

@@ -65,9 +65,9 @@ web_modules/
 .env.*
 !.env.example
 !.env.dev.example
-!.env.server.example
 !.env.release.example
 release-manifest.json
+release-bundles/
 
 ############################
 # Frontend build outputs
