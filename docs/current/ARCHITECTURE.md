@@ -58,19 +58,27 @@ Comandos canonicos:
 
 ## Direcao De Evolucao
 
-O ciclo `v0.3.x` deve fechar:
+O ciclo `v0.3.0` fechou:
 
 - validacao PostgreSQL das migrations de Evento e Usuario;
-- hardening de auth/segredos;
+- hardening de auth/segredos e Security Gate server-side;
 - polling/auth hardening;
-- UI/UX operacional consistente, com decisao explicita sobre Tailwind puro,
-  biblioteca existente ou dependencia nova;
-- CI/release gate;
-- smoke integrado via NGINX.
+- UI/UX operacional consistente em Tailwind e componentes locais;
+- CI/release gate com seis checks obrigatorios;
+- promocao por digest, migration one-shot, readiness e smoke via NGINX.
 
-O ciclo nao deve abrir `v0.4`. Nova dependencia de UI so deve entrar quando a motivacao,
+O proximo ciclo permitido e `v0.3.1 Stabilization`; nao abrir `v0.4`. Nova dependencia de UI so deve entrar quando a motivacao,
 trade-offs, acessibilidade, manutencao, impacto visual e risco de dependencia estiverem
 explicitos no PR.
+
+## Runtime Promovido v0.3.0
+
+- RC de origem: `v0.3.0-rc.5`.
+- SHA: `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`.
+- Backend: `sha256:59928c4b79764127edc56a0a2cf01d2392d32a1d65a7a668dde4488cc96de92f`.
+- Frontend: `sha256:595355954c989edb6b6e5af387b832f95bb21d6cbd1c0180269759eafd3a1232`.
+- Schema: `0020_auth_sessions_rollback_safe`.
+- Operacao: `/srv/ops/stacks/jubileu-v03`; o checkout legado de producao nao e superficie de deploy.
 
 ## Documentacao E Rastreabilidade
 

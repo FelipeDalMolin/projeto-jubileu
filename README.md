@@ -95,7 +95,7 @@ A aplicacao usa `Evento` como entidade operacional canonica. `AULA` e apenas um 
 
 | Versao | Descricao | Status | Data |
 |---|---|---|---|
-| v0.3.x | Evento canonico, Usuario, Security Gate e release imutavel | RC3 e RC4 nao promoviveis; RC5 em preparacao; producao NO-GO | Sem target date por decisao do responsavel |
+| v0.3.0 | Evento canonico, Usuario, Security Gate e release imutavel | Promovida a partir do RC5, sem rebuild | 23 de julho de 2026 |
 | 0.2.0 | Setup melhorado, otimizacoes e novos scripts | Arquivado | Abril 2026 |
 | 0.1.1 | Ajustes e correcoes | Arquivado | - |
 | 0.1.0-alpha | Primeira versao alpha | Arquivado | - |

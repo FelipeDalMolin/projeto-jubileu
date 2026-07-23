@@ -14,6 +14,18 @@ Release:
 Cloudflare tunnel -> 127.0.0.1:${NGINX_PORT} nginx image -> jubileu-api image -> jubileu-db
 ```
 
+Current production (`v0.3.0`):
+
+- stack directory: `/srv/ops/stacks/jubileu-v03`;
+- Compose project: `jubileu-v03`;
+- external PostgreSQL volume: `jubileu_prod_db_data`;
+- NGINX: `127.0.0.1:80`; API/PostgreSQL have no host ports;
+- source: `v0.3.0-rc.5`, SHA `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`;
+- schema: `0020_auth_sessions_rollback_safe`.
+
+`/srv/apps/jubileu-prod` is the preserved legacy checkout/runtime inventory, not the deployment
+surface for digest-based releases.
+
 ## Compose files
 
 - `compose.dev.yml`

@@ -4,6 +4,10 @@
 
 This document summarizes the public contracts used by the current MVP.
 
+These contracts are the production surface of `v0.3.0`, promoted from `v0.3.0-rc.5` on
+23 July 2026. Runtime identity is authenticated through `GET /api/version`; liveness and
+readiness intentionally do not expose release metadata.
+
 ## Gateway Rule
 
 `/api` is the only backend gateway prefix for product data. Data aliases without `/api` and

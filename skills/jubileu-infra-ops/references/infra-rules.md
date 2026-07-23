@@ -22,6 +22,9 @@
 - Never paste actual secret values into docs or summaries.
 - Use `.env.dev.example` and `.env.release.example` for documented shape only.
 - Prefer `chmod 600` for created local env files.
+- Before a production auth migration, prove that a non-default operator credential will remain
+  active. If bootstrap is needed, require explicit human authorization, create the backup first,
+  and never disclose the generated credential in output or evidence.
 
 ## Database and migrations
 
@@ -57,3 +60,5 @@ cd frontend/jubileu-web && npm run check:api-contract
 - Rollback reuses a previous manifest only when the migration compatibility class permits it.
 - Never run downgrade, restore, or production promotion automatically.
 - State whether a change affects dev only, isolated RC, or approved public runtime.
+- Production promotion operates from `/srv/ops/stacks/<release>` with an approved bundle and
+  digest-pinned images; do not pull, build, or edit `/srv/apps/jubileu-prod`.

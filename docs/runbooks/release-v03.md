@@ -126,7 +126,42 @@ checksums/digests, gere backup fresco, execute migration one-shot e suba os mesm
 aprovado.
 Observe readiness e logs por 15 minutos, exigindo zero `5xx` inesperado no smoke.
 
+Antes de interromper o runtime anterior:
+
+1. confirme uma credencial administrativa nao padrao que continuara ativa depois da migration;
+2. se somente contas de desenvolvimento existirem, pare e obtenha autorizacao humana explicita
+   para um bootstrap controlado; nunca reative uma conta de senha conhecida em producao;
+3. armazene a credencial inicial fora do Git, com modo `0600`, sem exibir seu valor;
+4. valide o login no runtime anterior e gere outro `pg_dump -Fc` imediatamente antes da migration;
+5. valide checksum e `pg_restore --list` desse dump.
+
+Quando o runtime anterior ainda nao for gerenciado por `compose.release.yml`, o backup deve ser
+feito diretamente no container PostgreSQL identificado no inventario. Nao tente executar
+`backup_release.sh` contra um project name que ainda nao controla o banco. O dump continua privado,
+com `umask 077`, checksum, `pg_restore --list` e retencao definida.
+
 - Antes da migration: mantenha o runtime anterior.
 - Migration compativel: volte aos digests anteriores contra o mesmo banco.
 - Migration incompativel: restore exige uma aprovacao humana separada.
 - Nunca execute downgrade, restore ou rollback automaticamente.
+
+## Evidencia da promocao v0.3.0
+
+- autorizacao: `GO v0.3.0` e aceite explicito do smoke pelo responsavel;
+- candidato: `v0.3.0-rc.5` no SHA
+  `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`;
+- bundle: SHA-256
+  `de19e2a1103368e89157ff6fc61467ba1345193d1fdd27b6186cafb4614c452d`;
+- backend: `sha256:59928c4b79764127edc56a0a2cf01d2392d32a1d65a7a668dde4488cc96de92f`;
+- frontend: `sha256:595355954c989edb6b6e5af387b832f95bb21d6cbd1c0180269759eafd3a1232`;
+- backup imediato pre-migration: SHA-256
+  `671cd1b5235492c417e1439f5b623da5efdc6bcc00ed5e3a54226a10737fdad8`, privado e com
+  `pg_restore --list` valido;
+- migration: `0016_usuarios_legacy_nullable -> 0020_auth_sessions_rollback_safe`;
+- smoke: identidade, readiness, frontend e portas privadas aprovados;
+- observacao: 31 amostras entre `2026-07-23T02:11:09Z` e `2026-07-23T02:25:43Z`, todas
+  saudaveis, com zero `5xx` nos logs da API e do NGINX;
+- runtime: `/srv/ops/stacks/jubileu-v03`, project `jubileu-v03`, volume
+  `jubileu_prod_db_data`;
+- checkout produtivo legado: nao modificado;
+- restore, downgrade e rollback automatico: nao executados.

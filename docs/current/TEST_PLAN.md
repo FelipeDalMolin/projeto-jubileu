@@ -118,15 +118,17 @@ sao redigidas. Nenhum dump vira artifact.
 ## Estado do fechamento v0.3
 
 - DEV-21 PRs #41-#44: integrados, seis required checks verdes em cada merge.
-- DEV-27 PR #45: gate, runtime unico por digest, bundle e rehearsal integrados em `72d5856`; a
-  issue permanece aberta ate as evidencias operacionais e eventual promocao autorizada.
+- DEV-27: gate/runtime no PR #45, corretivo de rehearsal no PR #47 e supply-chain gate no PR #48.
 - RC1 e RC2: historicos e nao promoviveis.
 - RC3: build, smoke e Playwright verdes, mas rejeitado depois da construcao porque o rehearsal
   executava `alembic current` com a copia antiga sobre o schema `0020`.
 - RC4: build, smoke, Playwright e rehearsal real verdes, mas rejeitado depois da construcao porque
   o lockfile ainda continha vulnerabilidades de producao; permanece historico e nao promovivel.
-- RC5: proximo candidato obrigatorio depois do corretivo DEV-27. O check `Frontend` passa a falhar
-  em vulnerabilidade high/critical. Producao permanece `NO-GO` ate evidencia isolada completa e
-  resposta humana `GO v0.3.0`.
+- RC5: `18 passed`, `0 skipped`, `0 flaky`, audit sem vulnerabilidades e seis required checks
+  verdes no SHA `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`; rehearsal real de seis fases aprovado.
+- Producao: `0016 -> 0020`, smoke autenticado aprovado e 31/31 amostras de readiness/health
+  aprovadas durante 15 minutos, com zero `5xx` nos logs da API e do NGINX.
+- O Playwright integral foi executado no RC e no ambiente restaurado isolado; producao recebeu
+  apenas o smoke nao destrutivo aprovado. Nenhum teste foi pulado nos gates do candidato.
 
-Resultados exatos por PR e bloqueios pendentes ficam em `V03_CLOSURE_MATRIX.md`.
+Resultados exatos por PR, RC e promocao ficam em `V03_CLOSURE_MATRIX.md`.

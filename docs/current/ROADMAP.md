@@ -16,7 +16,7 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 Base integrada: `origin/jubileu-v2`.
 
-Marco integrado mais recente: `d4144cd fix: make release rehearsal backward-compatible (#47)`.
+Marco integrado mais recente: `bfe4ed0 chore: close RC5 frontend supply-chain gate (#48)`.
 
 Estado consolidado:
 
@@ -31,17 +31,15 @@ Estado consolidado:
 - GitHub Actions passa a ser o gate oficial minimo de CI para backend, frontend e contratos.
 - Vercel pode aparecer no historico por integracao externa, mas nao e gate oficial de qualidade ou runtime do projeto.
 
-## Marco Ativo
+## Marco Encerrado
 
-O marco ativo e o fechamento formal da v0.3.0. A decisao permanece `NO-GO` e o projeto `atRisk`
-ate o Security Gate DEV-21 e o rollback DEV-27 produzirem evidencia. A ordem bloqueante e:
+`v0.3.0` foi promovida em producao em 23 de julho de 2026 depois do `GO v0.3.0` humano.
+O Security Gate DEV-21, o runtime/rollback DEV-27, o rehearsal real e o RC5 imutavel foram
+comprovados. A promocao reutilizou o SHA e os digests aprovados, executou `0016 -> 0020`, passou
+smoke autenticado e permaneceu estavel durante 15 minutos com zero `5xx`.
 
-1. quatro PRs DEV-21 para autorizacao e decomposicao do dominio;
-2. PR DEV-27 para qualidade e runtime de release;
-3. RC imutavel por digest; RC3 foi rejeitado no rehearsal e RC4 no audit de dependencias;
-   ambos serao substituidos por RC5;
-4. ensaio isolado de upgrade desde a revisao produtiva `0016`, restore e rollback;
-5. pedido de `GO v0.3.0` humano antes de qualquer operacao produtiva.
+RC1-RC4 permanecem historicos e nao promoviveis. O proximo marco e somente
+`v0.3.1 Stabilization`, em Backlog; nao existe planejamento `v0.4` neste encerramento.
 
 ## Trilhas de Execucao
 
@@ -109,6 +107,7 @@ Foco:
 | PostgreSQL real | gate bloqueante | Banco limpo, `0019 -> head`, `0016 -> head`, integracao e concorrencia. |
 | GitHub Actions | Operacional | Seis required checks com nomes estaveis. |
 | UC06-UC09 E2E | coberto | Fixtures auditaveis de presenca/RSVP, fila, partida, lance e proxima partida. |
+| Producao v0.3.0 | Promovida | RC5 no SHA `bfe4ed0`, schema `0020`, smoke verde e 31/31 amostras estaveis. |
 
 ## Regras de Compatibilidade
 
@@ -120,16 +119,21 @@ Foco:
 - `OUTRO` continua reservado para preparacao de modelagem ate existir fluxo operacional dedicado.
 - Rotas de dados sem `/api` retornam `404` e nao sao compatibilidade suportada.
 
-## Proximas Entregas
+## Entregas Concluidas
 
-1. DEV-21 PR 1: Security Gate e matriz de autorizacao — integrado no PR #41 (`ffbc290`).
-2. DEV-21 PR 2: contratos canonicos, lifecycle e participantes — integrado no PR #42 (`2cdfc02`).
-3. DEV-21 PR 3: equipes/rotacao — integrado no PR #43 (`a19927e`).
-4. DEV-21 PR 4: partidas/lances — integrado no PR #44 (`4664eba`); DEV-21 concluida.
-5. DEV-27 PR #45: Playwright sem skips, runtime promovivel, bundle e rehearsal — integrado em
-   `72d5856`; a issue permanece aberta pelo aceite operacional.
-6. Corretivo do supply chain DEV-27 e RC5 — etapa ativa. RC3 e RC4 permanecem historicos e nao
-   promoviveis; producao somente apos evidencia completa e `GO v0.3.0` humano.
+1. DEV-21 PR 1: Security Gate e matriz de autorizacao — PR #41 (`ffbc290`).
+2. DEV-21 PR 2: contratos canonicos, lifecycle e participantes — PR #42 (`2cdfc02`).
+3. DEV-21 PR 3: equipes/rotacao — PR #43 (`a19927e`).
+4. DEV-21 PR 4: partidas/lances — PR #44 (`4664eba`).
+5. DEV-27: runtime promovivel, Playwright sem skips, rehearsal/rollback e supply-chain gate —
+   PRs #45, #47 e #48.
+6. `v0.3.0-rc.5`: CI, build unico, manifesto, digests, rehearsal real e promocao produtiva.
+
+## Unica Proxima Prioridade
+
+Criar e executar a issue pai `v0.3.1 Stabilization` em Backlog para acompanhar observabilidade,
+rotacao segura da credencial administrativa inicial e pequenos corretivos pos-release. Nao criar
+v0.4 neste momento.
 
 ## Trabalho Adiado
 
