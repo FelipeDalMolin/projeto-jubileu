@@ -19,7 +19,7 @@ Legenda: `sim`, `parcial`, `nao`, `em fechamento`.
 | Upgrade Alembic de producao `0016 -> 0020` | sim | sim | sim | sim | Migration one-shot executada em producao e readiness confirmou `0020`. |
 | Backup/restore/rollback isolado | sim | sim | sim | sim | RC5 passou nas seis fases com dump real, digests e `local_tag_override=false`. |
 | Promocao de producao | sim | sim | sim | sim | `GO` humano, smoke aceito e 31/31 amostras estaveis com zero `5xx`. |
-| Documentacao e reconciliacao CORE | sim | sim | sim | em fechamento | PR documental DEV-27 e reconciliacao Linear executados apos as evidencias produtivas. |
+| Documentacao e reconciliacao CORE | sim | sim | sim | em fechamento | PR documental DEV-27 #49 e reconciliacao Linear executados apos as evidencias produtivas. |
 | Release final `v0.3.0` | sim | sim | sim | em fechamento | Mesmo SHA/manifesto/digests do RC5; sem rebuild e sem alterar tags existentes. |
 
 ## Inventario inicial read-only
