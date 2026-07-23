@@ -19,8 +19,8 @@ Legenda: `sim`, `parcial`, `nao`, `em fechamento`.
 | Upgrade Alembic de producao `0016 -> 0020` | sim | sim | sim | sim | Migration one-shot executada em producao e readiness confirmou `0020`. |
 | Backup/restore/rollback isolado | sim | sim | sim | sim | RC5 passou nas seis fases com dump real, digests e `local_tag_override=false`. |
 | Promocao de producao | sim | sim | sim | sim | `GO` humano, smoke aceito e 31/31 amostras estaveis com zero `5xx`. |
-| Documentacao e reconciliacao CORE | sim | sim | sim | em fechamento | PR documental DEV-27 #49 e reconciliacao Linear executados apos as evidencias produtivas. |
-| Release final `v0.3.0` | sim | sim | sim | em fechamento | Mesmo SHA/manifesto/digests do RC5; sem rebuild e sem alterar tags existentes. |
+| Documentacao e reconciliacao CORE | sim | sim | sim | sim | PR documental DEV-27 #49 mesclado; CORE/DEV/projeto reconciliados no Linear. |
+| Release final `v0.3.0` | sim | sim | sim | sim | Mesmo SHA/manifesto/digests do RC5; seis assets identicos, sem rebuild e sem alterar tags existentes. |
 
 ## Inventario inicial read-only
 
@@ -243,3 +243,17 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
   `jubileu_prod_db_data`, NGINX em `127.0.0.1:80`, API e PostgreSQL sem porta de host.
 - `/srv/apps/jubileu-prod` nao foi modificado. Restore, downgrade e rollback automatico nao foram
   executados.
+
+## Evidencia do encerramento formal
+
+- PR documental #49 mesclado em `402375f5ac5150bd6dc70ec8051a5572ca4742dc`, com seis checks
+  obrigatorios verdes.
+- Tag anotada `v0.3.0` aponta para `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`, o mesmo commit
+  do RC5; o workflow de candidatos nao foi disparado pela tag final.
+- Release final: `https://github.com/FelipeDalMolin/projeto-jubileu/releases/tag/v0.3.0`.
+- Os seis assets da release final possuem exatamente nomes, tamanhos e digests iguais aos assets
+  do RC5; nenhuma imagem foi reconstruida.
+- Linear: CORE-1, CORE-3, CORE-4, CORE-5 e CORE-7 concluidos; CORE-2 e CORE-6 cancelados por
+  substituicao; DEV-27 concluida; projeto `Evento Canonico + Usuario` em `Completed`, sem target
+  date e com lead `felipe.molin@hotmail.com`.
+- Proxima prioridade unica: DEV-53 `v0.3.1 Stabilization`, em Backlog. Nenhuma v0.4 foi criada.
