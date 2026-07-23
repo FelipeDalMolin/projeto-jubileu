@@ -24,10 +24,14 @@ The project uses controlled authentication and user management.
 
 Mandatory constraints:
 
-- JWT-compatible authentication must remain backend-controlled.
-- Legacy header compatibility may exist locally, but it is not a reason to move authorization to the frontend.
+- Browser authentication uses same-origin HttpOnly access/refresh cookies; technical clients may
+  use Bearer. Authentication and authorization remain backend-controlled.
+- Production requires `APP_ENV=production`, `AUTH_MODE=secure`, short-lived access tokens,
+  rotating refresh sessions, signed session-bound CSRF and distinct JWT/refresh HMAC secrets.
+- Legacy `X-User-*` headers exist only in development/test and never override cookie or Bearer.
 - Do not introduce public registration.
-- Do not invent refresh or invite flows without an explicit product decision and docs/ADR update.
+- Do not change refresh, session-family replay or invite semantics without an explicit product
+  decision and docs/ADR update.
 - RBAC must be enforced in backend.
 - Frontend must not be the source of truth for critical authorization.
 

@@ -43,10 +43,9 @@ python3 scripts/docs/generate_code_map.py --check
 
 ## Ciclo Atual
 
-O ciclo ativo e o fechamento de `v0.3.0`. DEV-21 foi integrado; DEV-27 consolida PostgreSQL,
-Playwright sem skips, supply chain, bundle e runtime imutavel antes do RC aprovado. RC3 foi
-rejeitado no rehearsal e RC4 foi rejeitado pelo audit de dependencias posterior ao build; RC5 e
-o proximo candidato. Producao permanece `NO-GO` ate
-evidencia de restore/rollback e aprovacao humana explicita.
+`v0.3.0` foi promovida em 23 de julho de 2026 a partir do RC5 aprovado, no SHA
+`bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`, reutilizando os mesmos digests e sem rebuild.
+DEV-21 e DEV-27 encerram o Security Gate, PostgreSQL/Alembic, Playwright sem skips, supply chain,
+backup/restore/rollback e runtime imutavel. RC1-RC4 permanecem historicos e nao promoviveis.
 
-Nao abrir `v0.4` neste ciclo.
+O unico proximo ciclo autorizado e `v0.3.1 Stabilization`, em Backlog. Nao abrir `v0.4`.

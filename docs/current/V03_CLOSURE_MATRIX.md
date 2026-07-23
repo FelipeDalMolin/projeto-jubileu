@@ -1,10 +1,11 @@
 # Matriz de encerramento v0.3.0
 
-Estado de governanca: `NO-GO`. O projeto permanece `atRisk` enquanto autorizacao P0 e
-rollback reproduzivel nao estiverem comprovados. Projeto e milestones nao possuem target date
-por decisao explicita do responsavel.
+Estado de governanca: `GO`. `v0.3.0-rc.5` foi promovida em 23 de julho de 2026 depois de
+autorizacao humana, rehearsal reproduzivel, backup imediato, migration, smoke autenticado e
+observacao de 15 minutos. Projeto e milestones permaneceram sem target date por decisao explicita
+do responsavel.
 
-Legenda: `sim`, `parcial`, `nao`, `aguarda RC5`, `aguarda GO humano`.
+Legenda: `sim`, `parcial`, `nao`, `em fechamento`.
 
 | Entrega | Implementado | Testado | Documentado | Aprovado | Evidencia/bloqueio |
 |---|---|---|---|---|---|
@@ -12,14 +13,14 @@ Legenda: `sim`, `parcial`, `nao`, `aguarda RC5`, `aguarda GO humano`.
 | DEV-21 PR 2 - contratos/lifecycle/participantes | sim | sim | sim | sim | PR #42 mesclado em `2cdfc02`; seis required checks verdes. |
 | DEV-21 PR 3 - equipes/rotacao | sim | sim | sim | sim | PR #43 mesclado em `a19927e`; seis required checks verdes. |
 | DEV-21 PR 4 - partidas/lances | sim | sim | sim | sim | PR #44 mesclado em `4664eba`; seis required checks verdes. |
-| DEV-27 PR 5 - qualidade/runtime release | sim | sim | sim | sim | PR #45 mesclado em `72d5856`; seis required checks verdes. A issue permanece aberta ate o aceite operacional completo. |
-| RC por digest | sim | parcial | sim | nao | RC3 foi rejeitado no rehearsal e RC4 no audit de dependencias pos-build; a regra imutavel exige RC5. |
-| Artefato imutavel do runtime anterior | sim | sim | sim | nao | Backend preservado pelo image ID original; frontend empacota byte a byte os bind mounts produtivos; ambos possuem OCI/checksum privado. |
-| Upgrade Alembic de producao `0016 -> 0020` | sim | sim | sim | nao | Dump real restaurado e RC4 passou pelo ciclo `0016 -> 0020`; o mesmo gate sera repetido no RC5. |
-| Backup/restore/rollback isolado | sim | sim | sim | nao | RC4 passou nas seis fases com runtime anterior preservado e dump real, mas o candidato foi rejeitado pelo audit de dependencias. |
-| Promocao de producao | nao | nao | parcial | aguarda GO humano | Proibida antes das evidencias e de resposta humana `GO v0.3.0`. |
-| Documentacao e reconciliacao CORE | nao | nao | parcial | nao | Executar somente apos promocao/smoke e PR documental DEV-27. |
-| Release final `v0.3.0` | nao | nao | parcial | nao | Deve apontar para o mesmo commit e digests do RC aprovado, sem rebuild. |
+| DEV-27 PR 5 - qualidade/runtime release | sim | sim | sim | sim | PRs #45, #47 e #48; seis required checks verdes e aceite operacional completo. |
+| RC por digest | sim | sim | sim | sim | RC5 aprovado no SHA `bfe4ed0`; RC1-RC4 permanecem historicos e nao promoviveis. |
+| Artefato imutavel do runtime anterior | sim | sim | sim | sim | Backend/frontend OCI e checksums privados; runtime anterior validado antes e depois do schema migrado. |
+| Upgrade Alembic de producao `0016 -> 0020` | sim | sim | sim | sim | Migration one-shot executada em producao e readiness confirmou `0020`. |
+| Backup/restore/rollback isolado | sim | sim | sim | sim | RC5 passou nas seis fases com dump real, digests e `local_tag_override=false`. |
+| Promocao de producao | sim | sim | sim | sim | `GO` humano, smoke aceito e 31/31 amostras estaveis com zero `5xx`. |
+| Documentacao e reconciliacao CORE | sim | sim | sim | em fechamento | PR documental DEV-27 e reconciliacao Linear executados apos as evidencias produtivas. |
+| Release final `v0.3.0` | sim | sim | sim | em fechamento | Mesmo SHA/manifesto/digests do RC5; sem rebuild e sem alterar tags existentes. |
 
 ## Inventario inicial read-only
 
@@ -200,5 +201,45 @@ Cada linha so muda para `sim` depois que houver evidencias reproduziveis de CI/s
 - Code-map e matriz de autorizacao permanecem sem drift. Compose dev/release, Bash,
   ShellCheck `0.10.0` e bundle de fixture RC5 com checksum passaram.
 - Migration: nenhuma nova; head permanece `0020_auth_sessions_rollback_safe`.
-- Producao alterada: nao. O corretivo ainda depende de PR, seis required checks no merge, novo RC
-  imutavel e repeticao do rehearsal real.
+- Producao alterada nessa etapa: nao. O corretivo ainda dependia de PR, seis required checks no
+  merge, novo RC imutavel e repeticao do rehearsal real.
+
+## Evidencia integrada e operacional do RC5
+
+- PR #48 integrado em `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`.
+- Seis required checks verdes no workflow `29898758656`.
+- Workflow de release `29898968287` publicou backend
+  `sha256:59928c4b79764127edc56a0a2cf01d2392d32a1d65a7a668dde4488cc96de92f` e frontend
+  `sha256:595355954c989edb6b6e5af387b832f95bb21d6cbd1c0180269759eafd3a1232`.
+- Bundle RC5: SHA-256
+  `de19e2a1103368e89157ff6fc61467ba1345193d1fdd27b6186cafb4614c452d`.
+- Playwright do candidato: `18 passed`, `0 skipped`, `0 flaky`; audit de dependencias: zero
+  vulnerabilidades.
+- O dump real e os artefatos anteriores passaram nas seis fases do rehearsal: restore em `0016`,
+  runtime anterior, migration ate `0020`, RC5, runtime anterior sobre `0020` e retorno ao RC5.
+  `local_tag_override=false`; smoke final verde; nenhuma operacao tocou producao durante o ensaio.
+
+## Evidencia da promocao produtiva
+
+- Autorizacoes humanas: `GO v0.3.0`, aceite do smoke e permissao explicita para criar conta
+  administrativa nao padrao.
+- Backup imediato anterior a migration:
+  `production_20260723T020829Z_immediate_pre_migration.dump`, `61.382 bytes`, SHA-256
+  `671cd1b5235492c417e1439f5b623da5efdc6bcc00ed5e3a54226a10737fdad8` e
+  `pg_restore --list` valido. O dump permanece privado.
+- A conta administrativa nao padrao autenticou no runtime anterior. Depois da migration, as quatro
+  contas default ficaram inativas, a conta autorizada permaneceu ativa e o primeiro login gravou
+  Argon2id preservando o hash legado para rollback durante a janela v0.3.
+- Cutover: runtime anterior parado as `2026-07-23T02:08:50Z`; RC5 pronto as
+  `2026-07-23T02:09:51Z`.
+- Migration one-shot: `0016_usuarios_legacy_nullable -> 0020_auth_sessions_rollback_safe`.
+- Smoke: release ref, SHA, digests, Alembic, frontend, readiness e isolamento das portas de API e
+  PostgreSQL aprovados.
+- Observacao: 31 amostras entre `2026-07-23T02:11:09Z` e `2026-07-23T02:25:43Z`; todas
+  `ready/ok/healthy`; API `5xx=0`; NGINX `5xx=0`.
+- Evidencia privada: `/srv/backups/jubileu/v0.3.0/promotion-evidence/20260723T021109Z`, com
+  checksums.
+- Runtime resultante: project `jubileu-v03` em `/srv/ops/stacks/jubileu-v03`, volume externo
+  `jubileu_prod_db_data`, NGINX em `127.0.0.1:80`, API e PostgreSQL sem porta de host.
+- `/srv/apps/jubileu-prod` nao foi modificado. Restore, downgrade e rollback automatico nao foram
+  executados.

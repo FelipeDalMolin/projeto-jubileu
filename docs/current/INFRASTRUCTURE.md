@@ -60,6 +60,11 @@ Somente o NGINX publica `127.0.0.1:${NGINX_PORT}:80`. API e PostgreSQL usam apen
 RC e producao devem consumir o mesmo par de digests registrado em `release-manifest.json`; rebuild
 no servidor nao e promocao valida.
 
+Desde `v0.3.0`, a stack produtiva e operada em `/srv/ops/stacks/jubileu-v03`, com project name
+`jubileu-v03`, volume externo `jubileu_prod_db_data` e NGINX em loopback `127.0.0.1:80`. O checkout
+`/srv/apps/jubileu-prod` permanece somente como runtime anterior preservado; nao recebe pull,
+edicao ou build durante a promocao por digest.
+
 Sequencia operacional minima:
 
 ```bash
@@ -99,6 +104,9 @@ compatibilidade sem downgrade ou restore automatico.
 - Arquivos locais de env devem permanecer ignorados e preferencialmente com permissao restrita.
 - Producao exige `APP_ENV=production`, `AUTH_MODE=secure`, cookies seguros e segredos distintos para JWT e digest HMAC de refresh.
 - O backend falha no startup quando a configuracao de auth de producao usa defaults, placeholders ou modo invalido.
+- Antes de promover uma migration que desative contas padrao, o operador deve provar uma conta
+  administrativa nao padrao e ativa. Credenciais operacionais ficam fora do Git em arquivo `0600`;
+  nenhuma senha aparece em logs, manifesto, bundle ou documentacao.
 
 ## Banco E Migrations
 
@@ -130,6 +138,10 @@ Smoke de release:
 SMOKE_USERNAME="$JUBILEU_SMOKE_USERNAME" SMOKE_PASSWORD="$JUBILEU_SMOKE_PASSWORD" \
   RELEASE_BASE_URL=http://127.0.0.1:"$NGINX_PORT" scripts/release/smoke_release.sh
 ```
+
+Na promocao de `v0.3.0`, o smoke conferiu RC5, SHA, digests, schema `0020`, frontend, readiness e
+portas privadas. A observacao subsequente coletou 31 amostras em 15 minutos e registrou zero `5xx`
+na API e no NGINX.
 
 Contrato frontend/API:
 

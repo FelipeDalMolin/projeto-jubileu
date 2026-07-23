@@ -42,6 +42,35 @@ Every slice delivery should include:
 - validation commands
 - linked Linear issue
 
+## v0.3.0 Final Release
+
+Status: promoted on 2026-07-23 from immutable candidate `v0.3.0-rc.5`.
+
+- Git SHA: `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`.
+- Backend digest: `sha256:59928c4b79764127edc56a0a2cf01d2392d32a1d65a7a668dde4488cc96de92f`.
+- Frontend digest: `sha256:595355954c989edb6b6e5af387b832f95bb21d6cbd1c0180269759eafd3a1232`.
+- Alembic: production upgraded from `0016_usuarios_legacy_nullable` to
+  `0020_auth_sessions_rollback_safe` through a one-shot migration.
+- Runtime: `/srv/ops/stacks/jubileu-v03`, using `compose.release.yml`; the legacy production
+  checkout was not modified.
+- Validation: authenticated smoke passed; readiness remained stable for 31 samples over 15
+  minutes; API and NGINX logs contained zero unexpected `5xx`.
+- Rollback: no downgrade, restore or automatic rollback was executed. The prior runtime artifacts
+  and pre-migration custom-format backups remain private and checksummed.
+
+The final tag `v0.3.0` points to the same commit as RC5. Its release assets reuse the approved
+manifest, bundle and checksums; no image was rebuilt and no existing RC tag was changed.
+
+Included product/platform outcomes:
+
+- canonical `Evento` model and guided operational workspace;
+- persisted Usuario/player identity and secure cookie sessions;
+- server-side authorization matrix and RBAC Security Gate;
+- deterministic queue/next-match command with PostgreSQL concurrency and idempotency;
+- traceable dashboards and operational Tailwind UI;
+- six blocking CI checks, full Playwright suite, immutable digest promotion and verified rollback
+  rehearsal.
+
 ## v0.3 Promotion Policy
 
 - CI constroi backend e frontend uma unica vez para `linux/amd64` e publica no GHCR pela
@@ -50,7 +79,7 @@ Every slice delivery should include:
   classe de compatibilidade da migration.
 - RC1 e RC2 sao historicos e nao promoviveis. RC3 falhou no gate de rehearsal posterior ao build.
   RC4 corrigiu e aprovou o rehearsal real, mas foi rejeitado pelo audit de dependencias posterior
-  ao build. Todos permanecem imutaveis e nao promoviveis; o proximo candidato e RC5.
+  ao build. Todos permanecem imutaveis e nao promoviveis; RC5 e o unico candidato promovido.
 - O required check `Frontend` executa `npm audit --audit-level=high` depois de `npm ci`, alem de
   lint, build e contrato `/api`. Uma falha posterior ao build exige novo RC.
 - O RC candidato usa os digests do manifesto em uma stack isolada e executa readiness, smoke e
@@ -59,13 +88,14 @@ Every slice delivery should include:
   ou atualizavam um checkout foram removidos. O banco usa volume externo explicitamente nomeado.
 - O bundle do RC contem Compose, manifesto, scripts, runbooks e checksums, mas nunca env real,
   segredo ou dump.
-- Producao, quando autorizada, reutiliza exatamente os digests do RC aprovado. A tag `v0.3.0` e o
-  deploy produtivo nao fazem parte da aprovacao do RC.
+- Producao reutiliza exatamente os digests do RC aprovado. A tag `v0.3.0` aponta para o mesmo SHA
+  do RC5 e nao dispara o workflow de build de candidatos.
 - A migration `0020_auth_sessions_rollback_safe` e compativel durante a janela v0.3 porque
   preserva o hash legado. Migration incompativel exige restore explicito; scripts nunca
   executam downgrade ou restore automaticamente.
-- A producao observada esta em `0016_usuarios_legacy_nullable`; o gate exige ensaio isolado
-  `0016 -> 0020`, retorno do runtime anterior contra o schema migrado e nova subida do RC aprovado.
+- A producao partiu de `0016_usuarios_legacy_nullable`; o gate comprovou isoladamente
+  `0016 -> 0020`, retorno do runtime anterior contra o schema migrado e nova subida do RC aprovado
+  antes da promocao real.
 - O runtime anterior valida saude da API enquanto a revisao e consultada diretamente no banco. Sua
   copia historica do Alembic nao e obrigada a conhecer o identificador `0020`.
 
