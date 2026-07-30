@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
 
 set -u
+umask 077
 
 MODE="full"
 PROJECT_DIR="${PROJECT_DIR:-/srv/ops/stacks/jubileu-v03}"
+SOURCE_DIR="${SOURCE_DIR:-/srv/apps/jubileu-dev}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-https://app.jubileuweb.com}"
 LOCAL_BASE_URL="${LOCAL_BASE_URL:-http://127.0.0.1:80}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-jubileu-v03}"
 SINCE="${SINCE:-24h}"
-MASK_PII="${MASK_PII:-0}"
-LOCK_DIR="${JUBILEU_REPORT_LOCK:-/tmp/jubileu-report.lock}"
+MASK_PII="${MASK_PII:-1}"
+REPORT_RETENTION_DAYS="${REPORT_RETENTION_DAYS:-30}"
+CODE_CLI="${CODE_CLI:-/srv/tools/vscode-cli/code}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+NGINX_LOG_AGGREGATOR="$SCRIPT_DIR/nginx-log-aggregate.py"
+RUNTIME_DIR="${XDG_RUNTIME_DIR:-/tmp}"
+LOCK_FILE="$RUNTIME_DIR/jubileu-report.lock"
 
 usage() {
   cat <<'USAGE'
@@ -19,14 +26,17 @@ Gera reports operacionais Markdown e JSON para o Projeto Jubileu.
 
 Modos:
   --quick  checks leves: containers, health, Postgres, zumbis, tunel remoto
-  --full   checks completos, logs resumidos e dados funcionais (padrao)
+  --full   checks completos e agregados tecnicos nao nominais (padrao)
 
 Variaveis:
   PROJECT_DIR       default: /srv/ops/stacks/jubileu-v03
+  SOURCE_DIR        default: /srv/apps/jubileu-dev
   PUBLIC_BASE_URL   default: https://app.jubileuweb.com
   SINCE             default: 24h
-  REPORT_DIR        default: $PROJECT_DIR/reports/ops
-  MASK_PII          default: 0; use 1 para mascarar nomes em blocos funcionais
+  REPORT_DIR        default: /srv/ops/runs/jubileu
+  MASK_PII          default: 1; a coleta nominal permanece desabilitada
+  REPORT_RETENTION_DAYS default: 30
+  CODE_CLI          default: /srv/tools/vscode-cli/code
 USAGE
 }
 
@@ -51,34 +61,88 @@ while (($#)); do
   shift
 done
 
-REPORT_DIR="${REPORT_DIR:-$PROJECT_DIR/reports/ops}"
+REPORT_DIR="${REPORT_DIR:-/srv/ops/runs/jubileu}"
+case "$MASK_PII" in
+  0|1) ;;
+  *)
+    echo "MASK_PII deve ser 0 ou 1" >&2
+    exit 2
+    ;;
+esac
+case "$REPORT_RETENTION_DAYS" in
+  ""|*[!0-9]*)
+    echo "REPORT_RETENTION_DAYS deve ser um inteiro nao negativo" >&2
+    exit 2
+    ;;
+esac
+
+PROJECT_DIR="$(realpath -m -- "$PROJECT_DIR")"
+SOURCE_DIR="$(realpath -m -- "$SOURCE_DIR")"
+REPORT_DIR="$(realpath -m -- "$REPORT_DIR")"
+case "$REPORT_DIR" in
+  /|/srv|/srv/apps|/srv/ops|/tmp)
+    echo "REPORT_DIR nao pode apontar para um diretorio amplo: $REPORT_DIR" >&2
+    exit 2
+    ;;
+esac
+case "$(basename -- "$REPORT_DIR")" in
+  jubileu|jubileu-*) ;;
+  *)
+    echo "REPORT_DIR deve terminar em jubileu ou jubileu-*" >&2
+    exit 2
+    ;;
+esac
+case "$REPORT_DIR/" in
+  "$PROJECT_DIR/"*|"$SOURCE_DIR/"*)
+    echo "REPORT_DIR deve ser separado dos diretorios de runtime e codigo" >&2
+    exit 2
+    ;;
+esac
+
 COMPOSE_FILE="$PROJECT_DIR/compose.release.yml"
 ENV_FILE="${RELEASE_ENV_FILE:-$PROJECT_DIR/.env.release}"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 GENERATED_AT="$(date -Iseconds)"
-HOST="$(hostname 2>/dev/null || echo unknown)"
-USER_NAME="$(whoami 2>/dev/null || echo unknown)"
+if [[ "$MASK_PII" == "1" ]]; then
+  HOST="app-host"
+  USER_NAME="[REDACTED]"
+else
+  HOST="$(hostname 2>/dev/null || echo unknown)"
+  USER_NAME="$(whoami 2>/dev/null || echo unknown)"
+fi
 MD_FILE="$REPORT_DIR/jubileu-report-$TIMESTAMP.md"
 JSON_FILE="$REPORT_DIR/jubileu-report-$TIMESTAMP.json"
 LATEST_MD="$REPORT_DIR/latest.md"
 LATEST_JSON="$REPORT_DIR/latest.json"
 TMP_DIR=""
 
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "Outra execucao do report parece ativa: $LOCK_DIR" >&2
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+  echo "Outra execucao do report parece ativa: $LOCK_FILE" >&2
   exit 3
 fi
 
 cleanup() {
-  rm -rf "$LOCK_DIR"
   if [[ -n "$TMP_DIR" ]]; then
-    rm -rf "$TMP_DIR"
+    case "$TMP_DIR" in
+      "$RUNTIME_DIR"/jubileu-report.*)
+        rm -rf -- "$TMP_DIR"
+        ;;
+    esac
   fi
 }
 trap cleanup EXIT
 
 mkdir -p "$REPORT_DIR"
-TMP_DIR="$(mktemp -d)"
+chmod 700 "$REPORT_DIR"
+find "$REPORT_DIR" -maxdepth 1 -type f \
+  \( -name 'jubileu-report-*.md' -o -name 'jubileu-report-*.json' \
+    -o -name 'latest.md' -o -name 'latest.json' \) \
+  -exec chmod 600 {} +
+find "$REPORT_DIR" -maxdepth 1 -type f \
+  \( -name 'jubileu-report-*.md' -o -name 'jubileu-report-*.json' \) \
+  -mtime "+$REPORT_RETENTION_DAYS" -delete
+TMP_DIR="$(mktemp -d "$RUNTIME_DIR/jubileu-report.XXXXXX")"
 RAW_MD="$TMP_DIR/report.raw.md"
 ALERTS_FILE="$TMP_DIR/alerts.txt"
 ACTIONS_FILE="$TMP_DIR/actions.txt"
@@ -94,11 +158,13 @@ cd "$PROJECT_DIR" 2>/dev/null || {
 
 COMPOSE=(docker compose --project-name "$COMPOSE_PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE")
 DB_CONTAINER="$("${COMPOSE[@]}" ps -q jubileu-db 2>/dev/null || true)"
-API_CONTAINER="$("${COMPOSE[@]}" ps -q jubileu-api 2>/dev/null || true)"
 NGINX_CONTAINER="$("${COMPOSE[@]}" ps -q nginx 2>/dev/null || true)"
 
-BRANCH="$(git branch --show-current 2>/dev/null || echo unknown)"
-COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+BRANCH="$(git -C "$SOURCE_DIR" branch --show-current 2>/dev/null || true)"
+BRANCH="${BRANCH:-detached}"
+COMMIT="$(git -C "$SOURCE_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+DIRTY_FILES="$(git -C "$SOURCE_DIR" status --porcelain 2>/dev/null | wc -l | tr -d '[:space:]')"
+DIRTY_FILES="${DIRTY_FILES:-0}"
 
 STATUS_RANK=0
 FAIL_COUNT=0
@@ -158,6 +224,7 @@ add_action() {
 
 sanitize() {
   sed -E \
+    -e 's/(--[A-Za-z0-9_-]*(token|secret|key)[A-Za-z0-9_-]*)(=|[[:space:]])[^[:space:]]+/\1\3<hidden>/Ig' \
     -e 's/(--connection-token=)[^ ]+/\1<hidden>/g' \
     -e 's/(--agent-host-bridge-connection-token=)[^ ]+/\1<hidden>/g' \
     -e 's/(connection-token[=:])[A-Za-z0-9._~+\/=-]+/\1<hidden>/Ig' \
@@ -321,14 +388,14 @@ zombie_check() {
 
 cloudflared_check() {
   local active logs status detail
-  active="$(systemctl is-active cloudflared 2>/dev/null || true)"
-  logs="$(journalctl -u cloudflared --since "$(journal_since)" --no-pager -n 200 2>/dev/null || true)"
+  active="$(systemctl --user is-active cloudflared 2>/dev/null || true)"
+  logs="$(journalctl --user -u cloudflared --since "$(journal_since)" --no-pager -n 200 2>/dev/null || true)"
 
   if [[ "$active" != "active" ]]; then
     status="FAIL"
     detail="cloudflared nao esta active"
     add_alert "FAIL" "$detail"
-    add_action "Verificar systemctl status cloudflared e restaurar o tunnel publico."
+    add_action "Verificar systemctl --user status cloudflared e restaurar o tunnel publico."
   elif grep -Eqi 'timeout|reconnect|Retrying connection|Connection terminated|outdated' <<<"$logs"; then
     status="WARN"
     detail="cloudflared ativo com timeouts/reconexoes ou versao desatualizada em $SINCE"
@@ -345,15 +412,10 @@ cloudflared_check() {
 vscode_tunnel_check() {
   local active connected status detail cpu_rows
   active="$(systemctl --user is-active code-tunnel.service 2>/dev/null || true)"
-  if cd "$HOME/.local/bin/vscode-cli" 2>/dev/null; then
-    connected="$(./code tunnel status 2>/dev/null | head -c 2000 || true)"
-    cd "$PROJECT_DIR" || exit 1
-  else
-    connected=""
-  fi
+  connected="$("$CODE_CLI" tunnel status 2>/dev/null | head -c 2000 || true)"
   # CPU snapshots require the process list because the percentage is not exposed by pgrep.
   # shellcheck disable=SC2009
-  cpu_rows="$(ps -eo pcpu=,cmd= --sort=-pcpu 2>/dev/null \
+  cpu_rows="$(ps -eo pcpu=,comm= --sort=-pcpu 2>/dev/null \
     | grep -Ei 'code|vscode|codex|server-main|extensionHost|fileWatcher' \
     | grep -v grep \
     | awk '$1+0 > 50 {print}' \
@@ -379,7 +441,7 @@ vscode_tunnel_check() {
 nginx_error_check() {
   local count
   count="$(docker logs --since="$SINCE" "$NGINX_CONTAINER" 2>&1 \
-    | grep -Ec '"[^"]+" 50[234] | 50[234] |upstream.*(failed|error)' || true)"
+    | grep -Ec '"status":50[234]|"[^"]+" 50[234] | 50[234] |upstream.*(failed|error)' || true)"
   if [[ "$count" -gt 0 ]]; then
     record_check "nginx_5xx" "FAIL" "" "" "NGINX 502/503/504 recentes=$count" ""
     add_alert "FAIL" "NGINX registrou $count ocorrencia(s) 502/503/504 ou upstream error em $SINCE."
@@ -518,8 +580,14 @@ write_markdown() {
     echo
   } > "$RAW_MD"
 
-  emit_section_cmd "Git" "git branch --show-current; git status -sb; git log --oneline --decorate -5" 40
-  emit_section_cmd "Maquina" "uptime; free -h; df -h /; echo; ps -eo pid,ppid,stat,pcpu,pmem,etime,cmd --sort=-pcpu | head -25" 80
+  {
+    echo "## Git"
+    echo '```'
+    printf 'branch=%s\ncommit=%s\ndirty_files=%s\n' "$BRANCH" "$COMMIT" "$DIRTY_FILES"
+    echo '```'
+    echo
+  } >> "$RAW_MD"
+  emit_section_cmd "Maquina" "uptime; free -h; df -h /; echo; ps -eo pid,ppid,stat,pcpu,pmem,etime,comm --sort=-pcpu | head -25" 80
   emit_section_cmd "Docker Compose" "docker compose --project-name '$COMPOSE_PROJECT_NAME' --env-file '$ENV_FILE' -f '$COMPOSE_FILE' ps" 80
 
   {
@@ -538,20 +606,19 @@ write_markdown() {
     echo
   } >> "$RAW_MD"
 
-  emit_section_cmd "Cloudflared" "ps aux | grep -Ei 'cloudflared' | grep -v grep || true; echo; systemctl status cloudflared --no-pager 2>/dev/null || true; echo; journalctl -u cloudflared --since '$(journal_since)' --no-pager -n 80 2>/dev/null || true" 140
+  emit_section_cmd "Cloudflared" "systemctl --user is-active cloudflared 2>/dev/null || true; echo; curl -fsS --max-time 5 http://127.0.0.1:20241/metrics 2>/dev/null | grep -E '^cloudflared_tunnel_(ha_connections|request_errors)[[:space:]]' || true" 40
 
   if [[ "$MODE" == "full" ]]; then
-    emit_section_cmd "NGINX acessos recentes" "docker logs --since='$SINCE' --tail=120 '$NGINX_CONTAINER' 2>&1" 140
-    emit_section_cmd "NGINX contagem por status" "docker logs --since='$SINCE' '$NGINX_CONTAINER' 2>&1 | awk '{print \$9}' | grep -E '^[0-9]{3}$' | sort | uniq -c | sort -nr" 40
-    emit_section_cmd "NGINX rotas mais acessadas" "docker logs --since='$SINCE' '$NGINX_CONTAINER' 2>&1 | awk '{print \$7}' | grep '^/' | sort | uniq -c | sort -nr | head -30" 50
-    emit_section_cmd "API logs recentes" "docker logs --since='$SINCE' --tail=160 '$API_CONTAINER' 2>&1" 180
-    emit_section_cmd "Banco logs recentes" "docker logs --since='$SINCE' --tail=120 '$DB_CONTAINER' 2>&1" 140
+    emit_section_cmd "NGINX contagem por status" "docker logs --since='$SINCE' '$NGINX_CONTAINER' 2>&1 | python3 '$NGINX_LOG_AGGREGATOR' status | sort | uniq -c | sort -nr" 40
+    emit_section_cmd "NGINX rotas mais acessadas" "docker logs --since='$SINCE' '$NGINX_CONTAINER' 2>&1 | python3 '$NGINX_LOG_AGGREGATOR' route | sort | uniq -c | sort -nr | head -30" 50
+    {
+      echo "## Logs brutos"
+      echo
+      echo "Omitidos por politica de minimizacao. O report guarda somente agregados tecnicos sanitizados."
+      echo
+    } >> "$RAW_MD"
   else
     {
-      echo "## NGINX acessos recentes"
-      echo
-      echo "Omitido em modo --quick. Use --full para logs e agregacoes."
-      echo
       echo "## NGINX contagem por status"
       echo
       echo "Omitido em modo --quick."
@@ -559,14 +626,9 @@ write_markdown() {
       echo "## NGINX rotas mais acessadas"
       echo
       echo "Omitido em modo --quick."
+      echo "## Logs brutos"
       echo
-      echo "## API logs recentes"
-      echo
-      echo "Omitido em modo --quick."
-      echo
-      echo "## Banco logs recentes"
-      echo
-      echo "Omitido em modo --quick."
+      echo "Omitidos por politica de minimizacao."
       echo
     } >> "$RAW_MD"
   fi
@@ -574,49 +636,21 @@ write_markdown() {
   emit_section_cmd "Banco estado atual" "docker exec '$DB_CONTAINER' sh -lc 'pg_isready -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\"' || true; docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"SELECT now() AS agora, pg_is_in_recovery() AS em_recovery;\"' || true; echo; docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -c \"\\dt\"' || true" 120
 
   {
-    echo "## Eventos funcionais"
+    echo "## Dados funcionais"
+    echo
+    echo "Registros nominais, payloads e estados de negocio nao sao coletados por este report."
     echo
   } >> "$RAW_MD"
 
-  if [[ "$MODE" == "full" ]]; then
-    emit_section_functional "### Eventos" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM eventos ORDER BY id DESC LIMIT 20;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Participantes/RSVP/check-in" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM evento_participantes ORDER BY COALESCE(updated_at, created_at) DESC LIMIT 30;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Lances" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM lances ORDER BY created_at DESC LIMIT 30;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Partidas" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT * FROM partidas ORDER BY id DESC LIMIT 30;\"' 2>/dev/null || true" 90
-    emit_section_functional "### Team configs" "docker exec '$DB_CONTAINER' sh -lc 'psql -U \"\$POSTGRES_USER\" -d \"\$POSTGRES_DB\" -x -c \"SELECT id, evento_id, version, created_at, is_active, estado FROM team_configs ORDER BY created_at DESC LIMIT 20;\"' 2>/dev/null || true" 120
-  else
-    {
-      echo "### Eventos"
-      echo
-      echo "Omitido em modo --quick."
-      echo
-      echo "### Participantes/RSVP/check-in"
-      echo
-      echo "Omitido em modo --quick."
-      echo
-      echo "### Lances"
-      echo
-      echo "Omitido em modo --quick."
-      echo
-      echo "### Partidas"
-      echo
-      echo "Omitido em modo --quick."
-      echo
-      echo "### Team configs"
-      echo
-      echo "Omitido em modo --quick."
-      echo
-    } >> "$RAW_MD"
-  fi
-
-  emit_section_cmd "VS Code Tunnel/Codex remoto" "cd '$HOME/.local/bin/vscode-cli' 2>/dev/null && ./code tunnel status || true; echo; systemctl --user is-active code-tunnel.service || true; echo; ps -eo pid,ppid,stat,pcpu,pmem,etime,cmd --sort=-pcpu | grep -Ei 'code|vscode|agent host|code-server|server-main|extensionHost|fileWatcher|remote-containers|devContainers|vscode-remote-containers|codex' | grep -v grep | head -25 || true" 80
+  emit_section_cmd "VS Code Tunnel/Codex remoto" "systemctl --user is-active code-tunnel.service 2>/dev/null || true; echo; ps -eo pid,ppid,stat,pcpu,pmem,etime,comm --sort=-pcpu | grep -Ei 'code|vscode|codex|server-main|extensionHost|fileWatcher' | grep -v grep | head -25 || true" 80
 
   sanitize < "$RAW_MD" > "$MD_FILE"
   cp "$MD_FILE" "$LATEST_MD"
+  chmod 600 "$MD_FILE" "$LATEST_MD"
 }
 
 write_json() {
-  export GENERATED_AT HOST BRANCH COMMIT MODE PUBLIC_BASE_URL PROJECT_DIR SINCE MASK_PII
+  export GENERATED_AT HOST BRANCH COMMIT DIRTY_FILES MODE PUBLIC_BASE_URL PROJECT_DIR SINCE MASK_PII
   export OVERALL_STATUS
   export CHECKS_FILE ALERTS_FILE ACTIONS_FILE MD_FILE JSON_FILE LATEST_MD LATEST_JSON
   OVERALL_STATUS="$(overall_status)"
@@ -657,6 +691,7 @@ payload = {
     "host": os.environ["HOST"],
     "branch": os.environ["BRANCH"],
     "commit": os.environ["COMMIT"],
+    "dirty_files": int(os.environ["DIRTY_FILES"]),
     "mode": os.environ["MODE"],
     "project_dir": os.environ["PROJECT_DIR"],
     "public_base_url": os.environ["PUBLIC_BASE_URL"],
@@ -679,6 +714,7 @@ with open(os.environ["JSON_FILE"], "w", encoding="utf-8") as fh:
     fh.write("\n")
 PY
   cp "$JSON_FILE" "$LATEST_JSON"
+  chmod 600 "$JSON_FILE" "$LATEST_JSON"
 }
 
 run_checks

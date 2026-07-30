@@ -1,3 +1,5 @@
+from urllib.parse import urlsplit
+
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -15,6 +17,19 @@ class Settings(BaseSettings):
     ALEMBIC_EXPECTED_REVISION: str = "0020_auth_sessions_rollback_safe"
 
     DATABASE_URL: str | None = None
+
+    # OTel remains opt-in. The container overlay used during an investigation
+    # flips only OTEL_SDK_DISABLED and keeps the application functional when the
+    # Collector is stopped or unavailable.
+    OTEL_SDK_DISABLED: bool = True
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://otel-collector:4318"
+    OTEL_EXPORTER_OTLP_TIMEOUT_SECONDS: float = 5.0
+    OTEL_TRACES_SAMPLER_ARG: float = 1.0
+    OTEL_BSP_MAX_QUEUE_SIZE: int = 512
+    OTEL_BSP_MAX_EXPORT_BATCH_SIZE: int = 128
+    OTEL_SERVICE_NAMESPACE: str = "jubileu"
+    OTEL_SERVICE_NAME: str = "jubileu-api"
+    OTEL_HOST_NAME: str = "app-host"
 
     JWT_SECRET: str = "CHANGE_ME"
     JWT_ALGORITHM: str = "HS256"
@@ -54,6 +69,25 @@ class Settings(BaseSettings):
                 raise ValueError("JWT_SECRET e REFRESH_TOKEN_HMAC_SECRET devem ser distintos")
             if not self.COOKIE_SECURE:
                 raise ValueError("COOKIE_SECURE=true e obrigatorio em producao")
+        if not 0.0 <= self.OTEL_TRACES_SAMPLER_ARG <= 1.0:
+            raise ValueError("OTEL_TRACES_SAMPLER_ARG deve estar entre 0 e 1")
+        otlp_endpoint = urlsplit(self.OTEL_EXPORTER_OTLP_ENDPOINT)
+        if otlp_endpoint.scheme not in {"http", "https"} or not otlp_endpoint.hostname:
+            raise ValueError("OTEL_EXPORTER_OTLP_ENDPOINT deve usar HTTP ou HTTPS com hostname")
+        if (
+            otlp_endpoint.username
+            or otlp_endpoint.password
+            or otlp_endpoint.path not in {"", "/"}
+            or otlp_endpoint.query
+            or otlp_endpoint.fragment
+        ):
+            raise ValueError(
+                "OTEL_EXPORTER_OTLP_ENDPOINT nao aceita credencial, path, query ou fragmento"
+            )
+        if self.OTEL_BSP_MAX_QUEUE_SIZE < 1:
+            raise ValueError("OTEL_BSP_MAX_QUEUE_SIZE deve ser positivo")
+        if not 1 <= self.OTEL_BSP_MAX_EXPORT_BATCH_SIZE <= self.OTEL_BSP_MAX_QUEUE_SIZE:
+            raise ValueError("OTEL_BSP_MAX_EXPORT_BATCH_SIZE deve estar entre 1 e o tamanho da fila")
         return self
 
 

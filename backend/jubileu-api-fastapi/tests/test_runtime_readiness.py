@@ -33,6 +33,7 @@ def test_readiness_requires_expected_alembic_revision(client):
 
     assert response.status_code == 503
     assert response.json() == {"status": "not_ready"}
+    assert connection.execute.call_count == 1
 
 
 @pytest.mark.contract

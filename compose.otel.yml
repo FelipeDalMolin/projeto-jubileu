@@ -1,0 +1,28 @@
+# Investigation-only overlay. Keep the base development stack functional
+# without this file and stop Collector/Aspire independently of Jubileu.
+services:
+  backend:
+    environment:
+      # The base env stays fail-safe (`true`). Including this explicit overlay
+      # is the operator's deliberate action that enables the investigation.
+      OTEL_SDK_DISABLED: "false"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      OTEL_EXPORTER_OTLP_TIMEOUT_SECONDS: ${OTEL_EXPORTER_OTLP_TIMEOUT_SECONDS:-5}
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-1.0}
+      OTEL_BSP_MAX_QUEUE_SIZE: ${OTEL_BSP_MAX_QUEUE_SIZE:-512}
+      OTEL_BSP_MAX_EXPORT_BATCH_SIZE: ${OTEL_BSP_MAX_EXPORT_BATCH_SIZE:-128}
+      # Emit the stable keys consumed by the Collector allowlist. Without this
+      # opt-in, Python 0.65b0 still emits legacy http.* and db.* names that are
+      # intentionally removed by the fail-closed pipeline.
+      OTEL_SEMCONV_STABILITY_OPT_IN: "http,database"
+      OTEL_SERVICE_NAMESPACE: jubileu
+      OTEL_SERVICE_NAME: jubileu-api
+      OTEL_HOST_NAME: app-host
+    networks:
+      - jubileu_dev_internal
+      - app_host_telemetry
+
+networks:
+  app_host_telemetry:
+    external: true
+    name: app_host_telemetry

@@ -36,6 +36,10 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
   `bfe4ed076c101e4bf9c44bdbff7fa896a6fd7ff6`. O runtime promovivel opera somente por digest em
   `/srv/ops/stacks/jubileu-v03`; `/srv/apps/jubileu-prod` e o checkout legado preservado.
 - O unico proximo ciclo autorizado e `v0.3.1 Stabilization`; nao abrir v0.4.
+- DEV-53 inicia por observabilidade minima e privacidade operacional: logs usam rotas
+  normalizadas/IDs validados, reports guardam somente agregados e OTel fica desligado por default.
+- `compose.otel.yml` e overlay exclusivo de investigacao dev; Collector/Aspire pertencem a
+  `/srv/ops`, nao publicam portas pelo Jubileu e nao gerenciam o runtime da aplicacao.
 - No app-host, trate `/srv/apps/jubileu-dev` como checkout canonico de desenvolvimento. O workspace remoto/VS Code/Codex serve para trabalhar e ver portas expostas, mas PRs acontecem entre branches Git no GitHub.
 - Antes de editar, commitar ou rodar checks, confirme que o repo ativo e `/srv/apps/jubileu-dev`; se a sessao estiver em outro diretorio, use `git -C /srv/apps/jubileu-dev ...` ou mude para esse diretorio.
 - Fluxo esperado: branch em dev -> editar/testar no ambiente exposto -> commit -> push -> PR -> checks -> merge -> pull/deploy controlado. Nao copiar arquivos manualmente entre `/srv/apps/jubileu-dev`, `/srv/apps/jubileu-prod` e workspaces auxiliares.
@@ -65,6 +69,7 @@ Nao reintroduzir `Aula` como entidade publica, rota publica ou payload novo.
 docker compose --env-file .env.dev -f compose.dev.yml up -d
 python3 scripts/docs/generate_code_map.py --check
 python3 scripts/docs/generate_authorization_matrix.py --check
+python3 -m unittest discover -s ops/tests -p 'test_*.py' -v
 cd frontend/jubileu-web && npm run lint && npm run build && npm run check:api-contract
 ```
 

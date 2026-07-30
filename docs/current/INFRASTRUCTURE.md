@@ -20,6 +20,10 @@ Regras:
 
 Arquivo principal: `compose.dev.yml`.
 
+`compose.otel.yml` is an investigation-only overlay. It attaches only the backend to the
+pre-created private network `app_host_telemetry` and enables OTLP/HTTP to
+`http://otel-collector:4318`. The base Compose remains independent from Collector/Aspire.
+
 O antigo `docker-compose.yml`, que publicava PostgreSQL no host, foi removido. Scripts e
 operadores devem informar sempre `--env-file .env.dev -f compose.dev.yml`.
 
@@ -29,6 +33,9 @@ Servicos:
 - `backend`: FastAPI, Alembic e Uvicorn em container.
 - `frontend-dev`: Vite em container Node.
 - `nginx-dev`: gateway local.
+
+All development containers use the Docker `local` logging driver with `10m x 3` rotation. The
+change takes effect only when each container is recreated in an approved window.
 
 Portas locais:
 
@@ -89,7 +96,12 @@ compatibilidade sem downgrade ou restore automatico.
 - `infra/nginx/jubileu.conf`: serve React estatico, faz fallback SPA e proxy `/api/`.
 - `/health` testa apenas que o processo backend esta vivo.
 - `/api/health` testa caminho de API pelo gateway.
-- `/api/ready` comprova PostgreSQL acessivel e revisao Alembic esperada.
+- `/api/ready` comprova PostgreSQL acessivel e revisao Alembic esperada em uma unica consulta.
+- `/nginx-health` e liveness estatico, restrito ao proprio container, e nunca consulta a API.
+- Healthchecks de API e NGINX usam intervalo de 30 segundos; probes 2xx nao entram nos access
+  logs estruturados.
+- `X-Request-ID`, W3C `traceparent` v00 e `CF-Ray` sao aceitos somente em formatos opacos
+  allowlisted; `tracestate` e outros valores livres sao descartados no NGINX publico.
 - `/api/ready` expoe somente `status`; detalhes de falha permanecem nos logs.
 - `/api/version` e autenticado e informa release ref, SHA Git, digests e revisao de schema.
 - Colecoes canonicas (`/api/dias`, `/api/jogadores`, `/api/turmas`) nao usam barra final.
@@ -104,6 +116,8 @@ compatibilidade sem downgrade ou restore automatico.
 - Arquivos locais de env devem permanecer ignorados e preferencialmente com permissao restrita.
 - Producao exige `APP_ENV=production`, `AUTH_MODE=secure`, cookies seguros e segredos distintos para JWT e digest HMAC de refresh.
 - O backend falha no startup quando a configuracao de auth de producao usa defaults, placeholders ou modo invalido.
+- OTel permanece desligado por `OTEL_SDK_DISABLED=true` no runtime normal. O piloto usa somente
+  OTLP/HTTP na rede Docker privada e nao publica `4318`, `4317` ou a UI.
 - Antes de promover uma migration que desative contas padrao, o operador deve provar uma conta
   administrativa nao padrao e ativa. Credenciais operacionais ficam fora do Git em arquivo `0600`;
   nenhuma senha aparece em logs, manifesto, bundle ou documentacao.
@@ -159,4 +173,5 @@ npm run check:api-contract
 - `docs/runbooks/setup-linux.md`
 - `docs/runbooks/setup-windows.md`
 - `docs/ops/observabilidade.md`
+- `docs/adr/ADR-0003-observabilidade-minima-e-privacidade.md`
 - `docs/ops/wsl-incidentes.md`

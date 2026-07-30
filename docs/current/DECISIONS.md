@@ -8,7 +8,8 @@ Discussao detalhada pode existir no Linear, mas a regra ativa para implementacao
 | ADR/CORE | Tema | Estado | Regra ativa |
 |---|---|---|---|
 | ADR-0001 | Evento canonico | Ativa | `Evento` e a entidade publica canonica. `AULA` e apenas valor de `Evento.tipo`. |
-| ADR-0002 | Runtime gateway | Ativa | A topologia oficial e `Cloudflare -> NGINX -> FastAPI -> PostgreSQL`. |
+| ADR-0002 | Runtime gateway | Ativa | A topologia oficial e `Cloudflare -> NGINX -> React SPA + FastAPI /api -> PostgreSQL`. |
+| ADR-0003 | Observabilidade e privacidade | Ativa em v0.3.1 | Logs e reports usam campos tecnicos allowlisted; OTel e opt-in, privado e desligado por default. |
 | CORE-1 | Principios arquiteturais | Ativa | Evoluir por slices pequenos, com contratos claros e validacao. |
 | CORE-2 | Estado, snapshot e eventos | Ativa, superseded em nome | A decisao continua valida como padrao, mas deve ser lida como modelo de `Evento`, nao de entidade `Aula`. |
 | CORE-3 | Workspace DTO | Ativa, superseded em nome | Workspace e read-model de UI. A superficie ativa deve usar `WorkspaceEvento`. |
@@ -29,6 +30,8 @@ Discussao detalhada pode existir no Linear, mas a regra ativa para implementacao
 - Comandos mutaveis nao podem depender apenas de debounce/frontend para integridade; seguir `COMMAND_SAFETY.md`.
 - Access JWT expira em 5 minutos. Logout revoga refresh e cookies imediatamente, mas um access token roubado pode continuar valido ate o TTL terminar.
 - Contas padrao so podem ser semeadas explicitamente em development/test e ficam inativas por migration em bancos existentes.
+- Observabilidade tecnica nao substitui auditoria de negocio e nao pode persistir payloads,
+  queries, cookies, tokens, nomes, IPs completos ou parametros SQL.
 
 ## Quando Criar Nova ADR
 

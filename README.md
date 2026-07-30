@@ -82,7 +82,7 @@ Recursos principais de documentacao do projeto:
 O Jubileu segue uma arquitetura web baseada em frontend, gateway, API e banco de dados.
 
 ```text
-Cloudflare -> NGINX -> FastAPI -> PostgreSQL
+Cloudflare -> NGINX -> React SPA + FastAPI /api -> PostgreSQL
 ```
 
 NGINX e o unico entrypoint publico. FastAPI e PostgreSQL nao devem expor portas publicas em producao.

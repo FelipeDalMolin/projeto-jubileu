@@ -17,9 +17,9 @@ ENV RELEASE_REF=$RELEASE_REF
 ENV GIT_SHA=$GIT_SHA
 ENV ALEMBIC_EXPECTED_REVISION=$ALEMBIC_EXPECTED_REVISION
 
-COPY requirements.txt .
+COPY requirements.lock .
 
-RUN pip install --no-cache-dir --timeout 120 -r requirements.txt
+RUN pip install --no-cache-dir --timeout 120 --require-hashes -r requirements.lock
 
 COPY app ./app
 COPY alembic ./alembic

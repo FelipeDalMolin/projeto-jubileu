@@ -71,6 +71,24 @@ Included product/platform outcomes:
 - six blocking CI checks, full Playwright suite, immutable digest promotion and verified rollback
   rehearsal.
 
+## v0.3.1 Stabilization
+
+Status: DEV-53 em validacao local; nenhum candidato, tag ou deploy criado.
+
+Primeiro slice proposto:
+
+- logs JSON NGINX/FastAPI com rota normalizada e identificadores validados;
+- healthchecks desacoplados e reducao de ruido de probes;
+- reports locais privados, rotativos e sem dados funcionais/logs brutos;
+- piloto OTel somente por overlay dev, OTLP/HTTP e rede privada;
+- backend construído por `requirements.lock --require-hashes`;
+- contratos de privacidade e sintaxe NGINX adicionados ao required check `Compose + Shell`.
+
+Nao ha migration nem mudanca de contrato funcional da API. A matriz
+[`DEV53_OBSERVABILITY_CONFORMANCE.md`](DEV53_OBSERVABILITY_CONFORMANCE.md) registra os blockers:
+issue filha de DEV-53, audit atual do frontend, CI completo e aplicacao controlada da nova
+configuracao no runtime dev. Producao permanece em `v0.3.0`.
+
 ## v0.3 Promotion Policy
 
 - CI constroi backend e frontend uma unica vez para `linux/amd64` e publica no GHCR pela

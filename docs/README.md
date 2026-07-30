@@ -48,4 +48,6 @@ python3 scripts/docs/generate_code_map.py --check
 DEV-21 e DEV-27 encerram o Security Gate, PostgreSQL/Alembic, Playwright sem skips, supply chain,
 backup/restore/rollback e runtime imutavel. RC1-RC4 permanecem historicos e nao promoviveis.
 
-O unico proximo ciclo autorizado e `v0.3.1 Stabilization`, em Backlog. Nao abrir `v0.4`.
+O ciclo autorizado e DEV-53 `v0.3.1 Stabilization`; o primeiro slice de observabilidade e a
+DEV-55, publicado para validacao como draft PR. A DEV-54 trata separadamente o gate de
+dependencias frontend que bloqueia sua conclusao. Nao abrir `v0.4`.

@@ -1,5 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
+from uuid import UUID
 
 from app.main import app, create_app
 
@@ -28,10 +29,15 @@ def test_request_id_is_generated_and_preserved(client: TestClient):
     assert generated_resp.status_code == 200, generated_resp.text
     assert generated_resp.headers["X-Request-ID"]
 
-    request_id = "jubileu-test-request-id"
+    request_id = "0d170e75-9e39-48ad-a76a-ab5251a9d4d3"
     preserved_resp = client.get("/api/health", headers={"X-Request-ID": request_id})
     assert preserved_resp.status_code == 200, preserved_resp.text
     assert preserved_resp.headers["X-Request-ID"] == request_id
+
+    invalid_resp = client.get("/api/health", headers={"X-Request-ID": "nome-de-jogador"})
+    assert invalid_resp.status_code == 200, invalid_resp.text
+    assert invalid_resp.headers["X-Request-ID"] != "nome-de-jogador"
+    UUID(invalid_resp.headers["X-Request-ID"])
 
 
 @pytest.mark.smoke

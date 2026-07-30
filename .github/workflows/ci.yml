@@ -43,10 +43,10 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: backend/jubileu-api-fastapi/requirements.txt
+          cache-dependency-path: backend/jubileu-api-fastapi/requirements.lock
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: python -m pip install --require-hashes -r requirements.lock
 
       - name: Run backend tests with coverage
         run: python -m coverage run --branch -m pytest -q -rs
@@ -130,8 +130,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: backend/jubileu-api-fastapi/requirements.txt
-      - run: python -m pip install -r requirements.txt
+          cache-dependency-path: backend/jubileu-api-fastapi/requirements.lock
+      - run: python -m pip install --require-hashes -r requirements.lock
       - name: Alembic on clean database
         env:
           DATABASE_URL: postgresql+psycopg://jubileu:jubileu@127.0.0.1:5432/auth_clean
@@ -241,7 +241,20 @@ jobs:
           cp .env.dev.example .env.dev
           cp .env.release.example .env.release
           docker compose --env-file .env.dev -f compose.dev.yml config >/dev/null
+          docker compose --env-file .env.dev -f compose.dev.yml -f compose.otel.yml config >/dev/null
           docker compose --env-file .env.release -f compose.release.yml config >/dev/null
+      - name: Validate NGINX and operational privacy contracts
+        run: |
+          python3 -m unittest discover -s ops/tests -p 'test_*.py' -v
+          docker run --rm \
+            --add-host backend:127.0.0.1 \
+            --add-host frontend-dev:127.0.0.1 \
+            -v "$PWD/infra/nginx/jubileu.dev.conf:/etc/nginx/conf.d/default.conf:ro" \
+            --entrypoint nginx nginx:1.27-alpine -t
+          docker run --rm \
+            --add-host jubileu-api:127.0.0.1 \
+            -v "$PWD/infra/nginx/jubileu.conf:/etc/nginx/conf.d/default.conf:ro" \
+            --entrypoint nginx nginx:1.27-alpine -t
       - name: Validate release bundle
         run: |
           checks='[{"name":"Docs sync","conclusion":"success"},{"name":"Backend unit","conclusion":"success"},{"name":"PostgreSQL + Alembic","conclusion":"success"},{"name":"Frontend","conclusion":"success"},{"name":"Playwright operational","conclusion":"success"},{"name":"Compose + Shell","conclusion":"success"}]'
@@ -249,7 +262,7 @@ jobs:
           scripts/release/build_release_bundle.sh release-manifest.json /tmp/jubileu-bundles >/dev/null
           sha256sum --check /tmp/jubileu-bundles/*.tar.gz.sha256
       - name: Validate Bash syntax
-        run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+        run: find ops scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
       - name: ShellCheck 0.10.0
         run: >-
           docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.10.0@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb
