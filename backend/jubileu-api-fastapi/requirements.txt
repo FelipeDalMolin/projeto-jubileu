@@ -18,3 +18,11 @@ httpx==0.24.1
 
 # dependencias de auditoria/testes
 coverage==7.14.1
+
+# observabilidade opt-in (OTLP/HTTP; sem exportador gRPC)
+opentelemetry-api==1.44.0
+opentelemetry-sdk==1.44.0
+opentelemetry-exporter-otlp-proto-http==1.44.0
+opentelemetry-instrumentation-fastapi==0.65b0
+opentelemetry-instrumentation-sqlalchemy==0.65b0
+opentelemetry-instrumentation-psycopg==0.65b0
