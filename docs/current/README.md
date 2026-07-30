@@ -19,6 +19,7 @@ Arquivos desta pasta representam o estado atual do projeto e devem ser priorizad
 | [PLANNING_AUDIT.md](PLANNING_AUDIT.md) | Auditoria de drift entre planos, ADRs, Linear e estado atual. |
 | [PLAN_CODEMAP_REVIEW.md](PLAN_CODEMAP_REVIEW.md) | Cruzamento dos planos v0.3 com o mapa gerado do codigo. |
 | [V03_CLOSURE_MATRIX.md](V03_CLOSURE_MATRIX.md) | Estado auditavel do Security Gate, candidatos RC, rollback e promocao. |
+| [DEV53_OBSERVABILITY_CONFORMANCE.md](DEV53_OBSERVABILITY_CONFORMANCE.md) | Matriz do slice v0.3.1 de logs, reports, OTel e gates. |
 
 ## Espelho Gerado Do Codigo
 

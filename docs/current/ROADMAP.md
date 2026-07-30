@@ -16,13 +16,15 @@ O contrato publico de dados deve preservar o gateway `/api`. Rotas de navegacao 
 
 Base integrada: `origin/jubileu-v2`.
 
-Marco integrado mais recente: `bfe4ed0 chore: close RC5 frontend supply-chain gate (#48)`.
+Marco integrado mais recente: `95631ef`, merge do PR #50 que finalizou os marcadores documentais
+do fechamento v0.3.0.
 
 Estado consolidado:
 
 - Backend FastAPI preserva `/api` como contrato canonico de gateway.
 - `/health` e `/api/health` existem para diagnostico.
-- Middleware de `X-Request-ID` gera ou preserva o id de correlacao e devolve o header na response.
+- NGINX/FastAPI validam `X-Request-ID`, propagam W3C Trace Context e registram rota normalizada em
+  JSON sem payloads funcionais.
 - Frontend possui `apiClient` minimo com base relativa `/api` e `X-Request-ID`.
 - `npm run check:api-contract` valida separacao entre rotas SPA e chamadas de API.
 - `pytest` cobre smoke, contratos e fluxos backend/API.
@@ -39,7 +41,7 @@ comprovados. A promocao reutilizou o SHA e os digests aprovados, executou `0016 
 smoke autenticado e permaneceu estavel durante 15 minutos com zero `5xx`.
 
 RC1-RC4 permanecem historicos e nao promoviveis. O proximo marco e somente
-`v0.3.1 Stabilization`, em Backlog; nao existe planejamento `v0.4` neste encerramento.
+DEV-53 `v0.3.1 Stabilization`; nao existe planejamento `v0.4` neste encerramento.
 
 ## Trilhas de Execucao
 
@@ -88,6 +90,9 @@ Foco:
 - FastAPI e PostgreSQL nao devem ser expostos diretamente;
 - Vite dev proxy deve preservar `/api`;
 - logs devem permitir correlacao por `X-Request-ID`;
+- observabilidade deve permanecer opt-in, em rede privada e sem acoplamento de disponibilidade ao
+  Collector/Aspire;
+- reports devem armazenar apenas agregados tecnicos sanitizados e rotativos;
 - Playwright no ambiente/CI precisa de dependencias nativas instaladas;
 - gate oficial: GitHub Actions + smoke server + runtime `Cloudflare Tunnel -> NGINX -> React/Vite estatico + FastAPI /api -> PostgreSQL`.
 
@@ -96,11 +101,13 @@ Foco:
 | Area | Status | Observacao |
 |---|---|---|
 | Contrato `/api` | Implementado | `/api/health`, rotas canonicas e guarda contra `/api/api`. |
-| Correlacao de requests | Implementado | `X-Request-ID` no frontend/base client, middleware FastAPI e docs operacionais. |
-| Backend pytest | Operacional | Suite completa e contratos de dashboard executados em cada PR. |
+| Correlacao de requests | Em validacao DEV-53 | IDs validados, rota normalizada e logs JSON NGINX/FastAPI. |
+| OTel sob demanda | Em validacao DEV-53 | SDK desligado por default; overlay dev usa somente OTLP/HTTP em rede privada. |
+| Privacidade de reports | Em validacao DEV-53 | `0700`/`0600`, retencao e somente agregados tecnicos. |
+| Backend pytest | Conforme local | `253 passed`, 4 skips condicionais PostgreSQL e branch coverage 84%. |
 | Backend smoke | Operacional | Marker smoke: `4 passed`. |
-| Backend contract | Operacional | Marker contract: `5 passed`. |
-| Frontend audit/lint/build | gate bloqueante | `npm run audit:security`, lint e build precisam passar. |
+| Backend contract | Conforme local | Marker contract: `187 passed`. |
+| Frontend audit/lint/build | Bloqueado | lint/build passam; audit encontrou 13 advisories altos. |
 | Contrato frontend/API | Operacional | `npm run check:api-contract` passa. |
 | Smoke server | Operacional | Smoke local em `127.0.0.1` e publico em `https://app.jubileuweb.com` passam pelo runtime NGINX/API. |
 | Playwright E2E | gate bloqueante | Suite integral pelo NGINX, resultado JSON e zero skips/flaky. |
@@ -131,9 +138,11 @@ Foco:
 
 ## Unica Proxima Prioridade
 
-Criar e executar a issue pai `v0.3.1 Stabilization` em Backlog para acompanhar observabilidade,
-rotacao segura da credencial administrativa inicial e pequenos corretivos pos-release. Nao criar
-v0.4 neste momento.
+Executar a issue pai DEV-53 `v0.3.1 Stabilization` para acompanhar observabilidade, rotacao segura
+da credencial administrativa inicial e pequenos corretivos pos-release. O slice de observabilidade
+possui matriz propria em
+[`DEV53_OBSERVABILITY_CONFORMANCE.md`](DEV53_OBSERVABILITY_CONFORMANCE.md). Nao criar v0.4 neste
+momento.
 
 ## Trabalho Adiado
 

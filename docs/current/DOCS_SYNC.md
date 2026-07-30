@@ -52,6 +52,7 @@ Atualize docs junto com codigo quando mexer em:
 | Rota React ou service frontend | `API.md` quando afetar contrato, mapa gerado |
 | Fluxo de equipes, presenca, partida ou lance | `DOMAIN_MODEL.md`, `TEST_PLAN.md`, mapa gerado |
 | Setup, Docker, portas, deploy | `ARCHITECTURE.md`, runbook correspondente |
+| Logs, traces, healthchecks ou reports | `ARCHITECTURE.md`, `INFRASTRUCTURE.md`, `TEST_PLAN.md`, ADR/runbook correspondente |
 | Decisao duradoura | `DECISIONS.md` e/ou `docs/adr/` |
 
 ## Distribuicao Recomendada

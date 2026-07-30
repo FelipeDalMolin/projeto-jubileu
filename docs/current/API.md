@@ -30,6 +30,17 @@ Public allowlist:
 - `POST /api/auth/login`.
 - `POST /api/auth/refresh`: requires refresh cookie and signed CSRF.
 
+Internal correlation contract:
+
+- NGINX accepts only opaque UUID/32-hex values in `X-Request-ID`; otherwise it generates one.
+- NGINX returns the effective `X-Request-ID` and forwards it to FastAPI.
+- W3C `traceparent` v00 with nonzero trace/span IDs is propagated; client-controlled `tracestate`
+  is discarded at the public NGINX boundary.
+- `CF-Ray` enters the access log only when it matches the opaque Ray ID format.
+- These headers are correlation metadata, never authentication or audit evidence.
+- Request logs use the normalized route template and never record query strings, bodies, cookies,
+  `Authorization`, full client IPs or SQL parameters.
+
 Every other `/api` route requires cookie or Bearer authentication. `/api/version`, `/api/auth/me`
 and `/api/auth/logout` are protected. In production, FastAPI root, OpenAPI, Swagger and Redoc are
 disabled. The complete executable registry is rendered in

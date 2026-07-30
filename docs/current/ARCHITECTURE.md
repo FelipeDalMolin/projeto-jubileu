@@ -3,7 +3,7 @@
 ## Topologia Oficial
 
 ```text
-Cloudflare -> NGINX -> FastAPI -> PostgreSQL
+Cloudflare -> NGINX -> React SPA + FastAPI /api -> PostgreSQL
 ```
 
 Regras nao negociaveis:
@@ -21,6 +21,21 @@ Regras nao negociaveis:
 - Banco: PostgreSQL em dev/prod.
 - Gateway: NGINX atras do Cloudflare.
 - Release: imagens imutaveis por digest em `compose.release.yml`; sem build ou bind mount.
+
+## Plano De Observabilidade
+
+O plano continuo permanece no runtime do Jubileu: logs JSON rotativos de NGINX/FastAPI,
+health/readiness e reports locais sanitizados. O plano exploratorio e separado:
+
+```text
+FastAPI -- OTLP/HTTP privado --> OTel Collector -- OTLP/HTTP --> Aspire
+```
+
+O SDK fica desligado por default. `compose.otel.yml` conecta somente o backend dev a uma rede
+externa privada criada por `/srv/ops`; Collector e Aspire nao gerenciam nem reiniciam o Jubileu.
+Logs e traces usam templates de rota e identificadores validados, sem payloads funcionais. A
+decisao completa esta em
+[`ADR-0003`](../adr/ADR-0003-observabilidade-minima-e-privacidade.md).
 
 ## Dominio Canonico
 
@@ -67,9 +82,10 @@ O ciclo `v0.3.0` fechou:
 - CI/release gate com seis checks obrigatorios;
 - promocao por digest, migration one-shot, readiness e smoke via NGINX.
 
-O proximo ciclo permitido e `v0.3.1 Stabilization`; nao abrir `v0.4`. Nova dependencia de UI so deve entrar quando a motivacao,
-trade-offs, acessibilidade, manutencao, impacto visual e risco de dependencia estiverem
-explicitos no PR.
+O proximo ciclo permitido e `v0.3.1 Stabilization` (DEV-53); nao abrir `v0.4`. Seu primeiro slice
+de plataforma cobre observabilidade minima, privacidade operacional e reducao de ruido de probes.
+Nova dependencia de UI so deve entrar quando a motivacao, trade-offs, acessibilidade, manutencao,
+impacto visual e risco de dependencia estiverem explicitos no PR.
 
 ## Runtime Promovido v0.3.0
 

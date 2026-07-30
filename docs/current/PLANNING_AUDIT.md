@@ -1,6 +1,7 @@
 # Auditoria De Planejamento
 
-Data da reconciliacao final: 2026-07-23.
+Data do fechamento v0.3.0: 2026-07-23.
+Ultima passagem pos-release local: 2026-07-29.
 
 ## Estado Verificado
 
@@ -31,8 +32,14 @@ Data da reconciliacao final: 2026-07-23.
 - `v0.3.0` reutiliza exatamente o SHA, manifesto e digests do RC5.
 - RC1-RC4 permanecem historicos e nao promoviveis.
 - Restore/downgrade nunca sao automaticos.
-- O proximo trabalho e uma unica issue pai `v0.3.1 Stabilization` em Backlog.
+- O proximo trabalho e a issue pai DEV-53 `v0.3.1 Stabilization`.
 - Nao abrir v0.4 neste encerramento.
+
+O primeiro slice de DEV-53 e a DEV-55, publicada para validacao como draft PR, e cobre
+observabilidade minima e privacidade operacional. A DEV-54 trata separadamente o gate de
+dependencias frontend que bloqueia sua conclusao. O estado e os demais blockers ficam em
+[`DEV53_OBSERVABILITY_CONFORMANCE.md`](DEV53_OBSERVABILITY_CONFORMANCE.md); esta passagem nao
+altera a evidencia encerrada de v0.3.0.
 
 Detalhes auditaveis, checksums nao secretos e resultados exatos ficam em
 `V03_CLOSURE_MATRIX.md`. Dumps, env e credenciais continuam privados.

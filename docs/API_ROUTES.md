@@ -38,7 +38,10 @@ Abra o Network do DevTools e filtre por `Fetch/XHR`.
 
 ## Correlacao de Requests
 
-Requests do frontend devem incluir `X-Request-ID`. O FastAPI tambem gera um id quando o header nao vem e retorna `X-Request-ID` em toda response.
+Requests do frontend devem incluir um UUID opaco em `X-Request-ID`. NGINX/FastAPI geram um novo
+id quando o header nao vem ou nao tem formato UUID/32-hex, e a response devolve o id efetivo.
+Somente `traceparent` W3C v00 com trace/span IDs nao nulos e aceito; `tracestate` controlado pelo
+cliente e descartado no NGINX publico. Esses headers nunca sao usados para auth.
 
 Para rastrear uma request:
 
@@ -48,22 +51,20 @@ Para rastrear uma request:
 4. Procure o mesmo id nos logs do FastAPI.
 5. Se os access logs do NGINX incluirem request id, procure o mesmo id nos logs do NGINX.
 
-Os logs de request do FastAPI incluem:
+Os logs JSON de request do FastAPI incluem:
 
-```text
-request_id=<id> method=<METHOD> path=<PATH> status_code=<STATUS> duration_ms=<MS>
+```json
+{"event":"request_completed","request_id":"...","trace_id":"...","span_id":"...","method":"GET","route":"/api/eventos/{evento_id}","status_code":200,"duration_ms":12.3,"service_version":"...","deployment_environment":"production"}
 ```
 
-Formato recomendado de access log do NGINX, para ser colocado em um contexto `http` quando o logging de producao for configurado:
-
-```nginx
-log_format jubileu_api '$remote_addr "$request" $status '
-                       'request_id="$http_x_request_id" '
-                       'upstream_time="$upstream_response_time" '
-                       'request_time="$request_time"';
-```
-
-A configuracao de servidor NGINX versionada encaminha `X-Request-ID` para o FastAPI em `/health` e `/api/`.
+A configuracao NGINX versionada gera o id quando necessario, encaminha `X-Request-ID` e o
+`traceparent` validado para FastAPI e registra JSON com template normalizado de rota,
+status/upstream, duracoes, bytes,
+request id, `CF-Ray` validado, release e ambiente. Rotas dinamicas conhecidas substituem segmentos por
+`{...}` e qualquer path desconhecido vira `<unmatched>`. Assim o access log nao persiste corpo,
+query string, segmento livre de path, cookie, token, nome ou IP completo.
+Probes 2xx de `/health`, `/api/health`, `/api/ready` e `/nginx-health` sao omitidos; falhas da API
+continuam aparecendo no log estruturado do backend.
 
 ## Comandos Locais
 

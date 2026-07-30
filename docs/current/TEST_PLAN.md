@@ -13,11 +13,11 @@ Os nomes abaixo sao estaveis e bloqueantes em `jubileu-v2`:
 | Check | Evidencia minima |
 |---|---|
 | `Docs sync` | code-map e matriz de autorizacao gerados sem drift. |
-| `Backend unit` | pytest com branch coverage `>=81%`, smoke e contract. |
+| `Backend unit` | dependencias travadas por hashes, pytest com branch coverage `>=81%`, smoke e contract. |
 | `PostgreSQL + Alembic` | banco limpo, `0019 -> head`, `0016 -> head`, segunda execucao de head, integracao e concorrencia sem skips. |
 | `Frontend` | Node 22, `npm ci`, audit de dependencias, lint, build e contrato `/api`. |
 | `Playwright operational` | suite completa pelo NGINX, zero skips, zero flaky e resultado JSON. |
-| `Compose + Shell` | Compose dev/release, bundle, Bash e ShellCheck 0.10.0. |
+| `Compose + Shell` | Compose dev/OTel/release, NGINX, contratos de privacidade ops, bundle, Bash e ShellCheck 0.10.0. |
 
 Relatorios de cobertura, JUnit, Playwright, logs redigidos e matriz de autorizacao sao publicados
 como artifacts. Vercel nao e gate oficial nem runtime suportado.
@@ -77,6 +77,7 @@ node ../../scripts/ci/assert_playwright_results.mjs test-results/results.json
 
 ```bash
 cd backend/jubileu-api-fastapi
+python -m pip install --require-hashes -r requirements.lock
 python -m coverage run --branch -m pytest -q -rs
 python -m coverage report -m --fail-under=81
 python -m pytest -q -m smoke -rs
@@ -100,7 +101,15 @@ npm run check:api-contract
 cd ../..
 python3 scripts/docs/generate_code_map.py --check
 python3 scripts/docs/generate_authorization_matrix.py --check
+python3 -m unittest discover -s ops/tests -p 'test_*.py' -v
+docker compose --env-file .env.dev -f compose.dev.yml -f compose.otel.yml config --quiet
 ```
+
+Os testes de observabilidade protegem a allowlist dos logs, templates fail-closed de rota,
+validacao de identificadores, omissao de probes 2xx e minimizacao/retenção do report. `nginx -t`
+deve ser executado para as configuracoes dev e release. Os jobs backend/PostgreSQL e o build da
+imagem validam `requirements.lock` com `--require-hashes`; um smoke com SDK ativo e Collector
+ausente deve manter `/api/health` em `200`.
 
 ## Release candidate
 
